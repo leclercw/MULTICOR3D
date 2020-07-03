@@ -1,0 +1,8 @@
+#ifndef __HALO__
+#define __HALO__
+
+typedef double R;
+
+void treat_halo(int ** NOHALO, int * NBHALO, R RHALO, int * LIST_H,  int vecsizeh, int vecsizexh, int vecsizeyh, int vecsizezh, vector< vector<int> > & coulh,vector< vector<int> > & numch, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, int NB_SPH);
+
+#endif

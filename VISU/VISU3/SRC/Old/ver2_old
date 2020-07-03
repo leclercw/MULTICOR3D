@@ -1,0 +1,1154 @@
+/********************************************************/
+/*                     3D.c                             */
+/********************************************************/
+/* Visualisation en 3D de système multicontacts         */
+/* Developpé par Fortin                                 */
+/* Modifié le 6/03/05                                   */
+/********************************************************/
+
+/* inclusion des fichiers d'en-tete Glut */
+#include <GL/glut.h>
+#include "gl2ps.h"
+
+#define MAXSPHERE 1000000
+#define MAXELF 100000
+#define MAXPAROI 400
+#define MAX_PATH_LENGTH 1024
+#define LDEBUG 0
+
+/* Prototype des fonctions */
+void affichage();
+void clavier(unsigned char key, int x, int y);
+void processSpecialKeys(int key, int x, int y); 
+void deffic();
+void idle();
+void menu(int choice);
+void multi();
+void reshape(int x,int y);
+void mouse(int bouton,int etat,int x,int y);
+void mousemotion(int x,int y);
+void writefile(int format, int sort, int options, int nbcol,
+               char *filename, char *extension);
+
+/* variables */
+       
+FILE *P_FICHIER; /* pointeur sur FILE */
+char NOM_FICHIER[MAX_PATH_LENGTH];
+char NOM_FEPS[40];
+
+const  double  pi2 = 6.28318530718; 
+static float rotation = -60.;
+static int nbsphere, nbparoi, nbver;
+static float qmaxv, qminv, qmaxh, qminh, qmaxz, qminz;
+static float svmmin,svmmax;
+static float svmminv,svmmaxv;
+float xc[MAXSPHERE],  yc[MAXSPHERE], zc[MAXSPHERE], ray[MAXSPHERE],g,t;
+float coul1[10], coul2[10], coul3[10], vcoulmax[10] ;
+float SVM[MAXSPHERE];
+float vali,tps,maxv,xfx1, xfx2, xfx3, xfx4, yfy1, yfy2, yfy3, yfy4;
+float xmin1,xmin2,xmax1,xmax2,ymin1,ymin2,ymax1,ymax2;
+float qcjx[MAXPAROI], qcjy[MAXPAROI], qcjz[MAXPAROI];
+float qckx[MAXPAROI], qcky[MAXPAROI], qckz[MAXPAROI];
+float qclx[MAXPAROI], qcly[MAXPAROI], qclz[MAXPAROI];
+float qcmx[MAXPAROI], qcmy[MAXPAROI], qcmz[MAXPAROI];
+float xcf[MAXELF][4], ycf[MAXELF][4], zcf[MAXELF][4], VONMISV[MAXELF];
+
+static GLsizei window_w = 0; 
+static GLsizei window_h = 0;
+static int nfeps = 1 ;
+static int incr = 0 ;
+char nfeps_str[10];
+static int lanime = 0 ;
+
+float X_TOT;
+float Y_TOT;
+float Z_TOT;
+
+static float pcut=0.;
+float theta_eye;
+float phi_eye;
+float rayon;
+float x_eye;
+float y_eye;
+float z_eye;
+int x_g;
+int x_d;
+int y_g;
+int y_d;
+int click_g;
+int click_d;
+
+char presse;
+int anglex,angley,x,y,xold,yold,ntype,ind;
+
+
+int main ( int argc, char **argv ) 
+{  
+  /* Ouverture fichier */
+  deffic();
+
+  /* initialisation de glut et creation
+     de la fenetre */
+  glutInit(&argc, argv);  
+  glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH);  
+  glutInitWindowPosition(100,100);
+  window_w = 900; 
+  window_h = 900;
+  glutInitWindowSize(window_w,window_h);
+  glutCreateWindow("Visualisation multicor");
+
+  /* Initialisation d'OpenGL */
+  glClearColor(1,1,1,1);
+//  glPointSize(4.0);
+  glEnable(GL_DEPTH_TEST);
+ 
+  // Parametres "joystick" 
+	x_eye = -1.15*Z_TOT;
+	y_eye = 0.;
+	z_eye = 0.; 
+
+	x_g=window_w/2;
+	y_g=window_h/2;
+	x_d=window_w/2;
+	y_d=window_h/2;
+	rayon=1.15*Z_TOT; 
+	theta_eye  = atan2(y_eye,x_eye);
+	phi_eye= acos((z_eye)/(rayon));	
+	        
+  /* enregistrement des fonctions de rappel */
+  glutCreateMenu(menu);
+  glutAddMenuEntry("[a] Stoppe animation", 1);
+  glutAddMenuEntry("[r] Demarrer animation", 2);
+  glutAddMenuEntry("[s] Pas a pas", 3);
+  glutAddMenuEntry("[p] Postscript ou PDF", 4);
+  glutAddMenuEntry("[v] Postscript", 5);
+  glutAddMenuEntry("[q] Quit", 6);
+  glutAttachMenu(GLUT_RIGHT_BUTTON);
+   
+  glutDisplayFunc(affichage);
+ 
+  glutKeyboardFunc(clavier);
+  glutSpecialFunc(processSpecialKeys);
+  glutIdleFunc(idle);
+  glutReshapeFunc(reshape);
+  glutMouseFunc(mouse); 
+  glutMotionFunc(mousemotion);
+    
+    /* Entree dans la boucle principale glut */
+  glutMainLoop();
+  return(0) ;
+}  
+
+void processSpecialKeys(int key, int x, int y) {
+  
+        switch(key){
+        case GLUT_KEY_LEFT: {
+
+	// translation //Y <0 si touche v
+        y_eye+=0.1*Y_TOT;	
+
+	rayon    = sqrt(x_eye*x_eye+y_eye*y_eye+z_eye*z_eye);
+	theta_eye  = atan2(y_eye,x_eye);
+	phi_eye= acos((z_eye)/(rayon));	
+//	printf( "theta,phi : %f %f\n" ,theta_eye,phi_eye);
+	break;	  
+	}
+        case GLUT_KEY_RIGHT : {
+
+	// translation //Y >0 si touche ^
+        y_eye-=0.1*Y_TOT;	
+
+	rayon    = sqrt(x_eye*x_eye+y_eye*y_eye+z_eye*z_eye);
+	theta_eye  = atan2(y_eye,x_eye);
+	phi_eye= acos((z_eye)/(rayon));	
+//	printf( "theta,phi : %f %f\n" ,theta_eye,phi_eye);	
+	break;	  
+	}	
+        case GLUT_KEY_DOWN : {
+        z_eye-=0.1*Z_TOT;
+
+	rayon    = sqrt(x_eye*x_eye+y_eye*y_eye+z_eye*z_eye);
+	theta_eye  = atan2(y_eye,x_eye);
+	phi_eye= acos((z_eye)/(rayon));	
+//	printf( "theta,phi : %f %f\n" ,theta_eye,phi_eye);
+	break;	  
+	}	
+        case GLUT_KEY_UP : {
+        z_eye+=0.1*Z_TOT; 	
+
+	rayon    = sqrt(x_eye*x_eye+y_eye*y_eye+z_eye*z_eye);
+	theta_eye  = atan2(y_eye,x_eye);
+	phi_eye= acos((z_eye)/(rayon));	
+//	printf( "theta,phi : %f %f\n" ,theta_eye,phi_eye);
+	break;	  
+	}	
+	}
+}
+void setup_illumination(){
+  // Intialise and set lighting parameters
+  GLfloat light_pos[] = {0.,0.,0., 1.};
+  GLfloat light_ka[] = {0., 1., 1., 1.};
+  GLfloat light_kd[] = {0., 1., 1., 1.};
+  GLfloat light_ks[] = {0., 1., 1., 1.};
+  
+  glLightfv(GL_LIGHT0, GL_POSITION, light_pos);
+  glLightfv(GL_LIGHT0, GL_AMBIENT,  light_ka);
+  glLightfv(GL_LIGHT0, GL_DIFFUSE,  light_kd);
+  glLightfv(GL_LIGHT0, GL_SPECULAR, light_ks);
+
+  
+  // Initialise and set material parameters
+  GLfloat material_ka[] = {1.0, 1.0, 1.0, 1.0};
+  GLfloat material_kd[] = {0.43, 0.47, 0.54, 1.0};
+  GLfloat material_ks[] = {0.33, 0.33, 0.52, 1.0};
+  GLfloat material_ke[] = {0.0, 0.0, 0.0, 0.0};
+  GLfloat material_se[] = {10.0};
+
+  glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT,  material_ka);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE,  material_kd);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR,  material_ks);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION,  material_ke);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, material_se);
+  
+// Smooth shading
+glShadeModel(GL_SMOOTH);
+
+//Enable lighting
+glEnable (GL_LIGHTING);
+glEnable (GL_LIGHT0);
+
+}
+	       
+void affichage(){
+
+float x,y,z;
+  
+glClear
+(
+GL_COLOR_BUFFER_BIT |
+GL_DEPTH_BUFFER_BIT
+); 	//Efface le frame buffer et le Z-buffer
+glMatrixMode(GL_MODELVIEW); 	//Choisit la matrice MODELVIEW
+glLoadIdentity(); 	//Réinitialise la matrice
+gluLookAt(x_eye,y_eye,z_eye,0.,0.,0.,0,0,1);
+int i,j,k,l;
+i=0;
+j=0;
+k=0;
+   
+  glColor3f(0.,0.,0.);  
+    
+  /* Draw paroi */
+  /*for (i=1;i<=nbparoi;i++ ) 
+  { 
+  
+    //if (LDEBUG) printf( "qc :%i %f %f %f %f %f %f %f %f %f %f %f %f\n" ,i, qcjx[i], qcjy[i], qcjz[i], 
+    //                                                                       qckx[i], qcky[i], qckz[i], 
+    //                                                                       qclx[i], qcly[i], qclz[i],
+    //                                                                       qcmx[i], qcmy[i], qcmz[i]);
+    glBegin(GL_LINE_LOOP);
+    x = qcjx[i]-X_TOT/2. ;
+    y = qcjy[i]-Y_TOT/2.  ;
+    z = qcjz[i]-Z_TOT/2. ;
+    glVertex3f(x,y,z);
+    x = qckx[i]-X_TOT/2.  ;
+    y = qcky[i]-Y_TOT/2. ;
+    z = qckz[i]-Z_TOT/2. ;
+    glVertex3f(x,y,z);
+    x = qclx[i]-X_TOT/2.  ;
+    y = qcly[i]-Y_TOT/2. ;
+    z = qclz[i]-Z_TOT/2. ;
+    glVertex3f(x,y,z);
+    x = qcmx[i]-X_TOT/2.  ;
+    y = qcmy[i]-Y_TOT/2. ;
+    z = qcmz[i]-Z_TOT/2. ;
+    glVertex3f(x,y,z);
+    glEnd();
+  }*/
+
+if(ntype==2){
+     maxv = (svmmaxv-svmminv) ;
+ 
+	  for (i=1;i<=nbver;i++ )
+	  {
+		  
+		vali=0. ; 
+		if((svmmaxv-svmminv)>1.e-12)
+		{
+		vali=(svmmaxv-VONMISV[i])/maxv ;
+		}
+			
+	//	glColor3f(coul3[ind],coul2[ind],coul1[ind]);
+
+		  // Intialise and set lighting parameters
+		  GLfloat light_pos[] = {0.,0.,0., 1.};
+		  GLfloat light_ka[]  = {1.,vali,0., 1.};
+		  GLfloat light_kd[]  = {1.,vali,0., 1.};
+		  GLfloat light_ks[]  = {1.,vali,0., 1.};
+		  
+		  glLightfv(GL_LIGHT0, GL_POSITION, light_pos);
+		  glLightfv(GL_LIGHT0, GL_AMBIENT,  light_ka);
+		  glLightfv(GL_LIGHT0, GL_DIFFUSE,  light_kd);
+		  glLightfv(GL_LIGHT0, GL_SPECULAR, light_ks);
+
+		  
+		  // Initialise and set material parameters
+		  GLfloat material_ka[] = {1.0, 1.0, 1.0, 1.0};
+		  GLfloat material_kd[] = {0.43, 0.47, 0.54, 1.0};
+		  GLfloat material_ks[] = {0.33, 0.33, 0.52, 1.0};
+		  GLfloat material_ke[] = {0.0, 0.0, 0.0, 0.0};
+		  GLfloat material_se[] = {10.0};
+
+		  glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT,  material_ka);
+		  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE,  material_kd);
+		  glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR,  material_ks);
+		  glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION,  material_ke);
+		  glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, material_se);
+		  
+		// Smooth shading
+		glShadeModel(GL_SMOOTH);
+
+		//Enable lighting
+		glEnable (GL_LIGHTING);
+		glEnable (GL_LIGHT0);
+
+if(vali<2){
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glEnable(GL_POLYGON_OFFSET_FILL);
+	glPolygonOffset(1.0f, 1.0f);
+
+		glBegin(GL_TRIANGLES);
+			glColor3f(1.,vali,0.);
+			glVertex3f(xcf[i][0]-X_TOT/2.,ycf[i][0]-Y_TOT/2.,zcf[i][0]-Z_TOT/2.);
+			glVertex3f(xcf[i][1]-X_TOT/2.,ycf[i][1]-Y_TOT/2.,zcf[i][1]-Z_TOT/2.);
+			glVertex3f(xcf[i][2]-X_TOT/2.,ycf[i][2]-Y_TOT/2.,zcf[i][2]-Z_TOT/2.);
+
+			glColor3f(1.,vali,0.);
+			glVertex3f(xcf[i][0]-X_TOT/2.,ycf[i][0]-Y_TOT/2.,zcf[i][0]-Z_TOT/2.);
+			glVertex3f(xcf[i][1]-X_TOT/2.,ycf[i][1]-Y_TOT/2.,zcf[i][1]-Z_TOT/2.);
+			glVertex3f(xcf[i][3]-X_TOT/2.,ycf[i][3]-Y_TOT/2.,zcf[i][3]-Z_TOT/2.);
+						
+			glColor3f(1.,vali,0.);
+			glVertex3f(xcf[i][0]-X_TOT/2.,ycf[i][0]-Y_TOT/2.,zcf[i][0]-Z_TOT/2.);
+			glVertex3f(xcf[i][2]-X_TOT/2.,ycf[i][2]-Y_TOT/2.,zcf[i][2]-Z_TOT/2.);
+			glVertex3f(xcf[i][3]-X_TOT/2.,ycf[i][3]-Y_TOT/2.,zcf[i][3]-Z_TOT/2.);
+			
+			glColor3f(1.,vali,0.);
+			glVertex3f(xcf[i][1]-X_TOT/2.,ycf[i][1]-Y_TOT/2.,zcf[i][1]-Z_TOT/2.);
+			glVertex3f(xcf[i][2]-X_TOT/2.,ycf[i][2]-Y_TOT/2.,zcf[i][2]-Z_TOT/2.);
+			glVertex3f(xcf[i][3]-X_TOT/2.,ycf[i][3]-Y_TOT/2.,zcf[i][3]-Z_TOT/2.);		
+									
+		glEnd();
+		glDisable(GL_POLYGON_OFFSET_FILL);
+	 }
+
+		//Disable lighting
+		glDisable (GL_LIGHTING);
+		glDisable (GL_LIGHT0);	
+			 
+		/*    glLineWidth(2.0);
+			glBegin(GL_LINES);
+			glColor3f(0.,0.,0.);
+			glVertex3f(xcf[i][0]-X_TOT/2.,ycf[i][0]-Y_TOT/2.,zcf[i][0]-Z_TOT/2.);
+			glVertex3f(xcf[i][1]-X_TOT/2.,ycf[i][1]-Y_TOT/2.,zcf[i][1]-Z_TOT/2.);
+			glEnd();
+			
+			glLineWidth(2.0);
+			glBegin(GL_LINES);
+			glColor3f(0.,0.,0.);
+			glVertex3f(xcf[i][0]-X_TOT/2.,ycf[i][0]-Y_TOT/2.,zcf[i][0]-Z_TOT/2.);
+			glVertex3f(xcf[i][2]-X_TOT/2.,ycf[i][2]-Y_TOT/2.,zcf[i][2]-Z_TOT/2.);
+			glEnd();		
+			
+			glLineWidth(2.0);
+			glBegin(GL_LINES);
+			glColor3f(0.,0.,0.);
+			glVertex3f(xcf[i][0]-X_TOT/2.,ycf[i][0]-Y_TOT/2.,zcf[i][0]-Z_TOT/2.);
+			glVertex3f(xcf[i][3]-X_TOT/2.,ycf[i][3]-Y_TOT/2.,zcf[i][3]-Z_TOT/2.);
+			glEnd();				
+			
+			glLineWidth(2.0);
+			glBegin(GL_LINES);
+			glColor3f(0.,0.,0.);
+			glVertex3f(xcf[i][1]-X_TOT/2.,ycf[i][1]-Y_TOT/2.,zcf[i][1]-Z_TOT/2.);
+			glVertex3f(xcf[i][2]-X_TOT/2.,ycf[i][2]-Y_TOT/2.,zcf[i][2]-Z_TOT/2.);
+			glEnd();		
+			
+			glLineWidth(2.0);
+			glBegin(GL_LINES);
+			glColor3f(0.,0.,0.);
+			glVertex3f(xcf[i][1]-X_TOT/2.,ycf[i][1]-Y_TOT/2.,zcf[i][1]-Z_TOT/2.);
+			glVertex3f(xcf[i][3]-X_TOT/2.,ycf[i][3]-Y_TOT/2.,zcf[i][3]-Z_TOT/2.);
+			glEnd();		
+			
+			glLineWidth(2.0);
+			glBegin(GL_LINES);
+			glColor3f(0.,0.,0.);
+			glVertex3f(xcf[i][2]-X_TOT/2.,ycf[i][2]-Y_TOT/2.,zcf[i][2]-Z_TOT/2.);
+			glVertex3f(xcf[i][3]-X_TOT/2.,ycf[i][3]-Y_TOT/2.,zcf[i][3]-Z_TOT/2.);
+			glEnd();	*/					
+	
+	
+	  
+      }
+
+	double coordx, coordy, deltax, deltay ;
+    deltax = window_w/25. ; deltay = window_h/300. ;
+    coordx = 4.4*window_w/5.; coordy = 0.56*window_h ;
+    
+			  glMatrixMode(GL_PROJECTION);
+			  glPushMatrix();
+			  glLoadIdentity();
+			  gluOrtho2D(0.0, window_w, 0.0, window_h);
+			  glMatrixMode(GL_MODELVIEW);
+			  glPushMatrix();
+			  glLoadIdentity();
+
+			for (k=1;k<=100;k++ ) 
+			{
+			glColor3f(1.,1.-k/100.,0.) ;
+			x=coordx ;
+			y=coordy + (k-1)*deltay ;
+			xfx2=x+deltax ;
+			yfy2=y ;
+			xfx3=xfx2 ;
+			yfy3=y+deltay ;
+			xfx4=x ;
+			yfy4=yfy3 ;
+			glPolygonMode(GL_FRONT, GL_FILL);
+			glBegin(GL_POLYGON);
+			glVertex2f (x, y) ;
+			glVertex2f (xfx2, yfy2) ;
+			glVertex2f (xfx3, yfy3) ;
+			glVertex2f (xfx4, yfy4) ;
+			glVertex2f (x, y) ;
+			glEnd();
+		    }
+			
+			glColor3f(0.0f,0.0f,0.0f);
+			float fVal ;
+			fVal = svmminv;
+			char cVal[32] ;
+			sprintf(cVal,"%.2E",fVal) ;
+			cVal[9]='\0'  ;
+			glRasterPos2f(coordx+deltax+deltax/6., coordy);
+			gl2psText(cVal, "Helvetica", 24);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[0]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[1]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[2]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[3]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[4]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[5]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[6]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[7]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[8]);
+
+            glColor3f(0.0f,0.0f,0.0f);
+			fVal = svmmaxv;
+			sprintf(cVal,"%.2E",fVal) ;
+			cVal[9]='\0'  ;
+			glRasterPos2f(coordx+deltax+deltax/6., coordy+95.*deltay);
+			gl2psText(cVal, "Helvetica", 24);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[0]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[1]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[2]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[3]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[4]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[5]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[6]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[7]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[8]);
+		
+			xmin1=coordx ;
+			ymin1=coordy ;
+
+			xmin2=coordx+deltax ;
+			ymin2=coordy ;
+
+			xmax1=coordx+deltax ;
+			ymax1=ymin1+100.*deltay ;
+
+			xmax2=coordx ;
+			ymax2=ymax1 ;
+
+			glLineWidth(2.0);
+			glColor3f(0.0f,0.0f,0.0f);
+			glBegin(GL_LINES); 
+			glVertex2f(xmin1,ymin1) ;
+			glVertex2f(xmin2,ymin2) ;
+			glVertex2f(xmin2,ymin2) ;
+			glVertex2f(xmax1,ymax1) ;
+			glVertex2f(xmax1,ymax1) ;
+			glVertex2f(xmax2,ymax2) ;
+			glVertex2f(xmax2,ymax2) ;
+			glVertex2f(xmin1,ymin1) ;
+			glEnd();
+    
+    	  
+	  
+	  glRasterPos2f(4.8*coordx/5., 0.928*window_h);
+			
+		char *unite = "Contraintes VMises (Mpa)";
+			glColor3f(0.f,0.f,0.f) ;
+			
+			gl2psText(unite, "Helvetica", 36);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'C');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'o');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'n');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'t'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'r'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'V'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'M');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'i');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'s'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'e');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'s');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'('); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'M'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'P'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'a'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,')');	
+
+  glMatrixMode(GL_MODELVIEW);
+  glPopMatrix();
+  glMatrixMode(GL_PROJECTION);
+  glPopMatrix();
+
+  glFlush();
+  glutSwapBuffers();
+
+
+
+
+
+  }   
+else if(ntype==1){
+     maxv = (svmmax-svmmin) ;
+ 
+	  for (i=1;i<=nbsphere;i++ )
+	  {
+		  
+		vali=0. ; 
+		if((svmmax-svmmin)>1.e-12)
+		{
+		vali=(svmmax-SVM[i])/maxv ;
+		}
+
+		
+	//	glColor3f(coul3[ind],coul2[ind],coul1[ind]);
+
+		  // Intialise and set lighting parameters
+		  GLfloat light_pos[] = {0.,0.,0., 1.};
+		  GLfloat light_ka[] = {1.,vali,0., 1.};
+		  GLfloat light_kd[] = {1.,vali,0., 1.};
+		  GLfloat light_ks[] = {1.,vali,0., 1.};
+		  
+		  glLightfv(GL_LIGHT0, GL_POSITION, light_pos);
+		  glLightfv(GL_LIGHT0, GL_AMBIENT,  light_ka);
+		  glLightfv(GL_LIGHT0, GL_DIFFUSE,  light_kd);
+		  glLightfv(GL_LIGHT0, GL_SPECULAR, light_ks);
+
+		  
+		  // Initialise and set material parameters
+		  GLfloat material_ka[] = {1.0, 1.0, 1.0, 1.0};
+		  GLfloat material_kd[] = {0.43, 0.47, 0.54, 1.0};
+		  GLfloat material_ks[] = {0.33, 0.33, 0.52, 1.0};
+		  GLfloat material_ke[] = {0.0, 0.0, 0.0, 0.0};
+		  GLfloat material_se[] = {10.0};
+
+		  glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT,  material_ka);
+		  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE,  material_kd);
+		  glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR,  material_ks);
+		  glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION,  material_ke);
+		  glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, material_se);
+		  
+		// Smooth shading
+		glShadeModel(GL_SMOOTH);
+
+		//Enable lighting
+		glEnable (GL_LIGHTING);
+		glEnable (GL_LIGHT0);
+
+		  
+		glPushMatrix();
+		glTranslated((xc[i]-X_TOT/2.),(yc[i]-Y_TOT/2.),(zc[i]-Z_TOT/2.));
+		glutSolidSphere(ray[i],50,50);
+		glPopMatrix();	
+		
+		//Disable lighting
+		glDisable (GL_LIGHTING);
+		glDisable (GL_LIGHT0);		  
+      }
+
+	double coordx, coordy, deltax, deltay ;
+    deltax = window_w/25. ; deltay = window_h/300. ;
+    coordx = 4.4*window_w/5.; coordy = 0.56*window_h ;
+    
+			  glMatrixMode(GL_PROJECTION);
+			  glPushMatrix();
+			  glLoadIdentity();
+			  gluOrtho2D(0.0, window_w, 0.0, window_w);
+			  glMatrixMode(GL_MODELVIEW);
+			  glPushMatrix();
+			  glLoadIdentity();
+
+			for (k=1;k<=100;k++ ) 
+			{
+			glColor3f(1.,1.-k/100.,0.) ;
+			x=coordx ;
+			y=coordy + (k-1)*deltay ;
+			xfx2=x+deltax ;
+			yfy2=y ;
+			xfx3=xfx2 ;
+			yfy3=y+deltay ;
+			xfx4=x ;
+			yfy4=yfy3 ;
+			glPolygonMode(GL_FRONT, GL_FILL);
+			glBegin(GL_POLYGON);
+			glVertex2f (x, y) ;
+			glVertex2f (xfx2, yfy2) ;
+			glVertex2f (xfx3, yfy3) ;
+			glVertex2f (xfx4, yfy4) ;
+			glVertex2f (x, y) ;
+			glEnd();
+		    }
+			
+			glColor3f(0.0f,0.0f,0.0f);
+			float fVal ;
+			fVal = svmmin;
+			char cVal[32] ;
+			sprintf(cVal,"%.2E",fVal) ;
+			cVal[9]='\0'  ;
+			glRasterPos2f(coordx+deltax+deltax/6., coordy);
+			gl2psText(cVal, "Helvetica", 24);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[0]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[1]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[2]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[3]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[4]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[5]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[6]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[7]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[8]);
+
+            glColor3f(0.0f,0.0f,0.0f);
+			fVal = svmmaxv;
+			sprintf(cVal,"%.2E",fVal) ;
+			cVal[9]='\0'  ;
+			glRasterPos2f(coordx+deltax+deltax/6., coordy+95.*deltay);
+			gl2psText(cVal, "Helvetica", 24);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[0]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[1]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[2]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[3]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[4]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[5]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[6]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[7]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[8]);
+		
+			xmin1=coordx ;
+			ymin1=coordy ;
+
+			xmin2=coordx+deltax ;
+			ymin2=coordy ;
+
+			xmax1=coordx+deltax ;
+			ymax1=ymin1+100.*deltay ;
+
+			xmax2=coordx ;
+			ymax2=ymax1 ;
+
+			glLineWidth(2.0);
+			glColor3f(0.0f,0.0f,0.0f);
+			glBegin(GL_LINES); 
+			glVertex2f(xmin1,ymin1) ;
+			glVertex2f(xmin2,ymin2) ;
+			glVertex2f(xmin2,ymin2) ;
+			glVertex2f(xmax1,ymax1) ;
+			glVertex2f(xmax1,ymax1) ;
+			glVertex2f(xmax2,ymax2) ;
+			glVertex2f(xmax2,ymax2) ;
+			glVertex2f(xmin1,ymin1) ;
+			glEnd();
+    
+    	  
+	  
+	  glRasterPos2f(4.8*coordx/5., 0.928*window_h);
+			
+		char *unite = "Contraintes VMises (Mpa)";
+			glColor3f(0.f,0.f,0.f) ;
+			
+			gl2psText(unite, "Helvetica", 36);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'C');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'o');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'n');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'t'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'r'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'V'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'M');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'i');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'s'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'e');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'s');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'('); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'M'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'P'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'a'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,')');	
+
+  glMatrixMode(GL_MODELVIEW);
+  glPopMatrix();
+  glMatrixMode(GL_PROJECTION);
+  glPopMatrix();
+
+  glFlush();
+  glutSwapBuffers();
+
+
+
+
+
+  }
+  else if(ntype==0){ 
+  
+  setup_illumination();
+   
+	/* Draw sphere */
+	  
+	for (i=1;i<=100;i++ )
+	{
+	  glPushMatrix();
+	  glTranslated((xc[i]-X_TOT/2.),(yc[i]-Y_TOT/2.),(zc[i]-Z_TOT/2.));
+	  glutSolidSphere(ray[i],50,50);
+	  glPopMatrix();
+	}
+
+	//Disable lighting
+	glDisable (GL_LIGHTING);
+	glDisable (GL_LIGHT0);	
+
+  }
+ 
+
+
+  /* On echange les buffers */
+  glutSwapBuffers();
+  if (lanime) multi( ) ; 
+}
+
+void clavier(unsigned char key, int x, int y){
+
+  int opt;
+  char *ext;
+  static int format = GL2PS_EPS;
+  switch(key){
+  case 'a':
+    glutSetWindowTitle("Animation stoppe");
+    lanime = 0 ;
+    glutIdleFunc(NULL);
+    break;
+  case 'C': {
+     pcut=pcut+0.1;
+     if(pcut>3.) {pcut=3.;}	
+     else{/*x_eye+=0.0001*X_TOT;
+     	rayon    = sqrt(x_eye*x_eye+y_eye*y_eye+z_eye*z_eye);
+	theta_eye  = atan2(y_eye,x_eye);
+	phi_eye= acos((z_eye)/(rayon));	*/
+     }
+     printf("\n New cut ... %f\n",pcut) ;
+     glutReshapeWindow(window_w,window_h);
+     break; }
+  case 'c': { 
+     pcut=pcut-0.1;
+     if(pcut<0.) {pcut=0.;}
+     else{/*x_eye-=0.3*X_TOT;
+     	rayon    = sqrt(x_eye*x_eye+y_eye*y_eye+z_eye*z_eye);
+	theta_eye  = atan2(y_eye,x_eye);
+	phi_eye= acos((z_eye)/(rayon));	*/}
+     
+     printf("\n New cut ... %f\n",pcut) ;
+     glutReshapeWindow(window_w,window_h);
+     break; }       
+  case 'r':
+    printf("\n On redemarre l'animation...\n") ;
+    lanime = 1 ;
+    glutSetWindowTitle("Animation redemarre");
+    glutIdleFunc(idle);
+    break;
+  case 's':
+    printf("\n Pas a pas ... %i %f\n",incr, tps) ;
+    lanime = 0 ;
+    multi() ;
+    glutSetWindowTitle("Pas a pas");
+    glutPostRedisplay();
+    break;
+  case 'p':
+    format = (format == GL2PS_EPS) ? GL2PS_PDF : GL2PS_EPS;
+    printf("Print format changed to '%s'\n",
+           (format == GL2PS_EPS) ? "EPS" : "PDF");
+    break;  
+  case 'v':
+    opt = GL2PS_OCCLUSION_CULL | GL2PS_DRAW_BACKGROUND;
+    ext = (format == GL2PS_EPS) ? "eps" : "pdf";
+    strcpy(NOM_FEPS, "/home/leclercw/MULTICOR3D_BETA/IMAGE");
+    strcat(NOM_FEPS, "_visu");
+    sprintf(nfeps_str,"%d",nfeps);
+    strcat(NOM_FEPS, nfeps_str);
+    /*writefile(format, GL2PS_SIMPLE_SORT, opt, 0, "outSimpleCulled", ext);*/
+    writefile(format, GL2PS_SIMPLE_SORT, opt, 0, NOM_FEPS, ext);
+
+    printf("GL2PS %d.%d.%d done with all images\n",
+           GL2PS_MAJOR_VERSION, GL2PS_MINOR_VERSION, GL2PS_PATCH_VERSION);
+    nfeps++;	   	   
+    break;  
+  case 27: {
+	// sortie si touche ESC
+	exit(0);break; }
+  case 32: {
+	// remise à 0 si space
+
+	x_eye = -1.15*X_TOT;
+	y_eye = 0.;
+	z_eye = 0.; 
+	x_g=window_w/2;
+	y_g=window_h/2;
+	x_d=window_w/2;
+	y_d=window_h/2;
+	rayon=1.15*X_TOT; 
+	theta_eye  = atan2(y_eye,x_eye);
+	phi_eye= acos((z_eye)/(rayon));	
+//	printf( "theta, phi : %f %f \n" , theta_eye, phi_eye);	
+	break;
+	}
+	case 81 : { //Q
+	// translation //z <0 
+        x_eye-=0.1*X_TOT;	
+
+	rayon    = sqrt(x_eye*x_eye+y_eye*y_eye+z_eye*z_eye);
+	theta_eye  = atan2(y_eye,x_eye);
+	phi_eye= acos((z_eye)/(rayon));	
+//	printf( "theta, phi : %f %f \n" , theta_eye, phi_eye);	
+	break;	  
+	}
+	case 113 : { //q
+	// translation //z >0 
+        x_eye+=0.1*X_TOT;	
+
+	rayon    = sqrt(x_eye*x_eye+y_eye*y_eye+z_eye*z_eye);
+	theta_eye  = atan2(y_eye,x_eye);
+	phi_eye= acos((z_eye)/(rayon));	
+//	printf( "theta, phi : %f %f \n" , theta_eye, phi_eye);	
+	break;	  
+	}    
+  }
+
+}
+
+void deffic(){
+
+int i ;
+/* Première partie : Creer et remplir le fichier */
+
+  printf("\n VISU deplac     num = 0  &  NOM fichier = vdepl ")  ;
+  printf("\n VISU Mises_iso  num = 1  &  NOM fichier = vcontr ") ;
+  printf("\n VISU Mises_iso  num = 2  &  NOM fichier = vcontrv ") ;
+  printf("\n Entrez le num VISU :");
+  scanf("%d", &ntype);
+  printf("\n Entrez le nom du fichier à lire : ");
+  scanf("%s", NOM_FICHIER);
+  P_FICHIER = fopen(NOM_FICHIER, "r");  /* read */
+
+  if (!P_FICHIER) 
+    {
+     printf("Impossible d'ouvrir le fichier\n");
+     exit(-1);
+    }  
+  else
+  {
+    fscanf(P_FICHIER, "%f %f %f %f %f %f\n", &qmaxv,&qminv,&qmaxh,&qminh,&qmaxz,&qminz);
+    if (LDEBUG) printf("%f %f %f %f %f %f %f\n",
+    qmaxv,qminv,qmaxh,qminh,qmaxz,qminz);
+    Z_TOT=abs(qmaxz-qminz);
+    Y_TOT=abs(qmaxv-qminv);
+    X_TOT=abs(qmaxh-qminh);
+  }
+/* Deuxieme partie :  appel de la fonction multi */
+  
+  multi() ;
+}
+
+
+void idle(){
+glutPostRedisplay();
+}
+
+
+void menu(int choice){
+
+  int opt;
+  char *ext;
+  static int format = GL2PS_EPS;
+  
+  switch (choice) {
+  case 1:
+    printf("\n On stoppe l'animation...\n") ;
+    lanime = 0 ;
+    glutSetWindowTitle("Animation stoppe");
+    glutIdleFunc(NULL);
+    break;
+  case 2:
+    printf("\n On demarre l'animation...\n") ;
+    lanime = 1 ;
+    glutSetWindowTitle("Animation demarre");
+    glutIdleFunc(idle);
+    break;
+  case 3:
+    printf("\n Pas a pas ... %i %f\n",incr, tps) ;
+    glutSetWindowTitle("Pas a pas");
+    lanime = 0 ;
+    multi() ;
+    glutPostRedisplay();
+    break;
+  case 4:
+    format = (format == GL2PS_EPS) ? GL2PS_PDF : GL2PS_EPS;
+    printf("Print format changed to '%s'\n",
+           (format == GL2PS_EPS) ? "EPS" : "PDF");
+    break;    
+  case 5:
+    opt = GL2PS_OCCLUSION_CULL | GL2PS_DRAW_BACKGROUND;
+    ext = (format == GL2PS_EPS) ? "eps" : "pdf";
+    /* strcpy(NOM_FEPS, "/home/sanni/recherche/graphique/laser");*/
+    strcpy(NOM_FEPS, "/home/kbourbat/MULTI3D/IMAGE");
+    strcat(NOM_FEPS, "_visu");
+    sprintf(nfeps_str,"%d",nfeps);
+    strcat(NOM_FEPS, nfeps_str);
+    /*writefile(format, GL2PS_SIMPLE_SORT, opt, 0, "outSimpleCulled", ext);*/
+    writefile(format, GL2PS_SIMPLE_SORT, opt, 0, NOM_FEPS, ext);
+
+    printf("GL2PS %d.%d.%d done with all images\n",
+           GL2PS_MAJOR_VERSION, GL2PS_MINOR_VERSION, GL2PS_PATCH_VERSION);
+    nfeps++;
+    break;
+  case 6:
+    printf("\n On sort...\n") ;
+    exit(1);
+    break;
+  }
+
+}
+
+
+void multi(){
+
+int i,ok ;
+
+  incr++ ;
+  if (!feof(P_FICHIER)) 
+  {
+ 
+
+ // if (LDEBUG)printf("nb : %i %i \n", nbsphere, nbparoi);
+
+/*
+  for (i=1;i<=nbparoi;i++)
+     {
+      fscanf(P_FICHIER, "%f %f %f %f %f %f %f %f %f %f %f %f\n", &qcjx[i], &qcjy[i], &qcjz[i],
+                                                                 &qckx[i], &qcky[i], &qckz[i],
+                                                                 &qclx[i], &qcly[i], &qclz[i],
+                                                                 &qcmx[i], &qcmy[i], &qcmz[i]);
+                                                                 
+    if (LDEBUG) printf( "qc : %f %f %f %f %f %f %f %f %f %f %f %f\n" , qcjx[i], qcjy[i], qcjz[i],
+                                                                       qckx[i], qcky[i], qckz[i],
+                                                                       qclx[i], qcly[i], qclz[i],
+                                                                       qcmx[i], qcmy[i], qcmz[i]); 
+     }*/
+
+
+
+     if (ntype==0){
+	 fscanf(P_FICHIER, "%i %i %f \n", &nbsphere, &nbparoi, &tps);
+
+     for (i=1;i<=nbsphere;i++)
+     {
+      fscanf(P_FICHIER, "%f %f %f %f\n", &xc[i], &yc[i], &zc[i], &ray[i]);
+   //   if (LDEBUG) printf( "xc, yc, zc, ray : %f %f %f %f\n" , xc[i], yc[i], zc[i], ray[i]);
+     }
+     
+     }
+     else if (ntype==1){
+     fscanf(P_FICHIER, "%i %i %f \n", &nbsphere, &nbparoi, &tps);	
+
+     for (i=1;i<=nbsphere;i++)
+     {
+     fscanf(P_FICHIER, "%f %f %f %f %f\n", &xc[i], &yc[i], &zc[i], &ray[i], &SVM[i]);
+   //   if (LDEBUG) printf( "xc, yc, zc, ray, svm : %f %f %f %f %f\n" , xc[i], yc[i], zc[i], ray[i], SVM[i]);
+     }
+     
+     fscanf(P_FICHIER, "%f %f\n", &svmmax,&svmmin);
+      printf("\n incr ... %i\n",incr) ;     
+     
+     }    
+     else if (ntype==2){
+     fscanf(P_FICHIER, "%i %f \n", &nbver, &tps);	
+		 
+     for (i=1;i<=nbver;i++)
+     {
+      fscanf(P_FICHIER, "%f %f %f %f %f %f %f %f %f %f %f %f %f \n", &xcf[i][0], &ycf[i][0], &zcf[i][0], &xcf[i][1], &ycf[i][1], &zcf[i][1], &xcf[i][2], &ycf[i][2], &zcf[i][2], &xcf[i][3], &ycf[i][3], &zcf[i][3], &VONMISV[i]);
+     }
+      
+     fscanf(P_FICHIER, "%f %f\n", &svmmaxv,&svmminv);
+      
+     }
+     
+     
+           
+ // if (LDEBUG) printf("\nNext pas \n");
+  
+  } 
+  else
+  {
+  //  if (LDEBUG) printf("\nfichier termine : on boucle\n");
+    fclose(P_FICHIER);
+    incr = tps++ ;
+    P_FICHIER = fopen(NOM_FICHIER, "r");  /* read */
+    fscanf(P_FICHIER, "%f %f %f %f %f %f\n", &qmaxv,&qminv,&qmaxh,&qminh,&qmaxz,&qminz);
+    lanime = 1 ;
+  }
+
+}
+
+void reshape(int x, int y)
+{
+
+float w = (float) x;
+float h = (float) y;	
+	
+glViewport(0, 0, (GLsizei) x, (GLsizei) y);
+/*
+modification des tailles
+*/
+/*du tampon d?affichage
+*/
+glMatrixMode(GL_PROJECTION);
+/* pile courante = projection
+*/
+
+glLoadIdentity();
+/*glFrustum(
+-Y_TOT/8.,
+Y_TOT/8.,
+-Z_TOT/8.,
+Z_TOT/8.,
+0.1,
+20.*X_TOT
+);*/
+     
+gluPerspective(
+100,
+1,
+0.4*X_TOT*(1.+pcut),
+10.*X_TOT*(1.+pcut)
+);	//Pour les explications, lire le tutorial sur OGL et win
+  
+  	glMatrixMode(GL_MODELVIEW); 	//Optionnel
+
+
+}
+
+void writefile(int format, int sort, int options, int nbcol,
+               char *filename, char *extension){
+       
+FILE *fp;
+  char file[256];
+  int state = GL2PS_OVERFLOW, buffsize = 0;
+  GLint viewport[4];
+
+  strcpy(file, filename);
+  strcat(file, ".");
+  strcat(file, extension);
+
+  viewport[0] = 0;
+  viewport[1] = 0;
+  viewport[2] = window_w;
+  viewport[3] = window_h;
+ 
+  fp = fopen(file, "wb");
+
+  if(!fp){
+    printf("Unable to open file %s for writing\n", file);
+    exit(1);
+  }
+
+  printf("Saving image to file %s... ", file);
+  fflush(stdout);
+
+  while(state == GL2PS_OVERFLOW){
+    buffsize += 1024*1024;
+    gl2psBeginPage(file, "test", viewport, format, sort, options,
+                   GL_RGBA, 0, NULL, nbcol, nbcol, nbcol, 
+                   buffsize, fp, file);
+    affichage();
+    state = gl2psEndPage();
+  }
+
+  fclose(fp);
+
+  printf("Done!\n");
+  fflush(stdout);       
+  }
+	
+     
+	void mouse(int button, int state,int x,int y)
+	{
+	switch(button){
+	case GLUT_LEFT_BUTTON:
+	if(state==GLUT_DOWN){
+	click_g = 1;
+	x_g     = x;
+//	cout<<"x_g : "<< x_g <<endl;
+	y_g     = window_h-y;
+//	cout<<"y_g : "<< y_g <<endl;  
+	}
+	break;
+	case GLUT_MIDDLE_BUTTON:
+	break;
+	default:
+	if(state==GLUT_DOWN){
+	click_d = 1;
+	x_d     = x;
+	//cout<<"x_d : "<< x_d <<endl;
+	y_d     = window_h-y;
+	//cout<<"y_d : "<< y_d <<endl;    
+	
+	theta_eye+= (3.14159/12.*(((float) x_d)-(((float) window_h)/2.))/(((float) window_h)/2.));
+	phi_eye-= (3.14159/12.*(((float) y_d)-(((float) window_h)/2.))/(((float) window_h)/2.));
+	if(theta_eye>3.14159) theta_eye-=(2.*3.14159);
+	if(phi_eye>3.14159) phi_eye=(2.*3.14159)-phi_eye;
+	if(theta_eye<-3.14159) theta_eye+=(2.*3.14159); 
+	if(phi_eye<0) phi_eye=-phi_eye ;
+    
+//   printf( "theta, phi : %f %f \n" , theta_eye, phi_eye);
+     
+	y_eye = rayon*sin(phi_eye)*sin(theta_eye);
+	z_eye = rayon*cos(phi_eye);
+	x_eye = rayon*sin(phi_eye)*cos(theta_eye);
+	  
+	}  
+	break;
+	}
+	}       
+  
+  void mousemotion(int x,int y)
+  {
+    /*
+	position courante (x,y) de la souris
+	*/
+  }
+

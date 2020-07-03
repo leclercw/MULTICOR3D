@@ -1,0 +1,1721 @@
+#include <GL/glut.h>
+#include <cstdlib>
+#include <cstdio>
+#include <iomanip>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <cmath>
+#include <sys/time.h> 
+#include <sys/resource.h> 
+#include <string.h>
+
+#include "affi.h"
+
+using namespace std;
+
+
+void affichage(){
+
+float x,y,z;
+  
+glClear
+(
+GL_COLOR_BUFFER_BIT |
+GL_DEPTH_BUFFER_BIT
+); 	//Efface le frame buffer et le Z-buffer
+glMatrixMode(GL_MODELVIEW); 	//Choisit la matrice MODELVIEW
+glLoadIdentity(); 	//Réinitialise la matrice
+gluLookAt(x_eye,y_eye,z_eye,0.,0.,0.,dz,dx,dy);
+int i,j,k,l;
+i=0;
+j=0;
+k=0;
+
+if(bmove){
+
+//Dir z
+glColor3f(1.,0.,0.);   
+GLUquadricObj *pObj;		//definition du pointeur d'objet
+pObj = gluNewQuadric();		//creation d'un objet(Retourne 0 si No Memory)
+gluQuadricNormals(pObj, GLU_SMOOTH);		//application des normals
+glPushMatrix();	
+glTranslated((-0.7*X_TOT),(-0.7*Y_TOT),(-0.7*Z_TOT));
+gluCylinder(pObj, 1.,1., 0.15*Z_TOT, 10, 10);
+glTranslated(0.,0.,0.15*Z_TOT);
+glutSolidCone(0.02*Z_TOT, 0.05*Z_TOT, 10, 10);
+glPopMatrix();	
+gluDeleteQuadric (pObj);		//detruit l'objet
+
+
+//Dir y
+glColor3f(0.,1.,0.);   
+GLUquadricObj *pObj2;		//definition du pointeur d'objet
+pObj2 = gluNewQuadric();		//creation d'un objet(Retourne 0 si No Memory)
+gluQuadricNormals(pObj2, GLU_SMOOTH);		//application des normals
+glPushMatrix();	
+glTranslated((-0.7*X_TOT),(-0.7*Y_TOT),(-0.7*Z_TOT));
+glRotatef(-90,1,0,0);
+gluCylinder(pObj2, 1.,1., 0.15*Z_TOT, 10, 10);
+glTranslated(0.,0.,0.15*Z_TOT);
+glutSolidCone(0.02*Z_TOT, 0.05*Z_TOT, 10, 10);
+glPopMatrix();	
+gluDeleteQuadric (pObj2);		//detruit l'objet
+
+
+//Dir x
+glColor3f(0.,0.,1.);   
+GLUquadricObj *pObj3;		//definition du pointeur d'objet
+pObj3 = gluNewQuadric();		//creation d'un objet(Retourne 0 si No Memory)
+gluQuadricNormals(pObj3, GLU_SMOOTH);		//application des normals
+glPushMatrix();	
+glTranslated((-0.7*X_TOT),(-0.7*Y_TOT),(-0.7*Z_TOT));
+glRotatef(90,0,1,0);
+gluCylinder(pObj3, 1.,1., 0.15*Z_TOT, 10, 10);
+glTranslated(0.,0.,0.15*Z_TOT);
+glutSolidCone(0.02*Z_TOT, 0.05*Z_TOT, 10, 10);
+glPopMatrix();	
+gluDeleteQuadric (pObj3);	
+
+}
+else{
+
+glColor3f(0.0f,0.0f,0.0f);
+
+glMatrixMode(GL_PROJECTION);
+glPushMatrix();
+glLoadIdentity();
+gluOrtho2D(0.0, window_w, 0.0, window_h);
+glMatrixMode(GL_MODELVIEW);
+glPushMatrix();
+glLoadIdentity();
+
+if(dx==1){
+char txt[32] = "Plan yx" ;
+glRasterPos2f(0.1*window_w,0.1*window_h);
+gl2psText(txt, "Helvetica", 24);
+
+int len = (int) strlen(txt);
+for (int i = 0; i < len; i++){ glutBitmapCharacter( GLUT_BITMAP_HELVETICA_18, txt[i] ); }
+}
+else if(dy==1){
+char txt[32] = "Plan xz" ;
+glRasterPos2f(0.1*window_w,0.1*window_h);
+gl2psText(txt, "Helvetica", 24);
+
+int len = (int) strlen(txt);
+for (int i = 0; i < len; i++){ glutBitmapCharacter( GLUT_BITMAP_HELVETICA_18, txt[i] ); }
+}
+else if(dz==1){
+char txt[32] = "Plan yx" ;
+glRasterPos2f(0.1*window_w,0.1*window_h);
+gl2psText(txt, "Helvetica", 24);
+
+int len = (int) strlen(txt);
+for (int i = 0; i < len; i++){ glutBitmapCharacter( GLUT_BITMAP_HELVETICA_18, txt[i] ); }
+}
+
+char txt0[32] = "Pos. rel. du plan : " ;
+char txt1[32];
+sprintf(txt1,"%f",posrel);
+strcat(txt0,txt1);
+
+glRasterPos2f(0.1*window_w,0.06*window_h);
+gl2psText(txt0, "Helvetica", 24);
+
+int len0 = (int) strlen(txt0);
+for (int i = 0; i < len0; i++){ glutBitmapCharacter( GLUT_BITMAP_HELVETICA_18, txt0[i] ); }
+
+glMatrixMode(GL_MODELVIEW);
+glPopMatrix();
+glMatrixMode(GL_PROJECTION);
+glPopMatrix();
+
+}
+
+  glColor3f(0.,0.,0.);  
+    
+  // Draw paroi
+  //for (i=1;i<=nbparoi;i++ ) 
+  //{ 
+  // glBegin(GL_LINE_LOOP);
+  //  x = qcjx[i]-X_TOT/2. ;
+  //  y = qcjy[i]-Y_TOT/2.  ;
+  //  z = qcjz[i]-Z_TOT/2. ;
+  //  glVertex3f(x,y,z);
+  //  x = qckx[i]-X_TOT/2.  ;
+  //  y = qcky[i]-Y_TOT/2. ;
+  //  z = qckz[i]-Z_TOT/2. ;
+  //  glVertex3f(x,y,z);
+  //  x = qclx[i]-X_TOT/2.  ;
+  //  y = qcly[i]-Y_TOT/2. ;
+  //  z = qclz[i]-Z_TOT/2. ;
+  //  glVertex3f(x,y,z);
+  //  x = qcmx[i]-X_TOT/2.  ;
+  //  y = qcmy[i]-Y_TOT/2. ;
+  //  z = qcmz[i]-Z_TOT/2. ;
+  //  glVertex3f(x,y,z);
+  //  glEnd();
+ // }
+
+
+
+if(ntype==4){ 
+  
+		// Draw sphere 
+
+		int ii,jj;
+		float xxi,yyi,zzi;
+		float rays;
+
+	//	
+
+			for (i=1;i<=nbsphere;i++ )
+			{
+
+				if(edge[i]==0){	
+
+				// Methode 0
+
+					rays=ray[i];
+
+                                        if(typs[i]==2){
+					GLfloat Rouge[] = {0.5,0.5,0.5, 1.};
+
+					glColor4fv(Rouge); 
+
+					glEnable(GL_BLEND);
+					glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	
+					xxi=xc[i]/1e10-X_TOT/2.;
+					yyi=yc[i]/1e10-Y_TOT/2.;
+					zzi=zc[i]/1e10-Z_TOT/2.;
+
+					int numo=0;
+					glBegin(GL_QUAD_STRIP);
+
+						for (ii = 0; ii<Nt; ii++){
+
+							glVertex3f(xxi,yyi,zzi+rays);
+							glVertex3f(xxi,yyi,zzi+rays);
+							for (jj = 0; jj<Np; jj++){
+
+								glNormal3f(views[numo][1],views[numo][3],views[numo][0]);
+								glVertex3f(xxi+rays*views[numo][2],yyi+rays*views[numo][4],zzi+rays*views[numo][0]);
+								glVertex3f(xxi+rays*views[numo][1],yyi+rays*views[numo][3],zzi+rays*views[numo][0]);
+								       
+								numo++;
+							}
+
+						} //fin for
+
+					glEnd();
+					//Disable lighting
+					glDisable(GL_BLEND);
+
+                                        }else if(typs[i]<2){
+
+					GLfloat Rouge[] = {0.5,0.5,0.5, 0.04};
+
+					glColor4fv(Rouge); 
+
+					glEnable(GL_BLEND);
+					glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	
+					xxi=xc[i]-X_TOT/2.;
+					yyi=yc[i]-Y_TOT/2.;
+					zzi=zc[i]-Z_TOT/2.;
+
+					int numo=0;
+					glBegin(GL_QUAD_STRIP);
+
+						for (ii = 0; ii<Nt; ii++){
+
+							glVertex3f(xxi,yyi,zzi+rays);
+							glVertex3f(xxi,yyi,zzi+rays);
+							for (jj = 0; jj<Np; jj++){
+
+								glNormal3f(views[numo][1],views[numo][3],views[numo][0]);
+								glVertex3f(xxi+rays*views[numo][2],yyi+rays*views[numo][4],zzi+rays*views[numo][0]);
+								glVertex3f(xxi+rays*views[numo][1],yyi+rays*views[numo][3],zzi+rays*views[numo][0]);
+								       
+								numo++;
+							}
+
+						} //fin for
+
+					glEnd();
+					//Disable lighting
+					glDisable(GL_BLEND);
+
+                                        }
+
+				} //fin if
+
+			} //fin for
+
+
+  glMatrixMode(GL_MODELVIEW);
+  glPopMatrix();
+  glMatrixMode(GL_PROJECTION);
+  glPopMatrix();
+
+	if(bmove){
+	glColor3f(0.,0.,1.);  
+	glRasterPos3f(((0.22-0.7)*X_TOT),(-0.7*Y_TOT),(-0.7*Z_TOT));
+	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'x');
+	glColor3f(0.,1.,0.);  
+	glRasterPos3f(((-0.7)*X_TOT),((0.22-0.7)*Y_TOT),(-0.7*Z_TOT));
+	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'y');
+	glColor3f(1.,0.,0.);  
+	glRasterPos3f(((-0.7)*X_TOT),(-0.7*Y_TOT),((0.22-0.7)*Z_TOT));
+	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'z');
+	}
+
+  glFlush();
+  glutSwapBuffers();
+	
+}else if(ntype==3){
+maxv = (svmmaxv-svmminv) ;
+int nbe;
+
+i=0;
+j=0;
+k=0;
+float cH=X_TOT;
+float cF=1.;
+
+glColor3f(0.,0.,0.);
+// Box
+	glBegin(GL_LINE_LOOP);
+	glVertex3i((i-cH/2)/cF, (j-cH/2)/cF,(k-cH/2)/cF);     
+	glVertex3i((i+cH-cH/2)/cF,  (j-cH/2)/cF,(k-cH/2)/cF);      
+	glVertex3i((i+cH-cH/2)/cF,  (j-cH/2)/cF,(k+cH-cH/2)/cF);     
+	glVertex3i((i-cH/2)/cF, (j-cH/2)/cF,(k+cH-cH/2)/cF);    
+      	glEnd();
+	// BACK
+	glBegin(GL_LINE_LOOP);
+	glVertex3i((i-cH/2)/cF, (j+cH-cH/2)/cF,(k-cH/2)/cF);     
+	glVertex3i((i+cH-cH/2)/cF,  (j+cH-cH/2)/cF,(k-cH/2)/cF);      
+	glVertex3i((i+cH-cH/2)/cF,  (j+cH-cH/2)/cF,(k+cH-cH/2)/cF);     
+	glVertex3i((i-cH/2)/cF, (j+cH-cH/2)/cF,(k+cH-cH/2)/cF);    
+      	glEnd();      
+	// LEFT
+	glBegin(GL_LINE_LOOP);
+	glVertex3i((i-cH/2)/cF, (j+cH-cH/2)/cF,(k-cH/2)/cF);     
+	glVertex3i((i-cH/2)/cF,  (j-cH/2)/cF,(k-cH/2)/cF);      
+	glVertex3i((i-cH/2)/cF,  (j-cH/2)/cF,(k+cH-cH/2)/cF);     
+	glVertex3i((i-cH/2)/cF, (j+cH-cH/2)/cF,(k+cH-cH/2)/cF);    
+      	glEnd();
+	// RIGHT
+	glBegin(GL_LINE_LOOP);
+	glVertex3i((i+cH-cH/2)/cF, (j+cH-cH/2)/cF,(k-cH/2)/cF);     
+	glVertex3i((i+cH-cH/2)/cF,  (j-cH/2)/cF,(k-cH/2)/cF);      
+	glVertex3i((i+cH-cH/2)/cF,  (j-cH/2)/cF,(k+cH-cH/2)/cF);     
+	glVertex3i((i+cH-cH/2)/cF, (j+cH-cH/2)/cF,(k+cH-cH/2)/cF);    
+      	glEnd();   	
+	// BOTTOM
+	glBegin(GL_LINE_LOOP);
+	glVertex3i((i-cH/2)/cF, (j-cH/2)/cF,(k-cH/2)/cF);     
+	glVertex3i((i+cH-cH/2)/cF,  (j-cH/2)/cF,(k-cH/2)/cF);      
+	glVertex3i((i+cH-cH/2)/cF,  (j+cH-cH/2)/cF,(k-cH/2)/cF);     
+	glVertex3i((i-cH/2)/cF, (j+cH-cH/2)/cF,(k-cH/2)/cF);    
+      	glEnd();
+	// UP
+	glBegin(GL_LINE_LOOP);
+	glVertex3i((i-cH/2)/cF, (j-cH/2)/cF,(k+cH-cH/2)/cF);     
+	glVertex3i((i+cH-cH/2)/cF,  (j-cH/2)/cF,(k+cH-cH/2)/cF);      
+	glVertex3i((i+cH-cH/2)/cF,  (j+cH-cH/2)/cF,(k+cH-cH/2)/cF);     
+	glVertex3i((i-cH/2)/cF, (j+cH-cH/2)/cF,(k+cH-cH/2)/cF);    
+      	glEnd(); 
+
+j=jj;
+
+//map
+
+for(k=1;k<=NZ;k++){ 
+  for(i=1;i<=NX;i++){
+
+    nbe=(k-1)*NX*NY+(j-1)*NX+(i-1)+1;
+      
+	    vali=0. ; 
+		if((svmmaxv-svmminv)>1.e-12)
+		{
+		vali=(svmmaxv-LIST_N[nbe])/maxv ;
+		}		  
+
+
+    glColor3f(1.,vali,0.);  
+    
+    glBegin(GL_QUADS);
+
+	glVertex3f((X_TOT/NX)*i-X_TOT/2., (Y_TOT/NY)*(j-0.5)-Y_TOT/2.,(Z_TOT/NZ)*(k-1)-Z_TOT/2.);
+	glVertex3f((X_TOT/NX)*(i-1)-X_TOT/2., (Y_TOT/NY)*(j-0.5)-Y_TOT/2.,(Z_TOT/NZ)*(k-1)-Z_TOT/2.);
+	glVertex3f((X_TOT/NX)*(i-1)-X_TOT/2., (Y_TOT/NY)*(j-0.5)-Y_TOT/2.,(Z_TOT/NZ)*k-Z_TOT/2.);
+	glVertex3f((X_TOT/NX)*i-X_TOT/2., (Y_TOT/NY)*(j-0.5)-Y_TOT/2.,(Z_TOT/NZ)*k-Z_TOT/2.);
+	
+    glEnd(); 	//Pour les explications, lire le tutorial sur OGL et win
+    
+    //glColor3f(0.,0.,0.); 
+    //glBegin(GL_LINE_LOOP);
+    
+	//glVertex3f(0.,  (Y_TOT/NY)*(j-1-NY/2),(Z_TOT/NZ)*(k-1-NZ/2));
+	//glVertex3f(0., (Y_TOT/NY)*(j-NY/2),(Z_TOT/NZ)*(k-1-NZ/2));
+	//glVertex3f(0., (Y_TOT/NY)*(j-NY/2),(Z_TOT/NZ)*(k-NZ/2));
+	//glVertex3f(0., (Y_TOT/NY)*(j-1-NY/2),(Z_TOT/NZ)*(k-NZ/2));
+	
+    //glEnd();     
+  }  
+  
+}
+
+    glColor3f(0.,0.,0.); 
+    glBegin(GL_LINE_LOOP);
+    
+	glVertex3f(-X_TOT/2.,(Y_TOT/NY)*(j-0.5)-Y_TOT/2,-Z_TOT/2.);
+	glVertex3f(X_TOT/2.,(Y_TOT/NY)*(j-0.5)-Y_TOT/2,-Z_TOT/2.);
+	glVertex3f(X_TOT/2.,(Y_TOT/NY)*(j-0.5)-Y_TOT/2,Z_TOT/2.);
+	glVertex3f(-X_TOT/2.,(Y_TOT/NY)*(j-0.5)-Y_TOT/2,Z_TOT/2.);
+	
+    glEnd();       	
+		
+    double coordx, coordy, deltax, deltay ;
+    deltax = window_w/40. ; deltay = window_h/400. ;
+    coordx = 4.27*window_w/5.; coordy = 0.65*window_h ;
+    
+   
+	  glMatrixMode(GL_PROJECTION);
+			  glPushMatrix();
+			  glLoadIdentity();
+			  gluOrtho2D(0.0, window_w, 0.0, window_h);
+			  glMatrixMode(GL_MODELVIEW);
+			  glPushMatrix();
+			  glLoadIdentity();
+
+			for (k=1;k<=100;k++ ) 
+			{
+			glColor3f(1.,1.-k/100.,0.) ;
+			x=coordx ;
+			y=coordy + (k-1)*deltay ;
+			xfx2=x+deltax ;
+			yfy2=y ;
+			xfx3=xfx2 ;
+			yfy3=y+deltay ;
+			xfx4=x ;
+			yfy4=yfy3 ;
+			glPolygonMode(GL_FRONT, GL_FILL);
+			glBegin(GL_POLYGON);
+			glVertex2f (x, y) ;
+			glVertex2f (xfx2, yfy2) ;
+			glVertex2f (xfx3, yfy3) ;
+			glVertex2f (xfx4, yfy4) ;
+			glVertex2f (x, y) ;
+			glEnd();
+		    }
+			
+			glColor3f(0.0f,0.0f,0.0f);
+			float fVal ;
+			fVal = svmminv;
+			char cVal[32] ;
+			sprintf(cVal,"%.2E",fVal) ;
+			cVal[9]='\0'  ;
+			glRasterPos2f(coordx+deltax+deltax/6., coordy);
+			gl2psText(cVal, "Helvetica", 24);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[0]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[1]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[2]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[3]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[4]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[5]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[6]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[7]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[8]);
+
+            glColor3f(0.0f,0.0f,0.0f);
+			fVal = svmmaxv;
+			sprintf(cVal,"%.2E",fVal) ;
+			cVal[9]='\0'  ;
+			glRasterPos2f(coordx+deltax+deltax/6., coordy+95.*deltay);
+			gl2psText(cVal, "Helvetica", 24);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[0]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[1]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[2]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[3]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[4]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[5]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[6]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[7]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[8]);
+		
+			xmin1=coordx ;
+			ymin1=coordy ;
+
+			xmin2=coordx+deltax ;
+			ymin2=coordy ;
+
+			xmax1=coordx+deltax ;
+			ymax1=ymin1+100.*deltay ;
+
+			xmax2=coordx ;
+			ymax2=ymax1 ;
+
+			glLineWidth(2.0);
+			glColor3f(0.0f,0.0f,0.0f);
+			glBegin(GL_LINES); 
+			glVertex2f(xmin1,ymin1) ;
+			glVertex2f(xmin2,ymin2) ;
+			glVertex2f(xmin2,ymin2) ;
+			glVertex2f(xmax1,ymax1) ;
+			glVertex2f(xmax1,ymax1) ;
+			glVertex2f(xmax2,ymax2) ;
+			glVertex2f(xmax2,ymax2) ;
+			glVertex2f(xmin1,ymin1) ;
+			glEnd();
+    
+    	  
+	  
+	  glRasterPos2f(4.7*coordx/5., 0.928*window_h);
+			
+		const char * unite = "Contr. VMises (Pa)";
+
+			glColor3f(0.f,0.f,0.f) ;
+			
+			gl2psText(unite, "Helvetica", 36);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'C');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'o');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'n');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'t'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'r'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'V'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'M');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'i');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'s'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'e');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'s');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'('); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'P'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'a'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,')');	
+
+
+
+  glMatrixMode(GL_MODELVIEW);
+  glPopMatrix();
+  glMatrixMode(GL_PROJECTION);
+  glPopMatrix();
+
+	if(bmove){
+	glColor3f(0.,0.,1.);  
+	glRasterPos3f(((0.22-0.7)*X_TOT),(-0.7*Y_TOT),(-0.7*Z_TOT));
+	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'x');
+	glColor3f(0.,1.,0.);  
+	glRasterPos3f(((-0.7)*X_TOT),((0.22-0.7)*Y_TOT),(-0.7*Z_TOT));
+	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'y');
+	glColor3f(1.,0.,0.);  
+	glRasterPos3f(((-0.7)*X_TOT),(-0.7*Y_TOT),((0.22-0.7)*Z_TOT));
+	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'z');
+	}
+
+  glFlush();
+  glutSwapBuffers();	
+
+}
+else if(ntype==2){
+     maxv = (svmmaxv-svmminv) ;
+ 
+	  for (i=1;i<=nbver;i++ )
+	  {
+		  
+		vali=0. ; 
+		if((svmmaxv-svmminv)>1.e-12)
+		{
+		vali=(svmmaxv-VONMISV[i])/maxv ;
+		}
+			
+	//	glColor3f(coul3[ind],coul2[ind],coul1[ind]);
+
+if(vali<2){
+	
+   if(type_ver==2){  //pri6
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glEnable(GL_POLYGON_OFFSET_FILL);
+	glPolygonOffset(1.0f, 1.0f);
+
+		glBegin(GL_TRIANGLES);
+			glColor3f(1.,vali,0.);
+			glVertex3f(xcf[i][0]-X_TOT/2.,ycf[i][0]-Y_TOT/2.,zcf[i][0]-Z_TOT/2.);
+			glVertex3f(xcf[i][1]-X_TOT/2.,ycf[i][0]-Y_TOT/2.,zcf[i][1]-Z_TOT/2.);
+			glVertex3f(xcf[i][2]-X_TOT/2.,ycf[i][0]-Y_TOT/2.,zcf[i][2]-Z_TOT/2.);
+
+			glColor3f(1.,vali,0.);
+			glVertex3f(xcf[i][0]-X_TOT/2.,ycf[i][3]-Y_TOT/2.,zcf[i][0]-Z_TOT/2.);
+			glVertex3f(xcf[i][1]-X_TOT/2.,ycf[i][3]-Y_TOT/2.,zcf[i][1]-Z_TOT/2.);
+			glVertex3f(xcf[i][2]-X_TOT/2.,ycf[i][3]-Y_TOT/2.,zcf[i][2]-Z_TOT/2.);	
+		glEnd();
+		
+		glBegin(GL_QUADS);	
+			glColor3f(1.,vali,0.);
+			glVertex3f(xcf[i][0]-X_TOT/2.,ycf[i][0]-Y_TOT/2.,zcf[i][0]-Z_TOT/2.);
+			glVertex3f(xcf[i][1]-X_TOT/2.,ycf[i][0]-Y_TOT/2.,zcf[i][1]-Z_TOT/2.);
+			glVertex3f(xcf[i][1]-X_TOT/2.,ycf[i][3]-Y_TOT/2.,zcf[i][1]-Z_TOT/2.);
+			glVertex3f(xcf[i][0]-X_TOT/2.,ycf[i][3]-Y_TOT/2.,zcf[i][0]-Z_TOT/2.);
+			
+			glColor3f(1.,vali,0.);
+			glVertex3f(xcf[i][0]-X_TOT/2.,ycf[i][0]-Y_TOT/2.,zcf[i][0]-Z_TOT/2.);
+			glVertex3f(xcf[i][2]-X_TOT/2.,ycf[i][0]-Y_TOT/2.,zcf[i][2]-Z_TOT/2.);
+			glVertex3f(xcf[i][2]-X_TOT/2.,ycf[i][3]-Y_TOT/2.,zcf[i][2]-Z_TOT/2.);
+			glVertex3f(xcf[i][0]-X_TOT/2.,ycf[i][3]-Y_TOT/2.,zcf[i][0]-Z_TOT/2.);			
+			
+			glColor3f(1.,vali,0.);
+			glVertex3f(xcf[i][1]-X_TOT/2.,ycf[i][0]-Y_TOT/2.,zcf[i][1]-Z_TOT/2.);
+			glVertex3f(xcf[i][2]-X_TOT/2.,ycf[i][0]-Y_TOT/2.,zcf[i][2]-Z_TOT/2.);
+			glVertex3f(xcf[i][2]-X_TOT/2.,ycf[i][3]-Y_TOT/2.,zcf[i][2]-Z_TOT/2.);
+			glVertex3f(xcf[i][1]-X_TOT/2.,ycf[i][3]-Y_TOT/2.,zcf[i][1]-Z_TOT/2.);	
+			
+								
+		glEnd();			
+		
+		glDisable(GL_POLYGON_OFFSET_FILL);
+
+	
+	
+	   }else if(type_ver==1){ //tet4
+		
+		
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		glEnable(GL_POLYGON_OFFSET_FILL);
+		glPolygonOffset(1.0f, 1.0f);
+
+			glBegin(GL_TRIANGLES);
+				glColor3f(1.,vali,0.);
+				glVertex3f(xcf[i][0]-X_TOT/2.,ycf[i][0]-Y_TOT/2.,zcf[i][0]-Z_TOT/2.);
+				glVertex3f(xcf[i][1]-X_TOT/2.,ycf[i][1]-Y_TOT/2.,zcf[i][1]-Z_TOT/2.);
+				glVertex3f(xcf[i][2]-X_TOT/2.,ycf[i][2]-Y_TOT/2.,zcf[i][2]-Z_TOT/2.);
+
+				glColor3f(1.,vali,0.);
+				glVertex3f(xcf[i][0]-X_TOT/2.,ycf[i][0]-Y_TOT/2.,zcf[i][0]-Z_TOT/2.);
+				glVertex3f(xcf[i][1]-X_TOT/2.,ycf[i][1]-Y_TOT/2.,zcf[i][1]-Z_TOT/2.);
+				glVertex3f(xcf[i][3]-X_TOT/2.,ycf[i][3]-Y_TOT/2.,zcf[i][3]-Z_TOT/2.);
+							
+				glColor3f(1.,vali,0.);
+				glVertex3f(xcf[i][0]-X_TOT/2.,ycf[i][0]-Y_TOT/2.,zcf[i][0]-Z_TOT/2.);
+				glVertex3f(xcf[i][2]-X_TOT/2.,ycf[i][2]-Y_TOT/2.,zcf[i][2]-Z_TOT/2.);
+				glVertex3f(xcf[i][3]-X_TOT/2.,ycf[i][3]-Y_TOT/2.,zcf[i][3]-Z_TOT/2.);
+				
+				glColor3f(1.,vali,0.);
+				glVertex3f(xcf[i][1]-X_TOT/2.,ycf[i][1]-Y_TOT/2.,zcf[i][1]-Z_TOT/2.);
+				glVertex3f(xcf[i][2]-X_TOT/2.,ycf[i][2]-Y_TOT/2.,zcf[i][2]-Z_TOT/2.);
+				glVertex3f(xcf[i][3]-X_TOT/2.,ycf[i][3]-Y_TOT/2.,zcf[i][3]-Z_TOT/2.);		
+										
+			glEnd();
+			glDisable(GL_POLYGON_OFFSET_FILL);
+			
+		 }	
+		
+	 }
+	 
+	  
+      }
+
+	double coordx, coordy, deltax, deltay ;
+    deltax = window_w/40. ; deltay = window_h/400. ;
+    coordx = 4.27*window_w/5.; coordy = 0.65*window_h ;
+    
+			  glMatrixMode(GL_PROJECTION);
+			  glPushMatrix();
+			  glLoadIdentity();
+			  gluOrtho2D(0.0, window_w, 0.0, window_h);
+			  glMatrixMode(GL_MODELVIEW);
+			  glPushMatrix();
+			  glLoadIdentity();
+
+			for (k=1;k<=100;k++ ) 
+			{
+			glColor3f(1.,1.-k/100.,0.) ;
+			x=coordx ;
+			y=coordy + (k-1)*deltay ;
+			xfx2=x+deltax ;
+			yfy2=y ;
+			xfx3=xfx2 ;
+			yfy3=y+deltay ;
+			xfx4=x ;
+			yfy4=yfy3 ;
+			glPolygonMode(GL_FRONT, GL_FILL);
+			glBegin(GL_POLYGON);
+			glVertex2f (x, y) ;
+			glVertex2f (xfx2, yfy2) ;
+			glVertex2f (xfx3, yfy3) ;
+			glVertex2f (xfx4, yfy4) ;
+			glVertex2f (x, y) ;
+			glEnd();
+		    }
+			
+			glColor3f(0.0f,0.0f,0.0f);
+			float fVal ;
+			fVal = svmminv;
+			char cVal[32] ;
+			sprintf(cVal,"%.2E",fVal) ;
+			cVal[9]='\0'  ;
+			glRasterPos2f(coordx+deltax+deltax/6., coordy);
+			gl2psText(cVal, "Helvetica", 24);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[0]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[1]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[2]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[3]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[4]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[5]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[6]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[7]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[8]);
+
+            glColor3f(0.0f,0.0f,0.0f);
+			fVal = svmmaxv;
+			sprintf(cVal,"%.2E",fVal) ;
+			cVal[9]='\0'  ;
+			glRasterPos2f(coordx+deltax+deltax/6., coordy+95.*deltay);
+			gl2psText(cVal, "Helvetica", 24);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[0]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[1]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[2]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[3]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[4]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[5]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[6]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[7]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[8]);
+		
+			xmin1=coordx ;
+			ymin1=coordy ;
+
+			xmin2=coordx+deltax ;
+			ymin2=coordy ;
+
+			xmax1=coordx+deltax ;
+			ymax1=ymin1+100.*deltay ;
+
+			xmax2=coordx ;
+			ymax2=ymax1 ;
+
+			glLineWidth(2.0);
+			glColor3f(0.0f,0.0f,0.0f);
+			glBegin(GL_LINES); 
+			glVertex2f(xmin1,ymin1) ;
+			glVertex2f(xmin2,ymin2) ;
+			glVertex2f(xmin2,ymin2) ;
+			glVertex2f(xmax1,ymax1) ;
+			glVertex2f(xmax1,ymax1) ;
+			glVertex2f(xmax2,ymax2) ;
+			glVertex2f(xmax2,ymax2) ;
+			glVertex2f(xmin1,ymin1) ;
+			glEnd();
+    
+    	  
+	  
+	  glRasterPos2f(4.7*coordx/5., 0.928*window_h);
+
+		const char * unite = "Contr. VMises (Pa)";
+			
+			glColor3f(0.f,0.f,0.f) ;
+			
+			gl2psText(unite, "Helvetica", 36);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'C');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'o');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'n');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'t'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'r'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'V'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'M');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'i');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'s'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'e');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'s');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'('); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'P'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'a'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,')');	
+
+  glMatrixMode(GL_MODELVIEW);
+  glPopMatrix();
+  glMatrixMode(GL_PROJECTION);
+  glPopMatrix();
+
+	if(bmove){
+	glColor3f(0.,0.,1.);  
+	glRasterPos3f(((0.22-0.7)*X_TOT),(-0.7*Y_TOT),(-0.7*Z_TOT));
+	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'x');
+	glColor3f(0.,1.,0.);  
+	glRasterPos3f(((-0.7)*X_TOT),((0.22-0.7)*Y_TOT),(-0.7*Z_TOT));
+	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'y');
+	glColor3f(1.,0.,0.);  
+	glRasterPos3f(((-0.7)*X_TOT),(-0.7*Y_TOT),((0.22-0.7)*Z_TOT));
+	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'z');
+	}
+
+  glFlush();
+  glutSwapBuffers();
+
+
+  }   
+else if(ntype==1){
+
+	 if(ltype==0) {
+         invmaxv = ((svmmax-svmmin)<=1.e-12)?0.:(1./(svmmax-svmmin)) ;
+         }
+	 else if(ltype==1) {
+	 invmaxv = ((sig11max-sig11min)<=1.e-12)?0.:(1./(sig11max-sig11min)) ;
+	 }
+	 else if(ltype==2) {
+         invmaxv = ((sig22max-sig22min)<=1.e-12)?0.:(1./(sig22max-sig22min)) ;
+         }
+	 else if(ltype==3) {
+         invmaxv = ((sig33max-sig33min)<=1.e-12)?0.:(1./(sig33max-sig33min)) ;
+         }	
+	 else if(ltype==4) {
+	 invmaxv = ((sig1max-sig1min)<=1.e-12)?0.:(1./(sig1max-sig1min)) ;
+	 }
+	 else if(ltype==5) {
+         invmaxv = ((sig2max-sig2min)<=1.e-12)?0.:(1./(sig2max-sig2min)) ;
+         }
+	 else if(ltype==6) {
+         invmaxv = ((sig3max-sig3min)<=1.e-12)?0.:(1./(sig3max-sig3min)) ;
+         }	
+	 else if(ltype==7) {
+	 invmaxv = ((sig12max-sig12min)<=1.e-12)?0.:(1./(sig12max-sig12min)) ;
+	 }
+	 else if(ltype==8) {
+         invmaxv = ((sig13max-sig13min)<=1.e-12)?0.:(1./(sig13max-sig13min)) ;
+         }
+	 else if(ltype==9) {
+         invmaxv = ((sig23max-sig23min)<=1.e-12)?0.:(1./(sig23max-sig23min)) ;
+         }	
+	 else if(ltype==10) {
+         invmaxv = ((tracemax-tracemin)<=1.e-12)?0.:(1./(tracemax-tracemin)) ;
+         }	
+ 
+
+		// Draw sphere 
+
+			int ii,jj;
+			float xxi,yyi,zzi;
+			float rays;
+
+
+					for (i=1;i<=nbsphere;i++ )
+					{
+					   if(edge[i]==0){	
+
+						if(ltype==0)
+						{
+							vali=invmaxv*(svmmax-SVM[i]);
+						}		
+						else if(ltype==1)
+						{
+							vali=invmaxv*(sig11max-SIG11[i]);
+						}		
+						else if(ltype==2)
+						{
+							vali=invmaxv*(sig22max-SIG22[i]);
+						}   		
+						else if(ltype==3)
+						{
+							vali=invmaxv*(sig33max-SIG33[i]);
+						}   
+						else if(ltype==4)
+						{
+							vali=invmaxv*(sig1max-SIG1[i]);
+						}   		
+						else if(ltype==5)
+						{
+							vali=invmaxv*(sig2max-SIG2[i]);
+						}   			
+						else if(ltype==6)
+						{
+							vali=invmaxv*(sig3max-SIG3[i]);
+						}   		
+						else if(ltype==7)
+						{
+							vali=invmaxv*(sig12max-SIG12[i]);
+						}   	
+						else if(ltype==8)
+						{
+							vali=invmaxv*(sig13max-SIG13[i]);
+						}   		
+						else if(ltype==9)
+						{
+							vali=invmaxv*(sig23max-SIG23[i]);
+						}   
+						else if(ltype==10)
+						{
+							vali=invmaxv*(tracemax-TRACE[i]);
+						} 
+								  
+						  GLfloat Colorval[] = {1.,vali,0.,1.};        
+						  glColor4fv(Colorval); 
+				    
+						  glPushMatrix();	
+						  glEnable(GL_BLEND);
+						  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+						// Methode 0
+
+							rays=ray[i];
+							xxi=xc[i]-X_TOT/2.;
+							yyi=yc[i]-Y_TOT/2.;
+							zzi=zc[i]-Z_TOT/2.;
+
+							int numo=0;
+				                        glBegin(GL_QUAD_STRIP);
+
+								for (ii = 0; ii<Nt; ii++){
+
+									glVertex3f(xxi,yyi,zzi+rays);
+									glVertex3f(xxi,yyi,zzi+rays);
+									for (jj = 0; jj<Np; jj++){
+
+										glNormal3f(views[numo][1],views[numo][3],views[numo][0]);
+										glVertex3f(xxi+rays*views[numo][2],yyi+rays*views[numo][4],zzi+rays*views[numo][0]);
+										glVertex3f(xxi+rays*views[numo][1],yyi+rays*views[numo][3],zzi+rays*views[numo][0]);         
+										numo++;
+									}
+
+								} //fin for
+
+							glEnd();
+             					        glDisable(GL_BLEND); 
+
+
+						} //fin if
+
+					}
+
+				
+		
+    double coordx, coordy, deltax, deltay ;
+    deltax = window_w/40. ; deltay = window_h/400. ;
+    coordx = 4.27*window_w/5.; coordy = 0.65*window_h ;
+    
+			  glMatrixMode(GL_PROJECTION);
+			  glPushMatrix();
+			  glLoadIdentity();
+			  gluOrtho2D(0.0, window_w, 0.0, window_w);
+			  glMatrixMode(GL_MODELVIEW);
+			  glPushMatrix();
+			  glLoadIdentity();
+
+				for (k=1;k<=100;k++ ) 
+				{
+				glColor3f(1.,1.-k/100.,0.) ;
+				x=coordx ;
+				y=coordy + (k-1)*deltay ;
+				xfx2=x+deltax ;
+				yfy2=y ;
+				xfx3=xfx2 ;
+				yfy3=y+deltay ;
+				xfx4=x ;
+				yfy4=yfy3 ;
+				glPolygonMode(GL_FRONT, GL_FILL);
+				glBegin(GL_POLYGON);
+				glVertex2f (x, y) ;
+				glVertex2f (xfx2, yfy2) ;
+				glVertex2f (xfx3, yfy3) ;
+				glVertex2f (xfx4, yfy4) ;
+				glVertex2f (x, y) ;
+				glEnd();
+				}
+
+			
+			glColor3f(0.0f,0.0f,0.0f);
+			float fVal ;
+			if(ltype==0)
+			{			
+			fVal = svmmin;
+		    }
+			else if(ltype==1)
+			{			
+			fVal = sig11min;
+		    }		
+			else if(ltype==2)
+			{			
+			fVal = sig22min;
+		    }				        
+			else if(ltype==3)
+			{			
+			fVal = sig33min;
+		    }	
+			else if(ltype==4)
+			{			
+			fVal = sig1min;
+		    }		
+			else if(ltype==5)
+			{			
+			fVal = sig2min;
+		    }				        
+			else if(ltype==6)
+			{			
+			fVal = sig3min;
+		    }		
+			else if(ltype==7)
+			{			
+			fVal = sig12min;
+		    }		
+			else if(ltype==8)
+			{			
+			fVal = sig13min;
+		    }				        
+			else if(ltype==9)
+			{			
+			fVal = sig23min;
+		    }		
+			else if(ltype==10)
+			{			
+			fVal = tracemin;
+		    }			    
+		    		    
+			char cVal[32] ;
+			sprintf(cVal,"%.2E",fVal) ;
+			cVal[9]='\0'  ;
+			glRasterPos2f(coordx+deltax+deltax/6., coordy);
+			gl2psText(cVal, "Helvetica", 24);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[0]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[1]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[2]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[3]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[4]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[5]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[6]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[7]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[8]);
+
+            glColor3f(0.0f,0.0f,0.0f);
+            
+			if(ltype==0)
+			{			
+			fVal = svmmax;
+		    }
+			else if(ltype==1)
+			{			
+			fVal = sig11max;
+		    }		
+			else if(ltype==2)
+			{			
+			fVal = sig22max;
+		    }				        
+			else if(ltype==3)
+			{			
+			fVal = sig33max;
+		    }	
+			else if(ltype==4)
+			{			
+			fVal = sig1max;
+		    }		
+			else if(ltype==5)
+			{			
+			fVal = sig2max;
+		    }				        
+			else if(ltype==6)
+			{			
+			fVal = sig3max;
+		    }		
+			else if(ltype==7)
+			{			
+			fVal = sig12max;
+		    }		
+			else if(ltype==8)
+			{			
+			fVal = sig13max;
+		    }				        
+			else if(ltype==9)
+			{			
+			fVal = sig23max;
+		    }		
+			else if(ltype==10)
+			{			
+			fVal = tracemax;
+		    }	
+			
+			sprintf(cVal,"%.2E",fVal) ;
+			cVal[9]='\0'  ;
+			glRasterPos2f(coordx+deltax+deltax/6., coordy+95.*deltay);
+			gl2psText(cVal, "Helvetica", 24);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[0]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[1]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[2]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[3]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[4]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[5]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[6]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[7]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[8]);
+		
+			xmin1=coordx ;
+			ymin1=coordy ;
+
+			xmin2=coordx+deltax ;
+			ymin2=coordy ;
+
+			xmax1=coordx+deltax ;
+			ymax1=ymin1+100.*deltay ;
+
+			xmax2=coordx ;
+			ymax2=ymax1 ;
+
+			glLineWidth(2.0);
+			glColor3f(0.0f,0.0f,0.0f);
+			glBegin(GL_LINES); 
+			glVertex2f(xmin1,ymin1) ;
+			glVertex2f(xmin2,ymin2) ;
+			glVertex2f(xmin2,ymin2) ;
+			glVertex2f(xmax1,ymax1) ;
+			glVertex2f(xmax1,ymax1) ;
+			glVertex2f(xmax2,ymax2) ;
+			glVertex2f(xmax2,ymax2) ;
+			glVertex2f(xmin1,ymin1) ;
+			glEnd();
+    
+    	  
+	  
+
+    if(ltype==0)
+    {			
+		const char * unite = "Contr. VMises (Pa)";
+
+			glColor3f(0.f,0.f,0.f) ;
+		        glRasterPos2f(4.7*coordx/5., 0.928*window_h);		
+			gl2psText(unite, "Helvetica", 36);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'C');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'o');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'n');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'t'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'r'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'V'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'M');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'i');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'s'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'e');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'s');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'('); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'P'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'a'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,')');	
+	}
+	else if(ltype==1){
+		const char * unite = "Contrainte Sig11 (Pa)";
+
+			glColor3f(0.f,0.f,0.f) ;
+     	    glRasterPos2f(4.7*coordx/5., 0.928*window_h);
+			gl2psText(unite, "Helvetica", 36);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'C');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'o');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'n');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'t'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'r'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'S'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'i');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'g');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'1'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'1');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'('); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'P'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'a'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,')');		
+	}
+	else if(ltype==2){
+		const char * unite = "Contrainte Sig22 (Pa)";
+
+			glColor3f(0.f,0.f,0.f) ;
+     	    glRasterPos2f(4.7*coordx/5., 0.928*window_h);
+			gl2psText(unite, "Helvetica", 36);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'C');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'o');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'n');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'t'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'r'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'S'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'i');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'g');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'2'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'2');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'('); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'P'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'a'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,')');		
+	}			
+	else if(ltype==3){
+		const char * unite = "Contrainte Sig33 (Pa)";
+
+			glColor3f(0.f,0.f,0.f) ;
+     	    glRasterPos2f(4.7*coordx/5., 0.928*window_h);
+			gl2psText(unite, "Helvetica", 36);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'C');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'o');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'n');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'t'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'r'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'S'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'i');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'g');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'3'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'3');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'('); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'P'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'a'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,')');		
+	}	
+	else if(ltype==4){
+		const char * unite = "Contrainte Sig1 (Pa)";
+			glColor3f(0.f,0.f,0.f) ;
+     	    glRasterPos2f(4.7*coordx/5., 0.928*window_h);
+			gl2psText(unite, "Helvetica", 36);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'C');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'o');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'n');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'t'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'r'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'S'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'i');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'g');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'1'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' ');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'('); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'P'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'a'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,')');		
+	}	
+	else if(ltype==5){
+		const char * unite = "Contrainte Sig2 (Pa)";
+			glColor3f(0.f,0.f,0.f) ;
+     	    glRasterPos2f(4.7*coordx/5., 0.928*window_h);
+			gl2psText(unite, "Helvetica", 36);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'C');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'o');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'n');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'t'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'r'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'S'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'i');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'g');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'2'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' ');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'('); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'P'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'a'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,')');		
+	}	
+	else if(ltype==6){
+		const char * unite = "Contrainte Sig3 (Pa)";
+			glColor3f(0.f,0.f,0.f) ;
+     	    glRasterPos2f(4.7*coordx/5., 0.928*window_h);
+			gl2psText(unite, "Helvetica", 36);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'C');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'o');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'n');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'t'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'r'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'S'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'i');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'g');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'3'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' ');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'('); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'P'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'a'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,')');		
+	}		
+	else if(ltype==7){
+		const char * unite = "Contrainte Sig12 (Pa)";
+			glColor3f(0.f,0.f,0.f) ;
+     	    glRasterPos2f(4.7*coordx/5., 0.928*window_h);
+			gl2psText(unite, "Helvetica", 36);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'C');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'o');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'n');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'t'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'r'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'S'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'i');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'g');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'1'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'2');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'('); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'P'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'a'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,')');		
+	}			
+	else if(ltype==8){
+		const char * unite = "Contrainte Sig13 (Pa)";
+			glColor3f(0.f,0.f,0.f) ;
+     	    glRasterPos2f(4.7*coordx/5., 0.928*window_h);
+			gl2psText(unite, "Helvetica", 36);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'C');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'o');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'n');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'t'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'r'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'S'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'i');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'g');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'1'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'3');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'('); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'P'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'a'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,')');		
+	}	
+	else if(ltype==9){
+		const char * unite = "Contrainte Sig23 (Pa)";
+			glColor3f(0.f,0.f,0.f) ;
+     	    glRasterPos2f(4.7*coordx/5., 0.928*window_h);
+			gl2psText(unite, "Helvetica", 36);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'C');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'o');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'n');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'t'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'r'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'S'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'i');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'g');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'2'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'3');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'('); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'P'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'a'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,')');		
+	}		
+	else if(ltype==10){
+		const char * unite =  "Contrainte Hydro. (Pa)";	
+	
+			glColor3f(0.f,0.f,0.f) ;
+     	    glRasterPos2f(4.7*coordx/5., 0.928*window_h);
+			gl2psText(unite, "Helvetica", 36);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'C');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'o');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'n');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'t'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'r');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 					 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'H'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'y');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'d');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'r'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'o'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 		
+	}		
+			
+
+  glMatrixMode(GL_MODELVIEW);
+  glPopMatrix();
+  glMatrixMode(GL_PROJECTION);
+  glPopMatrix();
+
+	if(bmove){
+	glColor3f(0.,0.,1.);  
+	glRasterPos3f(((0.22-0.7)*X_TOT),(-0.7*Y_TOT),(-0.7*Z_TOT));
+	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'x');
+	glColor3f(0.,1.,0.);  
+	glRasterPos3f(((-0.7)*X_TOT),((0.22-0.7)*Y_TOT),(-0.7*Z_TOT));
+	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'y');
+	glColor3f(1.,0.,0.);  
+	glRasterPos3f(((-0.7)*X_TOT),(-0.7*Y_TOT),((0.22-0.7)*Z_TOT));
+	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'z');
+	}
+
+  glFlush();
+  glutSwapBuffers();
+
+
+
+
+  }
+  else if(ntype==0){ 
+  
+  if(ltype==0){
+  setup_illumination();
+  
+	// Draw sphere 
+
+int ii,jj;
+float xxi,yyi,zzi;
+float rays;
+
+
+
+		for (i=1;i<=nbsphere;i++ )
+		{
+			if(edge[i]==0){	
+
+			// Methode 0
+
+				rays=ray[i];
+				xxi=xc[i]-X_TOT/2.;
+				yyi=yc[i]-Y_TOT/2.;
+				zzi=zc[i]-Z_TOT/2.;
+
+				int numo=0;
+	                        glBegin(GL_QUAD_STRIP);
+
+					for (ii = 0; ii<Nt; ii++){
+
+						glVertex3f(xxi,yyi,zzi+rays);
+						glVertex3f(xxi,yyi,zzi+rays);
+						for (jj = 0; jj<Np; jj++){
+
+							glNormal3f(views[numo][1],views[numo][3],views[numo][0]);
+							glVertex3f(xxi+rays*views[numo][2],yyi+rays*views[numo][4],zzi+rays*views[numo][0]);
+							glVertex3f(xxi+rays*views[numo][1],yyi+rays*views[numo][3],zzi+rays*views[numo][0]);						               
+							numo++;
+						}
+
+					} //fin for
+
+				glEnd();
+
+			} //fin if
+
+		}
+
+
+
+	//Disable lighting
+	glDisable (GL_LIGHTING);
+	glDisable (GL_LIGHT0);	
+   }
+   else{
+     
+	 if(ltype==1) {
+	 invmaxv = ((dep1max-dep1min)<=1.e-12)?0.:(1./(dep1max-dep1min)) ;
+	 }
+	 else if(ltype==2) {
+         invmaxv = ((dep2max-dep2min)<=1.e-12)?0.:(1./(dep2max-dep2min)) ;
+         }
+	 else if(ltype==3) {
+         invmaxv = ((dep3max-dep3min)<=1.e-12)?0.:(1./(dep3max-dep3min)) ;
+         }
+
+		// Draw sphere 
+
+		int ii,jj;
+		float xxi,yyi,zzi;
+		float rays;
+
+				for (i=1;i<=nbsphere;i++ )
+				{
+
+					if(edge[i]==0){	
+
+					//visu
+
+					        if(ltype==1)
+						{
+						vali=invmaxv*(dep1max-DEP1[i]);
+						}		
+						else if(ltype==2)
+						{
+						vali=invmaxv*(dep2max-DEP2[i]);
+						}   		
+						else if(ltype==3)
+						{
+						vali=invmaxv*(dep3max-DEP3[i]);
+						}   
+								  
+
+	
+					          GLfloat Colorval[] = {1.,vali,0.,1.};
+	
+						  glColor4fv(Colorval); 
+				    
+						  glPushMatrix();	
+						  glEnable(GL_BLEND);
+						  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+
+							// Methode 0
+
+							rays=ray[i];
+							xxi=xc[i]-X_TOT/2.;
+							yyi=yc[i]-Y_TOT/2.;
+							zzi=zc[i]-Z_TOT/2.;
+
+							int numo=0;
+
+							glBegin(GL_QUAD_STRIP);
+								for (ii = 0; ii<Nt; ii++){
+
+									glVertex3f(xxi,yyi,zzi+rays);
+									glVertex3f(xxi,yyi,zzi+rays);
+									for (jj = 0; jj<Np; jj++){
+
+										glNormal3f(views[numo][1],views[numo][3],views[numo][0]);
+										glVertex3f(xxi+rays*views[numo][2],yyi+rays*views[numo][4],zzi+rays*views[numo][0]);
+										glVertex3f(xxi+rays*views[numo][1],yyi+rays*views[numo][3],zzi+rays*views[numo][0]); 
+										numo++;
+									}
+
+								} //fin for
+							glEnd();
+						
+						        glDisable(GL_BLEND); 
+
+					} //fin if
+
+				}//fin for
+
+
+
+
+		double coordx, coordy, deltax, deltay ;
+		deltax = window_w/40. ; deltay = window_h/400. ;
+		coordx = 4.27*window_w/5.; coordy = 0.65*window_h ;
+    
+			  glMatrixMode(GL_PROJECTION);
+			  glPushMatrix();
+			  glLoadIdentity();
+			  gluOrtho2D(0.0, window_w, 0.0, window_w);
+			  glMatrixMode(GL_MODELVIEW);
+			  glPushMatrix();
+			  glLoadIdentity();
+
+				for (k=1;k<=100;k++ ) 
+				{
+				glColor3f(1.,1.-k/100.,0.) ;
+				x=coordx ;
+				y=coordy + (k-1)*deltay ;
+				xfx2=x+deltax ;
+				yfy2=y ;
+				xfx3=xfx2 ;
+				yfy3=y+deltay ;
+				xfx4=x ;
+				yfy4=yfy3 ;
+				glPolygonMode(GL_FRONT, GL_FILL);
+				glBegin(GL_POLYGON);
+				glVertex2f (x, y) ;
+				glVertex2f (xfx2, yfy2) ;
+				glVertex2f (xfx3, yfy3) ;
+				glVertex2f (xfx4, yfy4) ;
+				glVertex2f (x, y) ;
+				glEnd();
+				}
+			
+			glColor3f(0.0f,0.0f,0.0f);
+			float fVal ;
+                    if(ltype==1)
+			{			
+			fVal = dep1min;
+		    }		
+			else if(ltype==2)
+			{			
+			fVal = dep2min;
+		    }				        
+			else if(ltype==3)
+			{			
+			fVal = dep3min;
+		    }	
+		    		    
+			char cVal[32] ;
+			sprintf(cVal,"%.2E",fVal) ;
+			cVal[9]='\0'  ;
+			glRasterPos2f(coordx+deltax+deltax/6., coordy);
+			gl2psText(cVal, "Helvetica", 24);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[0]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[1]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[2]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[3]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[4]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[5]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[6]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[7]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[8]);
+
+            glColor3f(0.0f,0.0f,0.0f);
+            
+                   if(ltype==1)
+			{			
+			fVal = dep1max;
+		    }		
+			else if(ltype==2)
+			{			
+			fVal = dep2max;
+		    }				        
+			else if(ltype==3)
+			{			
+			fVal = dep3max;
+		    }	
+			
+			sprintf(cVal,"%.2E",fVal) ;
+			cVal[9]='\0'  ;
+			glRasterPos2f(coordx+deltax+deltax/6., coordy+95.*deltay);
+			gl2psText(cVal, "Helvetica", 24);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[0]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[1]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[2]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[3]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[4]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[5]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[6]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[7]);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,cVal[8]);
+		
+			xmin1=coordx ;
+			ymin1=coordy ;
+
+			xmin2=coordx+deltax ;
+			ymin2=coordy ;
+
+			xmax1=coordx+deltax ;
+			ymax1=ymin1+100.*deltay ;
+
+			xmax2=coordx ;
+			ymax2=ymax1 ;
+
+			glLineWidth(2.0);
+			glColor3f(0.0f,0.0f,0.0f);
+			glBegin(GL_LINES); 
+			glVertex2f(xmin1,ymin1) ;
+			glVertex2f(xmin2,ymin2) ;
+			glVertex2f(xmin2,ymin2) ;
+			glVertex2f(xmax1,ymax1) ;
+			glVertex2f(xmax1,ymax1) ;
+			glVertex2f(xmax2,ymax2) ;
+			glVertex2f(xmax2,ymax2) ;
+			glVertex2f(xmin1,ymin1) ;
+			glEnd();
+    
+    	  
+	  
+
+     if(ltype==1){
+		        const char * unite =  "Deplacement dep1 (Pa)";	
+			glColor3f(0.f,0.f,0.f) ;
+     	                glRasterPos2f(4.7*coordx/5., 0.928*window_h);
+			gl2psText(unite, "Helvetica", 36);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'D');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'e');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'p');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'l'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'a'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'c'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'d');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'e');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'p'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'1');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'('); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'m'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,')');		
+	}
+	else if(ltype==2){
+          		const char * unite =  "Deplacement dep2 (Pa)";	
+			glColor3f(0.f,0.f,0.f) ;
+     	                glRasterPos2f(4.7*coordx/5., 0.928*window_h);
+			gl2psText(unite, "Helvetica", 36);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'D');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'e');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'p');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'l'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'a'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'c'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'d');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'e');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'p'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'2');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'('); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'m'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,')');		
+	}			
+	else if(ltype==3){
+		const char * unite =  "Deplacement dep3 (Pa)";	
+			glColor3f(0.f,0.f,0.f) ;
+     	    glRasterPos2f(4.7*coordx/5., 0.928*window_h);
+			gl2psText(unite, "Helvetica", 36);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'D');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'e');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'p');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'l'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'a'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'c'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'.'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'d');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'e');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'p'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'3');
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,' '); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'('); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'m'); 
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,')');		
+	}	
+			
+
+  glMatrixMode(GL_MODELVIEW);
+  glPopMatrix();
+  glMatrixMode(GL_PROJECTION);
+  glPopMatrix();
+
+	if(bmove){
+	glColor3f(0.,0.,1.);  
+	glRasterPos3f(((0.22-0.7)*X_TOT),(-0.7*Y_TOT),(-0.7*Z_TOT));
+	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'x');
+	glColor3f(0.,1.,0.);  
+	glRasterPos3f(((-0.7)*X_TOT),((0.22-0.7)*Y_TOT),(-0.7*Z_TOT));
+	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'y');
+	glColor3f(1.,0.,0.);  
+	glRasterPos3f(((-0.7)*X_TOT),(-0.7*Y_TOT),((0.22-0.7)*Z_TOT));
+	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18,'z');
+	}
+
+  glFlush();
+  glutSwapBuffers();
+	
+    }
+
+
+
+
+  }
+ 
+
+ //On echange les buffers 
+ // glutSwapBuffers();
+  if (lanime) multi( ) ; 
+}

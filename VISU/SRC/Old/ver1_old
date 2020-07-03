@@ -1,0 +1,481 @@
+/********************************************************/
+/*                     3D.c                             */
+/********************************************************/
+/* Visualisation en 3D de système multicontacts         */
+/* Developpé par Fortin                                 */
+/* Modifié le 6/03/05                                   */
+/********************************************************/
+
+/* inclusion des fichiers d'en-tete Glut */
+#include <GL/glut.h>
+#include "gl2ps.h"
+
+#define MAXSPHERE 70000
+#define MAXPAROI 400
+#define MAX_PATH_LENGTH 1024
+#define LDEBUG 0
+
+/* Prototype des fonctions */
+void affichage();
+void clavier(unsigned char key, int x, int y);
+void deffic();
+void idle();
+void menu(int choice);
+void multi();
+void reshape(int x,int y);
+void mouse(int bouton,int etat,int x,int y);
+void mousemotion(int x,int y);
+void writefile(int format, int sort, int options, int nbcol,
+               char *filename, char *extension);
+
+/* variables */
+       
+FILE *P_FICHIER; /* pointeur sur FILE */
+char NOM_FICHIER[MAX_PATH_LENGTH];
+char NOM_FEPS[40];
+
+const  double  pi2 = 6.28318530718; 
+static float rotation = -60.;
+static int nbsphere, nbparoi, iflag ;
+static float qmaxv, qminv, qmaxh, qminh, qmaxz, qminz;
+float xc[MAXSPHERE],  yc[MAXSPHERE], zc[MAXSPHERE], ray[MAXSPHERE],g,t;
+float tps ;
+float qcjx[MAXPAROI], qcjy[MAXPAROI], qcjz[MAXPAROI];
+float qckx[MAXPAROI], qcky[MAXPAROI], qckz[MAXPAROI];
+float qclx[MAXPAROI], qcly[MAXPAROI], qclz[MAXPAROI];
+float qcmx[MAXPAROI], qcmy[MAXPAROI], qcmz[MAXPAROI];
+static GLsizei window_w = 0; 
+static GLsizei window_h = 0;
+static int nfeps = 1 ;
+static int incr = 0 ;
+char nfeps_str[10];
+static int lanime = 0 ;
+
+char presse;
+int anglex,angley,x,y,xold,yold;
+
+
+int main ( int argc, char **argv ) 
+{  
+  /* Ouverture fichier */
+  deffic();
+
+  /* initialisation de glut et creation
+     de la fenetre */
+  glutInit(&argc, argv);  
+  glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH);  
+  glutInitWindowPosition(200,200);
+  window_w = 400; 
+  window_h = 600;
+  glutInitWindowSize(window_w,window_h);
+  glutCreateWindow("Visualisation multicor");
+
+  /* Initialisation d'OpenGL */
+  glClearColor(1,1,1,1);
+  glPointSize(2.0);
+  glEnable(GL_DEPTH_TEST);
+        
+  /* enregistrement des fonctions de rappel */
+  glutCreateMenu(menu);
+  glutAddMenuEntry("[a] Stoppe animation", 1);
+  glutAddMenuEntry("[r] Demarrer animation", 2);
+  glutAddMenuEntry("[s] Pas a pas", 3);
+  glutAddMenuEntry("[p] Postscript ou PDF", 4);
+  glutAddMenuEntry("[v] Postscript", 5);
+  glutAddMenuEntry("[q] Quit", 6);
+  glutAttachMenu(GLUT_RIGHT_BUTTON);
+  
+  glutDisplayFunc(affichage);
+  glutKeyboardFunc(clavier);
+  glutIdleFunc(idle);
+  glutReshapeFunc(reshape);
+  glutMouseFunc(mouse); 
+  glutMotionFunc(mousemotion);
+    
+    /* Entree dans la boucle principale glut */
+  glutMainLoop();
+  return(0) ;
+}  
+	       
+void affichage(){
+
+  double x, y, z;
+  int i ;
+  float ic ;
+  float diffuse[4]; 
+  float pos[4]; 
+  gluPerspective(40.0,1.0,1.0, 10.);
+  glLoadIdentity();                          
+  /*gluLookAt(0.8,0.0,0.8,30,0,0,0,0,1.5);*/
+  gluLookAt(0.,-0.5,0.3,30,0,0,0,0,1.5);
+  /*glScaled(5.7,5.7,5.7);*/ 
+   /*glScaled(1.5,1.5,1.5);*/  
+  glScaled(0.3,0.3,0.3);   
+  glRotated(20,0,0.5,1); 
+   
+  diffuse[1] = .1;
+  diffuse[2] = .1;
+  diffuse[3] = .1;
+  
+  pos[1] = .1;
+  pos[2] = .1; 
+  pos[3] = .1;
+  
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+   glEnable(GL_DEPTH_TEST);  
+   glEnable(GL_COLOR_MATERIAL);
+  glColorMaterial(GL_FRONT_AND_BACK,GL_EMISSION);
+   glLightfv(GL_LIGHT0, GL_EMISSION, diffuse);
+  glLightfv(GL_LIGHT0, GL_POSITION,pos);
+  glEnable(GL_LIGHTING);
+  glEnable(GL_LIGHT0);   
+
+    
+  /* Draw paroi */
+  for (i=1;i<=nbparoi;i++ ) 
+  { 
+  
+    if (LDEBUG) printf( "qc :%i %f %f %f %f %f %f %f %f %f %f %f %f\n" ,i, qcjx[i], qcjy[i], qcjz[i], 
+                                                                           qckx[i], qcky[i], qckz[i], 
+                                                                           qclx[i], qcly[i], qclz[i],
+                                                                           qcmx[i], qcmy[i], qcmz[i]);
+    glBegin(GL_LINE_LOOP);
+    x = qcjx[i] ;
+    y = qcjy[i] ;
+    z = qcjz[i] ;
+    glVertex3f(x,y,z);
+    x = qckx[i] ;
+    y = qcky[i] ;
+    z = qckz[i] ;
+    glVertex3f(x,y,z);
+    x = qclx[i] ;
+    y = qcly[i] ;
+    z = qclz[i] ;
+    glVertex3f(x,y,z);
+    x = qcmx[i] ;
+    y = qcmy[i] ;
+    z = qcmz[i] ;
+    glVertex3f(x,y,z);
+    glEnd();
+  }
+
+  /* Draw sphere */
+        
+  for (i=1;i<=nbsphere;i++ )
+  {
+    if (LDEBUG) printf( "xc, yc, zc, rayon : %f %f %f %f\n" , xc[i], yc[i], zc[i], ray[i]);
+    
+ 
+    glNewList(1, GL_COMPILE);
+     
+        if (i==1) 
+        {
+         x = xc[i] ;
+         y = yc[i] ;
+         z = zc[i] ;
+        }
+        else
+        {
+        x = xc[i]-xc[i-1] ;
+        y = yc[i]-yc[i-1] ;
+        z = zc[i]-zc[i-1] ;
+        }
+        t=-y;
+    glTranslated(x, y, z); 
+           
+         glBegin(GL_COLOR);
+ 
+	 if ((0.0< ray[i])&&(ray[i]<=0.0022)) {
+             glColor3f(0.0,0.01,0.99);   
+             } 
+       	else if ((0.0022<ray[i])&&(ray[i]<=0.0036)){
+             glColor3f(0.0,0.99,0.99);   
+             }
+        /*	else if ((1001<ray[i])&&(ray[i]<=1500)){ */
+        /*     glColor3f(0.5,0.5,0.5);*/
+	 /*     }
+        /*else if ((1501<ray[i])&&(ray[i]<=2000)){*/                      
+         /*     glColor3f(1.,0.,1.);*/
+	 /*     }*/             
+	 else {
+	    glColor3f(0.f,0.f,1.f);
+	     }                     
+          
+          glEnd();
+	  
+          g=ray[i];
+     glutSolidSphere(g,30,50);
+     glEndList();
+     glCallList(1);
+
+  }
+
+  /* On echange les buffers */
+  glutSwapBuffers();
+  if (lanime) multi( ) ; 
+}
+void clavier(unsigned char key, int x, int y){
+
+  int opt;
+  char *ext;
+  static int format = GL2PS_EPS;
+  switch(key){
+  case 27:
+  case 'a':
+    glutSetWindowTitle("Animation stoppe");
+    lanime = 0 ;
+    glutIdleFunc(NULL);
+    break;
+  case 'r':
+    printf("\n On redemarre l'animation...\n") ;
+    lanime = 1 ;
+    glutSetWindowTitle("Animation redemarre");
+    glutIdleFunc(idle);
+    break;
+  case 's':
+    printf("\n Pas a pas ... %i %f\n",incr, tps) ;
+    lanime = 0 ;
+    multi() ;
+    glutSetWindowTitle("Pas a pas");
+    glutPostRedisplay();
+    break;
+  case 'p':
+    format = (format == GL2PS_EPS) ? GL2PS_PDF : GL2PS_EPS;
+    printf("Print format changed to '%s'\n",
+           (format == GL2PS_EPS) ? "EPS" : "PDF");
+    break;  
+  case 'v':
+    opt = GL2PS_OCCLUSION_CULL | GL2PS_DRAW_BACKGROUND;
+    ext = (format == GL2PS_EPS) ? "eps" : "pdf";
+    strcpy(NOM_FEPS, "/home/kbourbat/MULTI3D/IMAGE");
+    strcat(NOM_FEPS, "_visu");
+    sprintf(nfeps_str,"%d",nfeps);
+    strcat(NOM_FEPS, nfeps_str);
+    /*writefile(format, GL2PS_SIMPLE_SORT, opt, 0, "outSimpleCulled", ext);*/
+    writefile(format, GL2PS_SIMPLE_SORT, opt, 0, NOM_FEPS, ext);
+
+    printf("GL2PS %d.%d.%d done with all images\n",
+           GL2PS_MAJOR_VERSION, GL2PS_MINOR_VERSION, GL2PS_PATCH_VERSION);
+    nfeps++;	   	   
+    break;  
+  case 'q':
+    printf("\n On sort...\n") ;
+    exit(0);
+    break;
+  }
+
+}
+
+
+
+void deffic(){
+
+int i ;
+/* Première partie : Creer et remplir le fichier */
+
+  printf("\n Entrez le nom du fichier à lire : ");
+  scanf("%s", NOM_FICHIER);
+  P_FICHIER = fopen(NOM_FICHIER, "r");  /* read */
+
+  if (!P_FICHIER) 
+    {
+     printf("Impossible d'ouvrir le fichier\n");
+     exit(-1);
+    }  
+  else
+  {
+    fscanf(P_FICHIER, "%f %f %f %f %f %f\n", &qmaxv,&qminv,&qmaxh,&qminh,&qmaxz,&qminz);
+    if (LDEBUG) printf("%f %f %f %f %f %f %f\n",
+    qmaxv,qminv,qmaxh,qminh,qmaxz,qminz);
+  }
+/* Deuxieme partie :  appel de la fonction multi */
+  
+  multi() ;
+}
+
+
+void idle(){
+glutPostRedisplay();
+}
+
+
+void menu(int choice){
+
+  int opt;
+  char *ext;
+  static int format = GL2PS_EPS;
+  
+  switch (choice) {
+  case 1:
+    printf("\n On stoppe l'animation...\n") ;
+    lanime = 0 ;
+    glutSetWindowTitle("Animation stoppe");
+    glutIdleFunc(NULL);
+    break;
+  case 2:
+    printf("\n On demarre l'animation...\n") ;
+    lanime = 1 ;
+    glutSetWindowTitle("Animation demarre");
+    glutIdleFunc(idle);
+    break;
+  case 3:
+    printf("\n Pas a pas ... %i %f\n",incr, tps) ;
+    glutSetWindowTitle("Pas a pas");
+    lanime = 0 ;
+    multi() ;
+    glutPostRedisplay();
+    break;
+  case 4:
+    format = (format == GL2PS_EPS) ? GL2PS_PDF : GL2PS_EPS;
+    printf("Print format changed to '%s'\n",
+           (format == GL2PS_EPS) ? "EPS" : "PDF");
+    break;    
+  case 5:
+    opt = GL2PS_OCCLUSION_CULL | GL2PS_DRAW_BACKGROUND;
+    ext = (format == GL2PS_EPS) ? "eps" : "pdf";
+    /* strcpy(NOM_FEPS, "/home/sanni/recherche/graphique/laser");*/
+    strcpy(NOM_FEPS, "/home/kbourbat/MULTI3D/IMAGE");
+    strcat(NOM_FEPS, "_visu");
+    sprintf(nfeps_str,"%d",nfeps);
+    strcat(NOM_FEPS, nfeps_str);
+    /*writefile(format, GL2PS_SIMPLE_SORT, opt, 0, "outSimpleCulled", ext);*/
+    writefile(format, GL2PS_SIMPLE_SORT, opt, 0, NOM_FEPS, ext);
+
+    printf("GL2PS %d.%d.%d done with all images\n",
+           GL2PS_MAJOR_VERSION, GL2PS_MINOR_VERSION, GL2PS_PATCH_VERSION);
+    nfeps++;
+    break;
+  case 6:
+    printf("\n On sort...\n") ;
+    exit(1);
+    break;
+  }
+
+}
+
+
+void multi(){
+
+int i,ok ;
+
+  incr++ ;
+  if (!feof(P_FICHIER)) 
+  {
+  fscanf(P_FICHIER, "%i %i %i %f \n", &nbsphere, &nbparoi, &iflag, &tps);
+
+  if (LDEBUG)printf("nb : %i %i %i\n", nbsphere, nbparoi, iflag);
+
+  for (i=1;i<=nbparoi;i++)
+     {
+      fscanf(P_FICHIER, "%f %f %f %f %f %f %f %f %f %f %f %f\n", &qcjx[i], &qcjy[i], &qcjz[i],
+                                                                 &qckx[i], &qcky[i], &qckz[i],
+                                                                 &qclx[i], &qcly[i], &qclz[i],
+                                                                 &qcmx[i], &qcmy[i], &qcmz[i]);
+                                                                 
+    if (LDEBUG) printf( "qc : %f %f %f %f %f %f %f %f %f %f %f %f\n" , qcjx[i], qcjy[i], qcjz[i],
+                                                                       qckx[i], qcky[i], qckz[i],
+                                                                       qclx[i], qcly[i], qclz[i],
+                                                                       qcmx[i], qcmy[i], qcmz[i]); 
+     }
+
+  for (i=1;i<=nbsphere;i++)
+     {
+      fscanf(P_FICHIER, "%f %f %f %f\n", &xc[i], &yc[i], &zc[i], &ray[i]);
+      if (LDEBUG) printf( "xc, yc, zc, ray : %f %f %f %f\n" , xc[i], yc[i], zc[i], ray[i]);
+     } 
+  if (LDEBUG) printf("\nNext pas \n");
+  } 
+  else
+  {
+    if (LDEBUG) printf("\nfichier termine : on boucle\n");
+    fclose(P_FICHIER);
+    incr = tps++ ;
+    P_FICHIER = fopen(NOM_FICHIER, "r");  /* read */
+    fscanf(P_FICHIER, "%f %f %f %f %f %f\n", &qmaxv,&qminv,&qmaxh,&qminh,&qmaxz,&qminz);
+    lanime = 1 ;
+  }
+
+}
+
+
+void reshape(int x,int y){
+
+if (x<y)
+    glViewport(0,(y-x)/2,x,x);
+  else 
+    glViewport((x-y)/2,0,y,y);
+}
+
+
+void writefile(int format, int sort, int options, int nbcol,
+               char *filename, char *extension){
+       
+FILE *fp;
+  char file[256];
+  int state = GL2PS_OVERFLOW, buffsize = 0;
+  GLint viewport[4];
+
+  strcpy(file, filename);
+  strcat(file, ".");
+  strcat(file, extension);
+
+  viewport[0] = 0;
+  viewport[1] = 0;
+  viewport[2] = window_w;
+  viewport[3] = window_h;
+ 
+  fp = fopen(file, "wb");
+
+  if(!fp){
+    printf("Unable to open file %s for writing\n", file);
+    exit(1);
+  }
+
+  printf("Saving image to file %s... ", file);
+  fflush(stdout);
+
+  while(state == GL2PS_OVERFLOW){
+    buffsize += 1024*1024;
+    gl2psBeginPage(file, "test", viewport, format, sort, options,
+                   GL_RGBA, 0, NULL, nbcol, nbcol, nbcol, 
+                   buffsize, fp, file);
+    affichage();
+    state = gl2psEndPage();
+  }
+
+  fclose(fp);
+
+  printf("Done!\n");
+  fflush(stdout);       
+  }
+	       
+	void mouse(int button, int state,int x,int y)
+{
+  /* si on appuie sur le bouton gauche */
+  if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) 
+  {
+    presse = 1; /* le booleen presse passe a 1 (vrai) */
+    xold = x; /* on sauvegarde la position de la souris */
+    yold=y;
+  }
+  /* si on relache le bouton gauche */
+  if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) 
+    presse=0; /* le booleen presse passe a 0 (faux) */
+}       
+  
+  void mousemotion(int x,int y)
+  {
+    if (presse) /* si le bouton gauche est presse */
+    {
+      /* on modifie les angles de rotation de l'objet
+	 en fonction de la position actuelle de la souris et de la derniere
+	 position sauvegardee */
+      anglex=anglex+(x-xold); 
+      angley=angley+(y-yold);
+      glutPostRedisplay(); /* on demande un rafraichissement de l'affichage */
+    }
+    
+    xold=x; /* sauvegarde des valeurs courante de le position de la souris */
+    yold=y;
+  }
+
