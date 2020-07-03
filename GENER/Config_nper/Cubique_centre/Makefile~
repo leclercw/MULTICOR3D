@@ -1,0 +1,14 @@
+CXX        = g++ 
+
+PROGS= gener
+
+all: $(PROGS)
+
+gener_vtk : gener.o
+	$(CXX) $^ -o $@ -lrt
+	
+.cpp.o:
+	$(CXX) -c  $<
+
+clean:
+	-rm $(PROGS) *.o
