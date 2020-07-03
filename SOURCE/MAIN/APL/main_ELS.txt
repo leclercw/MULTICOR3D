@@ -1,0 +1,222 @@
+#include <cstdlib>
+#include <cstdio>
+#include <iomanip>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <cmath>
+#include <time.h> 
+#include <sys/time.h> 
+#include <sys/resource.h> 
+#include <string.h>
+#include <map>
+#include <cassert>
+#include <vector>
+#include <limits>
+#include "omp.h"
+
+#include "../POSTPRO/cmdgks.h"
+#include "../PROCESS/contacts.h"
+#include "../PROCESS/contraintes.h"
+#include "../PROCESS/correct.h"
+#include "../PROCESS/inicoh.h"
+#include "../PREPRO/init.h"
+#include "../PREPRO/initc.h"
+#include "../PREPRO/lectfic.h"
+#include "../PROCESS/selco.h"
+#include "../PROCESS/ftstring.h"
+#include "../PROCESS/ctime.h"
+#include "../PROCESS/rupture.h"
+#include "../PROCESS/halo.h"
+#include "../PROCESS/genesis.h"
+#include "../USER/user.h"
+
+#include "conf.h"
+
+using namespace std;
+typedef double R;
+
+// Paramètres d'étude
+
+const R Pi=3.14159265; //Nombre Pi
+const R g=9.81;  //Constante de gravité
+
+const R coord=8.2;  //Nombre de coordination
+const R lmacro=105.e-3; //Dimension réelle du domaine d'étude
+const R coef1=1/0.64;
+const R coef2=0.958;
+
+const R dens=2700.e9; // Densité des particules
+
+const R Emu=0.75*980e+9; //Module de Young micro échantillon  matrice
+const R nuu=0.2; //Paramètre micro
+const R rmu=0.3; //Paramètre micro
+
+const R E=150e+9; // Module de Young macro phase 1
+const R nu=0.25; //Coefficient de Poisson macro phase 1
+const R fric=0.; //Coefficient de friction
+
+const R siglim=1.;//Contrainte limite
+const R siglimt1=1e12; //Contrainte limite en traction
+const R siglimt2=1e12;
+const R siglimc1=1e12; //Contrainte limite en compression
+const R siglimc2=1e12; 
+
+const R snmax=5e12; // Contrainte limite interfacielle en mode I
+const R ssmax=5e12; // Contrainte limite interfacielle en mode II   
+const R GI=3e10;
+const R GII=1500.;
+
+const R Kcon=1e7; //Raideur de contact
+
+const R vimp=0.000083333; //Vitesse imposée (m/s) : 5mm/min
+const R fimp=0.; //Force imposée
+const R Cs=0.3;  //Coefficient de sécurité (pas de temps)
+const R amort=10.; //Coefficient d'amortissement
+
+const int SZHALO=1; //Taille halo
+
+const int nit=100000000; //Nombre d'itérations limite
+const int nitf=1000000; // Rampe de force
+
+const int nmax=30000000;	
+const int NBENREG=2500;
+const int NB_THREADS=4;
+
+//////////////////////////////////////////////////////////////////////
+///////// Début du programme principal
+//////////////////////////////////////////////////////////////////////
+
+int main(int argc, char *argv[])
+{
+R t1=CPUtime();
+R t1p=omp_get_wtime () ;
+
+// Parallélisation
+omp_set_num_threads(NB_THREADS);
+
+// Allocation
+allocat_memory();
+
+// Initialisation
+read_sph(H_TOT,V_TOT,Z_TOT,H_POS,V_POS,Z_POS,NB_SPH, R_SPH, LIST_R, LIST_X, LIST_Y, LIST_Z, RMAX);
+read_phase_dela(H_TOT,V_TOT,Z_TOT,H_POS,V_POS,Z_POS,NB_SPH,LIST_X,LIST_Y,LIST_Z,LIST_P,LIST_B);
+
+cout<<"H_TOT :"<<H_TOT<<" - "<<"H_POS :"<<H_POS<<endl;
+
+// Allocation grille
+allocat_grid(H_TOT,V_TOT,Z_TOT,RMAX,vecsizex,vecsizey, vecsizez, vecsize);
+
+R RHALO = SZHALO*R_SPH; 
+cout<<"Rayon par. moy/max :"<<R_SPH<<" - "<<RMAX<<endl;
+init_sizeh(vecsizeh, vecsizexh,vecsizeyh,vecsizezh, coulh, numch, H_TOT, V_TOT, Z_TOT, RHALO,SZHALO,R_SPH);
+
+// Init sph + Sélection des contacts 
+initc_sph_halo(coord,TYPCO,NBCO,CONT,NMAXCONT,Pi,dens,epsi,vecsize,vecsizex,vecsizey,vecsizez,coul,nocoul,numc,nonumc,vecsizeh,vecsizexh,vecsizeyh,vecsizezh,coulh,PR_SPH,H_TOT,V_TOT,Z_TOT,H_POS,V_POS,Z_POS,NB_SPH,R_SPH,LIST_B,LIST_R,LIST_X,LIST_Y,LIST_Z,LIST_XO,LIST_YO,LIST_ZO,LIST_XA,LIST_YA,LIST_ZA,LIST_TX,LIST_TY,LIST_TZ,LIST_TXA,LIST_TYA,LIST_TZA,LIST_VX,LIST_VY,LIST_VZ,LIST_WX,LIST_WY,LIST_WZ,LIST_AX,LIST_AY,LIST_AZ,LIST_AWX,LIST_AWY,LIST_AWZ,LIST_C,LIST_H,LIST_M,LIST_I,FX,FY,FZ,MTX,MTY,MTZ,EDGE,EDGE1,EDGE2,EDGE3,EDGE4,EDGE5,EDGE6,NOCONT,NBCONTCO,LIST_V,LIST_IND,N1,N2,N3,N4,N5,N6,NMAXZ);
+
+cout<<"epsi : "<<epsi<<endl;
+cout<<"NBCO : "<<NBCO<<endl;
+cout<<"PR_SPH : "<<PR_SPH<<endl;
+
+//délaminage   //à modifier
+int nbM1=0,nbM2=0;
+for(int it = 0; it < NB_SPH; it++)
+{
+	
+	if(EDGE1[it]==1){
+		if(LIST_Z[it]<Z_TOT/2.){
+		EDGE1M1[it]=1; nbM1++;
+		EDGE1M2[it]=0;	
+		}else{
+		EDGE1M2[it]=1; nbM2++;	
+		EDGE1M1[it]=0;
+		}
+	}else{
+		EDGE1M1[it]=0;	
+		EDGE1M2[it]=0;		
+	}	
+	
+}
+
+cout<<"nbre de sphere sur la face 1 inferieure :"<<nbM1<<" /nbre de sphere sur la face 1 supperieure :"<<nbM2<<endl;
+
+// Process
+R t2=CPUtime();
+cout<<"Début du process"<<endl;
+
+R ti=0.;
+R ftot=0.;
+R ftot2=0.;
+R viti=vimp;
+int ite=1;
+int nint,nint0,npre,nsoft;
+int nbcoh,nbcoe;
+
+scale_sph(Pi,H_TOT,V_TOT,Z_TOT,H_POS,V_POS,Z_POS,NB_SPH,R_SPH,RMAX,LIST_R,LIST_X,LIST_Y,LIST_Z,LIST_XO,LIST_YO,LIST_ZO,LIST_XA,LIST_YA,LIST_ZA,LIST_M,LIST_I,epsi,lmacro,dens,LIST_V);
+
+cout<<"H_TOT_SCALE :"<<H_TOT<<endl;
+cout<<"V_TOT_SCALE :"<<V_TOT<<endl;
+cout<<"Z_TOT_SCALE :"<<Z_TOT<<endl;
+
+cout<<"Rayon par. moy/max :"<<R_SPH<<" - "<<RMAX<<endl;
+
+RHALO = SZHALO*R_SPH; 
+
+treat_halo(NOHALO,NBHALO,RHALO,SZHALO,R_SPH,LIST_H,vecsizeh,vecsizexh,vecsizeyh,vecsizezh,coulh,numch,LIST_R,LIST_X,LIST_Y,LIST_Z,NB_SPH,LIST_V,VOLHALO,coef1,NMAXHALO);
+
+inicoh2_int_ELS(nint,nint0,npre,vs,LIST_IND,H_TOT,LIST_B,TYPCO,dt,epsi,NBCO,CONT,LIST_R,LIST_X,LIST_Y,LIST_Z,LIST_M,LIST_I,DCONT,DCONTO,NCONT,VALCOH,VALAMO,NOCONT,NBCONTCO,DCONTX,DCONTY,DCONTZ,DCONTXO,DCONTYO,DCONTZO,Pi,Cs,LIST_P,rmu,rmu,Emu,Emu,nuu,nuu,amort);
+cout<<"Nombre de particules de la préfissure :"<<npre<<endl;
+ExpVISU(ite,dt,NB_PAR,LIST_PX,LIST_PY,LIST_PZ,NB_SPH,H_TOT,V_TOT,Z_TOT,LIST_X,LIST_Y,LIST_Z,LIST_R,VONMIS,TRACE,SIG11,SIG12,SIG13,SIG22,SIG23,SIG33,SIG1,SIG2,SIG3,DEP1,DEP2,DEP3,maxvm,minvm,maxtrac,mintrac,maxsig11,minsig11,maxsig12,minsig12,maxsig13,minsig13,maxsig22,minsig22,maxsig23,minsig23,maxsig33,minsig33,maxsig1,minsig1,maxsig2,minsig2,maxsig3,minsig3,maxdep1,mindep1,maxdep2,mindep2,maxdep3,mindep3,1,EDGE,LIST_P);
+Exp_debonding(ite,dt,ftot,ftot2,nint0,nint,npre,nsoft,1);
+ExpVISU_rupt(ite,dt,NB_PAR,LIST_PX,LIST_PY,LIST_PZ,NB_SPH,H_TOT,V_TOT,Z_TOT,LIST_X,LIST_Y,LIST_Z,LIST_R,1,LIST_B,EDGE);
+
+selco_corci2_mII(nint,nsoft,Kcon,vs,LIST_VX,LIST_VY,LIST_VZ,TYPCO,dt,epsi,NBCO,nbcoh,nbcoe,NB_SPH,CONT,vecsize,coul,nocoul,numc,nonumc,LIST_IND,LIST_R,LIST_X,LIST_Y,LIST_Z,LIST_M,LIST_I,DCONT,DCONTO,NCONT,VALCOH,VALAMO,NOCONT,NBCONTCO,DCONTX,DCONTY,DCONTZ,DCONTXO,DCONTYO,DCONTZO,Pi,Cs,E,nu,E,nu,Emu,rmu,Emu,rmu,amort,LIST_P,LIST_B,ite,GI,GII,snmax,ssmax);	
+
+while(ite<nmax){
+
+// selco_corci2_mII(nint,nsoft,Kcon,vs,LIST_VX,LIST_VY,LIST_VZ,TYPCO,dt,epsi,NBCO,nbcoh,nbcoe,NB_SPH,CONT,vecsize,coul,nocoul,numc,nonumc,LIST_IND,LIST_R,LIST_X,LIST_Y,LIST_Z,LIST_M,LIST_I,DCONT,DCONTO,NCONT,VALCOH,VALAMO,NOCONT,NBCONTCO,DCONTX,DCONTY,DCONTZ,DCONTXO,DCONTYO,DCONTZO,Pi,Cs,E,nu,E,nu,Emu,rmu,Emu,rmu,amort,LIST_P,LIST_B,ite,GI,GII,snmax,ssmax);	
+// forcecoh2(Kcon,Epe,Epa,dt,TYPCO,NBCO,NB_SPH,CONT,LIST_M,LIST_R,LIST_X,LIST_Y,LIST_Z,LIST_TX,LIST_TY,LIST_TZ,LIST_VX,LIST_VY,LIST_VZ,LIST_WX,LIST_WY,LIST_WZ,DCONT,DCONTO,DCONTX,DCONTY,DCONTZ,NCONT,FX,FY,FZ,MTX,MTY,MTZ,VALCOH,VALAMO,FCJI,FOJI,MTJI,MTIJ,E,nu,E,nu,fric,LIST_P);
+
+  forcecoh2_qs_int_mII(nint,nsoft,Cs,Epe,Epa,dt,TYPCO,NBCO,NB_SPH,CONT,LIST_R,LIST_X,LIST_Y,LIST_Z,LIST_TX,LIST_TY,LIST_TZ,LIST_VX,LIST_VY,LIST_VZ,LIST_WX,LIST_WY,LIST_WZ,DCONTX,DCONTY,DCONTZ,NCONT,FX,FY,FZ,MTX,MTY,MTZ,VALCOH,VALAMO,FCJI,FOJI,MTJI,MTIJ,LIST_P,LIST_B,vs,LIST_IND,Pi,Emu,rmu,Emu,rmu,amort,GI,GII,snmax,ssmax);
+
+  if(ite%NBENREG==0){
+  R t2=CPUtime()-t1;	 
+  R t2p=omp_get_wtime () - t1p; 
+
+  cout<<endl<<"Iteration : "<<ite<<", CPU time :"<<t2<<", Par. time :"<<t2p<<", real time :"<<ti<<endl;
+  cout<<"Epe:"<<Epe<<", Epa:"<<Epa<<", Epp:"<<Epp<<", Ec:"<<Ec<<endl;
+  
+//  contrainteshalo(Pi,coef1,ite,NBENREG,NB_SPH,H_TOT,V_TOT,Z_TOT,LIST_R,FCJI,NCONT,NOCONT,NBCONTCO,VONMIS,TRACE,SIG11,SIG12,SIG13,SIG22,SIG23,SIG33,SIG1,SIG2,SIG3,minvm,maxvm,mintrac,maxtrac,minsig11,maxsig11,minsig12,maxsig12,minsig13,maxsig13,minsig22,maxsig22,minsig23,maxsig23,minsig33,maxsig33,minsig1,maxsig1,minsig2,maxsig2,minsig3,maxsig3,EDGE,NOHALO,NBHALO,LIST_V,VOLHALO,LIST_IND);
+//  deploc(NB_SPH,LIST_X,LIST_Y,LIST_Z,LIST_XO,LIST_YO,LIST_ZO,DEP1,DEP2,DEP3,maxdep1,mindep1,maxdep2, mindep2, maxdep3,mindep3);
+//ExpVISU(ite,dt,NB_PAR,LIST_PX,LIST_PY,LIST_PZ,NB_SPH,H_TOT,V_TOT,Z_TOT,LIST_X,LIST_Y,LIST_Z,LIST_R,VONMIS,TRACE,SIG11,SIG12,SIG13,SIG22,SIG23,SIG33,SIG1,SIG2,SIG3,DEP1,DEP2,DEP3,maxvm,minvm,maxtrac,mintrac,maxsig11,minsig11,maxsig12,minsig12,maxsig13,minsig13,maxsig22,minsig22,maxsig23,minsig23,maxsig33,minsig33,maxsig1,minsig1,maxsig2,minsig2,maxsig3,minsig3,maxdep1,mindep1,maxdep2,mindep2,maxdep3,mindep3,0,EDGE,LIST_P);
+// ExpVISU_rupt(ite,dt,NB_PAR,LIST_PX,LIST_PY,LIST_PZ,NB_SPH,H_TOT,V_TOT,Z_TOT,LIST_X,LIST_Y,LIST_Z,LIST_R,0,LIST_B,EDGE);
+ }
+    
+  verlet_symt_qs_ELS(ftot,ftot2,Ec,viti,NB_SPH,dt,LIST_M,LIST_I,LIST_X,LIST_Y,LIST_Z,LIST_TX,LIST_TY,LIST_TZ,LIST_VX,LIST_VY,LIST_VZ,LIST_WX,LIST_WY,LIST_WZ,LIST_AX,LIST_AY,LIST_AZ,LIST_AWX,LIST_AWY,LIST_AWZ,FX,FY,FZ,MTX,MTY,MTZ,EDGE1,EDGE2,EDGE3,EDGE4,EDGE5,EDGE6,EDGE1M1,EDGE1M2);  
+
+  if(ite%NBENREG==0){
+
+
+			  Exp_debonding(ite,dt,ftot,ftot2,nint0,nint,npre,nsoft,0);
+  
+                cout<<"Force appl.-reac.: "<<ftot2<<" "<<ftot<<endl;	
+		        cout<<"Delta:"<<viti*ite*dt<<endl;
+		        cout<<"nsoft:"<<nsoft<<", nrupt:"<<nint0-npre-nint<<endl;	  
+  }
+
+ite++;
+ti+=dt;
+}
+
+t2=CPUtime()-t1;
+R t2p=omp_get_wtime () - t1p; 
+cout<<"Iterations total number :"<<ite<<endl;
+
+
+// Libération de la mémoire	
+//free_memory();
+cout<<"Process CPU time :"<<t2<<endl;
+cout<<"Total CPU time :"<<CPUtime()-t1<<endl;
+cout<<"Total Par. time :"<<omp_get_wtime () - t1p<<endl;
+}
+

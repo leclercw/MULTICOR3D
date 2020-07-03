@@ -1,0 +1,8 @@
+#ifndef __CTIME__
+#define __CTIME__
+
+typedef double R;
+
+inline R CPUtime();
+
+#endif

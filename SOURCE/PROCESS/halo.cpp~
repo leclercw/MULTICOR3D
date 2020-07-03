@@ -1,0 +1,287 @@
+#include <cstdlib>
+#include <cstdio>
+#include <iomanip>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <cmath>
+#include <time.h> 
+#include <sys/time.h> 
+#include <sys/resource.h> 
+#include <string.h>
+#include <map>
+#include <cassert>
+#include <vector>
+#include <list>
+#include <limits>
+#include "omp.h"
+
+using namespace std;
+
+#include "halo.h"
+
+void treat_halo(unsigned int ** NOHALO, int * NBHALO, R & RHALO, int SZHALO, R R_SPH, int * LIST_H, int vecsizeh, int vecsizexh, int vecsizeyh, int vecsizezh, vector< vector<int> > & coulh,vector< vector<int> > & numch, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, int NB_SPH,R * LIST_V, R * VOLHALO, R coef1,int NMAXHALO)
+{
+RHALO=SZHALO*R_SPH;	
+
+R dx,dy,dz,nd2;
+long int nbsphm=0; //Modification Dridi Takwa
+int minhalo=+2e9;
+int maxhalo=-2e9;
+
+int num_threads;
+unsigned int it;
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+
+int ii,kt,kjt,jt;
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it,ii,kt,kjt,jt) reduction(+:nbsphm) reduction(max:maxhalo) reduction(min:minhalo) 
+	for(it=0;it<NB_SPH;it++){
+
+	VOLHALO[it]=LIST_V[it]*coef1;
+	NOHALO[it][0]=it;
+	NBHALO[it]=1;
+
+	ii = LIST_H[it];
+
+		for(kt=0;kt<numch[ii].size();kt++){
+
+			 for(kjt=0;kjt<coulh[numch[ii][kt]].size();kjt++){ 
+				
+	         		jt=coulh[numch[ii][kt]][kjt];		
+				dx=LIST_X[it]-LIST_X[jt]; 
+				dy=LIST_Y[it]-LIST_Y[jt]; 
+				dz=LIST_Z[it]-LIST_Z[jt]; 					  
+				nd2=sqrt(dx*dx+dy*dy+dz*dz);		
+
+				if((nd2<RHALO)&&(it!=jt)){
+                                VOLHALO[it]+=LIST_V[jt]*coef1;
+				NOHALO[it][NBHALO[it]]=jt;
+				NBHALO[it]++;
+
+				}
+				 
+			 }		 
+		}
+
+      maxhalo=max(maxhalo,NBHALO[it]);
+      minhalo=min(minhalo,NBHALO[it]);
+      nbsphm+=NBHALO[it];
+
+	}
+	
+	nbsphm/=NB_SPH;
+
+cout<<"Nb de spheres moy par halo :"<<nbsphm<<endl; 
+cout<<"Nb de spheres min dans halo :"<<minhalo<<endl; 
+cout<<"Nb de spheres max dans halo :"<<maxhalo<<endl; 
+
+
+if(maxhalo>NMAXHALO){
+cout<<"Nombre maximal de particules dans le halo depasse - stop "<<endl;
+exit(0);
+}
+
+
+}
+
+
+void treat_halo2(bool * LIST_P, unsigned int ** NOHALO, int * NBHALO, R & RHALO, int SZHALO, R R_SPH, int * LIST_H, int vecsizeh, int vecsizexh, int vecsizeyh, int vecsizezh, vector< vector<int> > & coulh,vector< vector<int> > & numch, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, int NB_SPH,R * LIST_V, R * VOLHALO, R coef1,int NMAXHALO)
+{
+RHALO=SZHALO*R_SPH;
+	
+R dx,dy,dz,nd2;
+long int nbsphm=0; //Modification Dridi Takwa
+
+bool mati;
+bool matj;
+
+int minhalo=+2e9;
+int maxhalo=-2e9;
+
+int num_threads;
+unsigned int it;
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+
+int ii,kt,kjt,jt;
+int nch=0;
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it,ii,kt,kjt,jt,mati,matj,dx,dy,dz,nd2) reduction(+:nbsphm) reduction(max:maxhalo) reduction(min:minhalo) 
+	for(it=0;it<NB_SPH;it++){
+
+        mati=LIST_P[it];
+
+	VOLHALO[it]=LIST_V[it]*coef1;
+	NOHALO[it][0]=it;
+	NBHALO[it]=1;
+
+	ii = LIST_H[it];
+
+		for(kt=0;kt<numch[ii].size();kt++){
+
+			 for(kjt=0;kjt<coulh[numch[ii][kt]].size();kjt++){ 
+				
+	         		jt=coulh[numch[ii][kt]][kjt];	
+      			        matj=LIST_P[jt];	
+				dx=LIST_X[it]-LIST_X[jt]; 
+				dy=LIST_Y[it]-LIST_Y[jt]; 
+				dz=LIST_Z[it]-LIST_Z[jt]; 					  
+				nd2=sqrt(dx*dx+dy*dy+dz*dz);		
+
+				if((nd2<RHALO)&&(mati==matj)&&(it!=jt)){ //
+                                VOLHALO[it]+=LIST_V[jt]*coef1;
+				NOHALO[it][NBHALO[it]]=jt;
+				NBHALO[it]++;
+
+				}
+				 
+			 }		 
+		}
+
+      maxhalo=max(maxhalo,NBHALO[it]);
+      minhalo=min(minhalo,NBHALO[it]);
+      nbsphm+=NBHALO[it];
+
+	}
+	
+	nbsphm/=NB_SPH;
+
+cout<<"Nb de spheres moy par halo :"<<nbsphm<<endl; 
+cout<<"Nb de spheres min dans halo :"<<minhalo<<endl; 
+cout<<"Nb de spheres max dans halo :"<<maxhalo<<endl; 
+
+if(maxhalo>NMAXHALO){
+cout<<"Nombre maximal de particules dans le halo atteint - stop "<<endl;
+exit(0);
+}
+
+}
+
+void explore_halo(int iglo, int ** NOCONT, int * NBCONTCO, int ** CONT, int * NOLOC, bool * PHALO)
+{
+ 
+int pco,jglo,jloc;
+
+  for (int p=0;p<NBCONTCO[iglo];p++)
+  {
+   pco= NOCONT[iglo][p];
+   jglo= (CONT[pco][0]==iglo)?CONT[pco][1]:CONT[pco][0];
+   jloc=NOLOC[jglo];       
+
+   if(jloc!=-1&&PHALO[jloc]==0){PHALO[jloc]=1;explore_halo(jglo,NOCONT,NBCONTCO,CONT,NOLOC,PHALO);}
+  }
+    
+}
+
+void search_halo(int nohalo, int NB_SPH, unsigned int ** NOHALO, int * NBHALO, int NMAXHALO, R * LIST_V, R * VOLHALO, R coef1, int ** NOCONT, int * NBCONTCO, int ** CONT)
+{
+
+int nco,N_NODE,kt;
+unsigned int jt;
+R volh;
+
+int NOLOC[NB_SPH];
+for(int it=0;it<NB_SPH;it++){
+NOLOC[it]=-1;
+}
+
+bool PHALO[NMAXHALO];
+
+//	for(int nohalo=0;nohalo<NB_SPH;nohalo++){
+		
+		N_NODE=NBHALO[nohalo];
+
+		for(int nop=0;nop<N_NODE;nop++){
+		NOLOC[NOHALO[nohalo][nop]]=nop;
+                PHALO[nop]=0;
+		}
+	
+		PHALO[0]=1;
+		explore_halo(nohalo,NOCONT,NBCONTCO,CONT,NOLOC,PHALO);
+
+		vector<int> ldelete;
+
+                nco=0;
+		volh=0.;
+		for(int nop=0;nop<N_NODE;nop++){
+                jt=NOHALO[nohalo][nop];  
+		NOLOC[jt]=-1;
+                if(PHALO[nop]) {NOHALO[nohalo][nco]=jt;volh+=LIST_V[jt]*coef1;nco++;}else{ldelete.push_back(jt);} 
+		}
+                 
+            //    cout<<"numh:"<<nohalo<<" - "<<nco<<"/"<<NBHALO[nohalo]<<endl;
+
+		NBHALO[nohalo]=nco;
+		VOLHALO[nohalo]=volh;
+
+
+             for(vector<int>::iterator i = ldelete.begin(); i != ldelete.end();i++){
+
+		volh=0.;
+                nco=0;
+		for(int nop=0;nop<NBHALO[*i];nop++){
+                kt=NOHALO[*i][nop];  
+                if(kt!=nohalo) {NOHALO[*i][nco]=kt;volh+=LIST_V[kt]*coef1;nco++;}
+		}	
+
+		NBHALO[*i]=nco;
+		VOLHALO[*i]=volh;	
+
+	     }
+
+
+//	}
+
+}
+
+void retreat_halo(int NB_SPH, int ** NOHALO, int * NBHALO, int NMAXHALO, R * LIST_V, R * VOLHALO, R coef1, int ** NOCONT, int * NBCONTCO, int ** CONT, vector<int> list_rupt)
+{
+
+list<int> listd; 
+
+	for(vector<int>::iterator i = list_rupt.begin(); i != list_rupt.end();i++){
+	int nbh=NBHALO[*i];
+
+		for(int ih=0;ih<nbh;ih++){
+		listd.push_back(NOHALO[*i][ih]);
+		}
+        }
+
+	listd.unique();
+
+	for(list<int>::iterator i = listd.begin(); i != listd.end();i++){
+		search_halo(*i,NB_SPH,NOHALO,NBHALO,NMAXHALO,LIST_V,VOLHALO,coef1,NOCONT,NBCONTCO, CONT);
+	}  
+
+/*
+		for(int ih=0;ih<nbh;ih++){
+		int numi=NOHALO[*i][ih];
+
+			int nb=0;
+
+			for(int it=0;it<NBHALO[numi];it++){
+			int numj=NOHALO[numi][it];
+                            int na=0;
+			        for(int jt=0;jt<NBHALO[numj];jt++){
+         			if(NOHALO[numj][jt]==numi) na=1;
+				}
+			nb+=na;
+			if (na==0) {cout<<"ohlalala:"<<numj<<endl;}
+
+			}
+
+			if(nb!=NBHALO[numi]) {cout<<"ii:"<<*i<<", numi:"<<numi<<", ratio:"<<nb<<"/"<<NBHALO[numi]<<endl;char quit;cin>>quit;}
+
+		}
+*/
+
+
+}

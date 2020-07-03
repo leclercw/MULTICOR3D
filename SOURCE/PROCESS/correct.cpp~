@@ -1,0 +1,1117 @@
+#include <cstdlib>
+#include <cstdio>
+#include <iomanip>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <cmath>
+#include <time.h> 
+#include <sys/time.h> 
+#include <sys/resource.h> 
+#include <string.h>
+#include <map>
+#include <cassert>
+#include <vector>
+#include <limits>
+
+using namespace std;
+
+#include "correct.h"
+# include "omp.h"
+
+void verlet_ind(R & Ec, R & Epp, int vecsize, int vecsizex, int vecsizey,int vecsizez, vector< vector<int>  > & coul,int * LIST_C,R & nuu, R &Emoy,R &Emoy1, int ite, R viti,R H_TOT,R V_TOT,R Z_TOT, int nD,R dt,R * LIST_M,R * LIST_I, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO,R * LIST_TX, R * LIST_TY, R * LIST_TZ, R * LIST_VX, R * LIST_VY, R * LIST_VZ, R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * LIST_AX, R * LIST_AY, R * LIST_AZ, R * LIST_AWX, R * LIST_AWY, R * LIST_AWZ, R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, bool * EDGE1,bool * EDGE2,bool * EDGE3,bool * EDGE4,bool * EDGE5,bool * EDGE6, int NBENREG)
+{
+
+for(int it=0;it<vecsize;it++){
+coul[it].clear();	
+}
+
+R ftot=0.;
+
+R fite;
+if(ite<50000){
+fite=ite*0.01/50000.;	
+}else{
+fite=0.01;		
+}
+
+Ec=0.;
+Epp=0.;
+
+for(int it=0;it<nD;it++){
+	
+     if(it==nD-1){
+		LIST_VZ[it] = LIST_VZ[it]+dt/2.*(LIST_AZ[it]+(FZ[it]-fite)/LIST_M[it]);    
+		LIST_AZ[it] = (FZ[it]-fite)/LIST_M[it];	
+		LIST_Z[it] = LIST_Z[it]+dt*LIST_VZ[it]+dt*dt/2.*LIST_AZ[it];	
+
+		 /*
+	LIST_VZ[it] =-viti;
+	LIST_AZ[it] = FZ[it]/LIST_M[it];
+	LIST_Z[it]  = LIST_Z[it]-dt*viti;	*/
+
+	LIST_WX[it]  = 0.;
+	LIST_WY[it]  = 0.;
+	LIST_WZ[it]  = 0.;	
+
+	LIST_AWX[it] = 0.;
+	LIST_AWY[it] = 0.;
+	LIST_AWZ[it] = 0.;   	 
+
+	LIST_TX[it] = 0.;
+	LIST_TY[it] = 0.;    
+	LIST_TZ[it] = 0.; 
+
+	Ec+=0.5*LIST_M[it]*(LIST_VX[it]*LIST_VX[it]+LIST_VY[it]*LIST_VY[it]+LIST_VZ[it]*LIST_VZ[it]);
+	Ec+=0.5*LIST_I[it]*(LIST_WX[it]*LIST_WX[it]+LIST_WY[it]*LIST_WY[it]+LIST_WZ[it]*LIST_WZ[it]);
+
+	Epp=0.;    
+
+	FX[it] = 0.;
+	FY[it] = 0.;	
+	FZ[it] = 0.;
+		 
+	MTX[it] = 0.;
+	MTY[it] = 0.;   
+	MTZ[it] = 0.;   
+
+      }
+      else{
+	    if(!EDGE3[it]) {	    
+
+		LIST_VX[it] = LIST_VX[it]+dt/2.*(LIST_AX[it]+FX[it]/LIST_M[it]);		
+		LIST_AX[it] = FX[it]/LIST_M[it];
+		LIST_X[it] = LIST_X[it]+dt*LIST_VX[it]+dt*dt/2.*LIST_AX[it];
+
+		LIST_VY[it] = LIST_VY[it]+dt/2.*(LIST_AY[it]+FY[it]/LIST_M[it]);
+		LIST_AY[it] = FY[it]/LIST_M[it];
+		LIST_Y[it] = LIST_Y[it]+dt*LIST_VY[it]+dt*dt/2.*LIST_AY[it];
+
+		LIST_VZ[it] = LIST_VZ[it]+dt/2.*(LIST_AZ[it]+FZ[it]/LIST_M[it]);    
+		LIST_AZ[it] = FZ[it]/LIST_M[it];	
+		LIST_Z[it] = LIST_Z[it]+dt*LIST_VZ[it]+dt*dt/2.*LIST_AZ[it];	
+	    }else{
+
+             ftot+=FZ[it];
+            }
+
+	LIST_WX[it]  = LIST_WX[it]+dt/2.*(LIST_AWX[it]+MTX[it]/LIST_I[it]);
+	LIST_WY[it]  = LIST_WY[it]+dt/2.*(LIST_AWY[it]+MTY[it]/LIST_I[it]);	 
+	LIST_WZ[it]  = LIST_WZ[it]+dt/2.*(LIST_AWZ[it]+MTZ[it]/LIST_I[it]);	
+
+	LIST_AWX[it] = MTX[it]/LIST_I[it];
+	LIST_AWY[it] = MTY[it]/LIST_I[it];	 
+	LIST_AWZ[it] = MTZ[it]/LIST_I[it];	   	 
+
+	LIST_TX[it] = LIST_TX[it]+dt*LIST_WX[it]+dt*dt/2.*LIST_AWX[it];
+	LIST_TY[it] = LIST_TY[it]+dt*LIST_WY[it]+dt*dt/2.*LIST_AWY[it];     
+	LIST_TZ[it] = LIST_TZ[it]+dt*LIST_WZ[it]+dt*dt/2.*LIST_AWZ[it]; 
+
+	Ec+=0.5*LIST_M[it]*(LIST_VX[it]*LIST_VX[it]+LIST_VY[it]*LIST_VY[it]+LIST_VZ[it]*LIST_VZ[it]);
+	Ec+=0.5*LIST_I[it]*(LIST_WX[it]*LIST_WX[it]+LIST_WY[it]*LIST_WY[it]+LIST_WZ[it]*LIST_WZ[it]);
+
+	Epp=0.;       
+
+	FX[it] = 0.;
+	FY[it] = 0.;	
+	FZ[it] = 0.;
+		 
+	MTX[it] = 0.;
+	MTY[it] = 0.;   
+	MTZ[it] = 0.;  
+
+	int NX= ((int) (LIST_X[it]*vecsizex/H_TOT));
+	int NY= ((int) (LIST_Y[it]*vecsizey/V_TOT));
+	int NZ= ((int) (LIST_Z[it]*vecsizez/Z_TOT));		
+
+	if(NX<0) NX=0;
+	if(NX>=vecsizex) NX=vecsizex-1;		
+	if(NY<0) NY=0;
+	if(NY>=vecsizey) NY=vecsizey-1;		
+	if(NZ<0) NZ=0;
+	if(NZ>=vecsizez) NZ=vecsizez-1;		
+
+	coul[NX+NY*vecsizex+NZ*vecsizex*vecsizey].push_back(it);
+	LIST_C[it] = NX+NY*vecsizex+NZ*vecsizex*vecsizey;   
+      }
+
+}
+
+
+}
+
+
+void verlet_qs(R & Ec, R & Epp, bool &bout,R & nuu, R &Emoy,R &Emoy1, int ite, R viti,R H_TOT,R V_TOT,R Z_TOT, int nD,R dt,R * LIST_M,R * LIST_I, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z,R * LIST_XO, R * LIST_YO, R * LIST_ZO, R * LIST_TX, R * LIST_TY, R * LIST_TZ, R * LIST_VX, R * LIST_VY, R * LIST_VZ, R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * LIST_AX, R * LIST_AY, R * LIST_AZ, R * LIST_AWX, R * LIST_AWY, R * LIST_AWZ, R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, bool * EDGE1,bool * EDGE2,bool * EDGE3,bool * EDGE4,bool * EDGE5,bool * EDGE6, int NBENREG)
+{
+R ftot=0.;
+R dplty=0.; 
+R dpltz=0.; 
+int ndp=0;
+R Ec1=0.;
+R Ep1=0.;
+int it,num_threads;
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+
+# pragma omp parallel for schedule(dynamic,int(nD/num_threads)) private(it) reduction(+:Ec1,ndp,dpltz,dplty,ftot) reduction(-:Ep1)
+for(it=0;it<nD;it++){
+	
+	if((!EDGE1[it])&&(!EDGE4[it])) {	
+	LIST_VX[it] = LIST_VX[it]+dt/2.*(LIST_AX[it]+FX[it]/LIST_M[it]);		
+	LIST_AX[it] = FX[it]/LIST_M[it];
+	LIST_X[it] = LIST_X[it]+dt*LIST_VX[it]+dt*dt/2.*LIST_AX[it];
+    }
+    else if(EDGE4[it])
+    {
+	LIST_VX[it] = viti;
+	LIST_AX[it] = FX[it]/LIST_M[it];
+	LIST_X[it]  = LIST_X[it]+dt*viti;	
+	}
+	else{
+	ftot+=FX[it];
+    }
+	
+    
+    if(!EDGE2[it]) {	
+    LIST_VY[it] = LIST_VY[it]+dt/2.*(LIST_AY[it]+FY[it]/LIST_M[it]);
+    LIST_AY[it] = FY[it]/LIST_M[it];
+    LIST_Y[it] = LIST_Y[it]+dt*LIST_VY[it]+dt*dt/2.*LIST_AY[it];
+    }
+    
+    if(!EDGE3[it]) {	    
+	 LIST_VZ[it] = LIST_VZ[it]+dt/2.*(LIST_AZ[it]+FZ[it]/LIST_M[it]);    
+	 LIST_AZ[it] = FZ[it]/LIST_M[it];	
+	 LIST_Z[it] = LIST_Z[it]+dt*LIST_VZ[it]+dt*dt/2.*LIST_AZ[it];	
+    }
+    
+    if(EDGE6[it]&&EDGE5[it]){
+	dpltz+= (LIST_Z[it]-LIST_ZO[it]);
+	dplty+= (LIST_Y[it]-LIST_YO[it]);
+	ndp+=1;
+	}
+    
+       
+ 	 LIST_WX[it]  = LIST_WX[it]+dt/2.*(LIST_AWX[it]+MTX[it]/LIST_I[it]);
+	 LIST_WY[it]  = LIST_WY[it]+dt/2.*(LIST_AWY[it]+MTY[it]/LIST_I[it]);	 
+	 LIST_WZ[it]  = LIST_WZ[it]+dt/2.*(LIST_AWZ[it]+MTZ[it]/LIST_I[it]);	
+	 
+     LIST_AWX[it] = MTX[it]/LIST_I[it];
+     LIST_AWY[it] = MTY[it]/LIST_I[it];	 
+     LIST_AWZ[it] = MTZ[it]/LIST_I[it];	   	 
+
+     LIST_TX[it] = LIST_TX[it]+dt*LIST_WX[it]+dt*dt/2.*LIST_AWX[it];
+     LIST_TY[it] = LIST_TY[it]+dt*LIST_WY[it]+dt*dt/2.*LIST_AWY[it];     
+     LIST_TZ[it] = LIST_TZ[it]+dt*LIST_WZ[it]+dt*dt/2.*LIST_AWZ[it]; 
+  
+	 Ec1+=0.5*LIST_M[it]*(LIST_VX[it]*LIST_VX[it]+LIST_VY[it]*LIST_VY[it]+LIST_VZ[it]*LIST_VZ[it]);
+	 Ec1+=0.5*LIST_I[it]*(LIST_WX[it]*LIST_WX[it]+LIST_WY[it]*LIST_WY[it]+LIST_WZ[it]*LIST_WZ[it]);
+          
+	 Ep1-=0.*(LIST_X[it]-LIST_XO[it]);
+	 Ep1-=0.*(LIST_Y[it]-LIST_YO[it]);
+ 	 Ep1-=0.*(LIST_Z[it]-LIST_ZO[it]);         
+          
+	 FX[it] = 0.;
+	 FY[it] = 0.;	
+	 FZ[it] = 0.;
+	 		 
+     MTX[it] = 0.;
+     MTY[it] = 0.;   
+     MTZ[it] = 0.;   
+
+
+
+}
+
+ Ec=Ec1;
+ Epp=Ep1;
+
+ dplty/=ndp;
+ dpltz/=ndp;
+
+  // Eval nu
+  
+  R nuy=dplty/((ite-1)*dt*viti);
+  R nuz=dpltz/((ite-1)*dt*viti);
+
+
+  // Eval E
+
+		 R EE,sigxx,epsx;	     
+		 sigxx=ftot/(Z_TOT*V_TOT);
+		 epsx=(ite-1)*dt*viti/H_TOT;
+
+                 EE=sigxx/epsx; 
+                 if(ite>int(nD/10.)){
+					 Emoy=(Emoy*(ite-int(nD/10.)-1)+EE)/(ite-int(nD/10.));
+				 } 
+         	  		
+	     if(ite%NBENREG==0){ 
+			 
+  				if((ite>int(nD/10.))&&(abs((Emoy1-Emoy)/Emoy)<1e-3)) bout=1;					 
+				Emoy1=Emoy;
+
+                cout<<"Defx "<<epsx<<", Sigxx :"<<sigxx<<", Module de Young inst :"<<EE<<", Module de Young moy :"<<Emoy<<endl;	              
+                cout<<"nu : "<<nuy<<", "<<nuz<<endl;
+                nuu=-(nuy+nuz)/2.;
+
+			  	
+		}       
+
+}
+
+void verlet(R & Ec, R & Epp, int vecsize, int vecsizex, int vecsizey,int vecsizez, vector< vector<int>  > & coul,int * LIST_C,R & nuu, R &Emoy,R &Emoy1, int ite, R viti,R H_TOT,R V_TOT,R Z_TOT, int nD,R dt,R * LIST_M,R * LIST_I, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO,R * LIST_TX, R * LIST_TY, R * LIST_TZ, R * LIST_VX, R * LIST_VY, R * LIST_VZ, R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * LIST_AX, R * LIST_AY, R * LIST_AZ, R * LIST_AWX, R * LIST_AWY, R * LIST_AWZ, R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, bool * EDGE1,bool * EDGE2,bool * EDGE3,bool * EDGE4,bool * EDGE5,bool * EDGE6, int NBENREG)
+{
+
+for(int it=0;it<vecsize;it++){
+coul[it].clear();	
+}
+
+R ftot=0.;
+R dplty=0.; 
+R dpltz=0.; 
+int ndp=0;
+Ec=0.;
+Epp=0.;
+
+int it,num_threads;
+int NX,NY,NZ;
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+
+# pragma omp parallel for schedule(dynamic,int(nD/num_threads)) private(it,NX,NY,NZ) reduction(+:Ec,ndp,dpltz,dplty,ftot) reduction(-:Epp)
+for(it=0;it<nD;it++){
+	
+	if((!EDGE1[it])&&(!EDGE4[it])) {	
+	LIST_VX[it] = LIST_VX[it]+dt/2.*(LIST_AX[it]+FX[it]/LIST_M[it]);		
+	LIST_AX[it] = FX[it]/LIST_M[it];
+	LIST_X[it] = LIST_X[it]+dt*LIST_VX[it]+dt*dt/2.*LIST_AX[it];
+    }
+    else if(EDGE4[it])
+    {
+	LIST_VX[it] = -viti;
+	LIST_AX[it] = FX[it]/LIST_M[it];
+	LIST_X[it]  = LIST_X[it]-dt*viti;	
+	}
+	else{
+	ftot+=FX[it];
+    }
+	
+    
+    if(!EDGE2[it]) {	
+    LIST_VY[it] = LIST_VY[it]+dt/2.*(LIST_AY[it]+FY[it]/LIST_M[it]);
+    LIST_AY[it] = FY[it]/LIST_M[it];
+    LIST_Y[it] = LIST_Y[it]+dt*LIST_VY[it]+dt*dt/2.*LIST_AY[it];
+    }
+    
+    if(!EDGE3[it]) {	    
+	 LIST_VZ[it] = LIST_VZ[it]+dt/2.*(LIST_AZ[it]+FZ[it]/LIST_M[it]);    
+	 LIST_AZ[it] = FZ[it]/LIST_M[it];	
+	 LIST_Z[it] = LIST_Z[it]+dt*LIST_VZ[it]+dt*dt/2.*LIST_AZ[it];	
+    }
+    
+    if(EDGE6[it]&&EDGE5[it]){
+	dpltz	= dpltz+(LIST_Z[it]-LIST_ZO[it]);
+	dplty	= dplty+(LIST_Y[it]-LIST_YO[it]);
+	ndp++;
+	}
+    
+       
+ 	 LIST_WX[it]  = LIST_WX[it]+dt/2.*(LIST_AWX[it]+MTX[it]/LIST_I[it]);
+	 LIST_WY[it]  = LIST_WY[it]+dt/2.*(LIST_AWY[it]+MTY[it]/LIST_I[it]);	 
+	 LIST_WZ[it]  = LIST_WZ[it]+dt/2.*(LIST_AWZ[it]+MTZ[it]/LIST_I[it]);	
+	 
+     LIST_AWX[it] = MTX[it]/LIST_I[it];
+     LIST_AWY[it] = MTY[it]/LIST_I[it];	 
+     LIST_AWZ[it] = MTZ[it]/LIST_I[it];	   	 
+
+     LIST_TX[it] = LIST_TX[it]+dt*LIST_WX[it]+dt*dt/2.*LIST_AWX[it];
+     LIST_TY[it] = LIST_TY[it]+dt*LIST_WY[it]+dt*dt/2.*LIST_AWY[it];     
+     LIST_TZ[it] = LIST_TZ[it]+dt*LIST_WZ[it]+dt*dt/2.*LIST_AWZ[it]; 
+ 
+ 	 Ec+=0.5*LIST_M[it]*(LIST_VX[it]*LIST_VX[it]+LIST_VY[it]*LIST_VY[it]+LIST_VZ[it]*LIST_VZ[it]);
+	 Ec+=0.5*LIST_I[it]*(LIST_WX[it]*LIST_WX[it]+LIST_WY[it]*LIST_WY[it]+LIST_WZ[it]*LIST_WZ[it]);
+          
+	 Epp-=0.*(LIST_X[it]-LIST_XO[it]);
+	 Epp-=0.*(LIST_Y[it]-LIST_YO[it]);
+ 	 Epp-=0.*(LIST_Z[it]-LIST_ZO[it]);    	       
+          
+	 FX[it] = 0.;
+	 FY[it] = 0.;	
+	 FZ[it] = 0.;
+	 		 
+     MTX[it] = 0.;
+     MTY[it] = 0.;   
+     MTZ[it] = 0.;   
+
+		NX= ((int) (LIST_X[it]*vecsizex/H_TOT));
+		NY= ((int) (LIST_Y[it]*vecsizey/V_TOT));
+		NZ= ((int) (LIST_Z[it]*vecsizez/Z_TOT));		
+		
+		if(NX<0) NX=0;
+		if(NX>=vecsizex) NX=vecsizex-1;		
+		if(NY<0) NY=0;
+		if(NY>=vecsizey) NY=vecsizey-1;		
+		if(NZ<0) NZ=0;
+		if(NZ>=vecsizez) NZ=vecsizez-1;		
+
+		# pragma omp critical
+		{
+		coul[NX+NY*vecsizex+NZ*vecsizex*vecsizey].push_back(it);
+		}
+		LIST_C[it] = NX+NY*vecsizex+NZ*vecsizex*vecsizey;   
+
+}
+
+ dplty/=ndp;
+ dpltz/=ndp;
+
+  // Eval nu
+  
+  R nuy=dplty/((ite-1)*dt*viti);
+  R nuz=dpltz/((ite-1)*dt*viti);
+
+
+  // Eval E
+
+		 R EE,sigxx,epsx;	     
+		 sigxx=ftot/(Z_TOT*V_TOT);
+		 epsx=(ite-1)*dt*viti/H_TOT;
+
+                 EE=fabs(sigxx/epsx); 
+                 if(ite>int(nD/10.)){
+					 Emoy=(Emoy*(ite-int(nD/10.)-1)+EE)/(ite-int(nD/10.));
+				 } 
+         	  		
+	     if(ite%NBENREG==0){ 
+			 
+  			//	if((ite>int(nD/10.))&&(abs((Emoy1-Emoy)/Emoy)<1e-3)) bout=1;					 
+				Emoy1=Emoy;
+                cout<<"ite : "<<ite<<", dt : "<<dt<<", viti : "<<viti<<", htot : "<<H_TOT<<endl;
+                cout<<"Defx "<<epsx<<", Sigxx :"<<sigxx<<", Module de Young inst :"<<EE<<", Module de Young moy :"<<Emoy<<endl;	
+              
+                cout<<"nu : "<<nuy<<", "<<nuz<<endl;
+                nuu=-(nuy+nuz)/2.;
+			  	
+		}      
+
+}
+
+void verlet_trac(R & Ec, R & Epp, int vecsize, int vecsizex, int vecsizey,int vecsizez, vector< vector<int>  > & coul,int * LIST_C,R & nuu, R &Emoy,R &Emoy1, int ite, R viti,R H_TOT,R V_TOT,R Z_TOT, int nD,R dt,R * LIST_M,R * LIST_I, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO, R * LIST_TX, R * LIST_TY, R * LIST_TZ, R * LIST_VX, R * LIST_VY, R * LIST_VZ, R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * LIST_AX, R * LIST_AY, R * LIST_AZ, R * LIST_AWX, R * LIST_AWY, R * LIST_AWZ, R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, bool * EDGE1,bool * EDGE2,bool * EDGE3,bool * EDGE4,bool * EDGE5,bool * EDGE6, int NBENREG, R fimp, int nitf)
+{
+
+for(int it=0;it<vecsize;it++){
+coul[it].clear();	
+}
+
+R fimp1;
+if(ite<nitf){
+fimp1=(fimp*ite)/nitf;
+}
+else
+{
+fimp1=fimp;	
+}
+
+R ftot=0.;
+R dtot=0.;
+int ntot=0;
+Ec=0.;
+Epp=0.;
+
+int it,num_threads;
+int NX,NY,NZ;
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+
+# pragma omp parallel for schedule(dynamic,int(nD/num_threads)) private(it,NX,NY,NZ) reduction(+:Ec,ftot,dtot,ntot) reduction(-:Epp)
+for(it=0;it<nD;it++){
+	
+		if((!EDGE1[it])&&(!EDGE4[it])) {	
+		LIST_VX[it] = LIST_VX[it]+dt/2.*(LIST_AX[it]+FX[it]/LIST_M[it]);		
+		LIST_AX[it] = FX[it]/LIST_M[it];
+		LIST_X[it] = LIST_X[it]+dt*LIST_VX[it]+dt*dt/2.*LIST_AX[it];
+		}
+		else if(EDGE4[it])
+		{
+		LIST_VX[it] = LIST_VX[it]+dt/2.*(LIST_AX[it]+(FX[it]+fimp1)/LIST_M[it]);		
+		LIST_AX[it] = (FX[it]+fimp1)/LIST_M[it];
+		LIST_X[it] = LIST_X[it]+dt*LIST_VX[it]+dt*dt/2.*LIST_AX[it];
+		}
+		else{
+		LIST_VX[it] = LIST_VX[it]+dt/2.*(LIST_AX[it]+(FX[it]-fimp1)/LIST_M[it]);		
+		LIST_AX[it] = (FX[it]-fimp1)/LIST_M[it];
+		LIST_X[it] = LIST_X[it]+dt*LIST_VX[it]+dt*dt/2.*LIST_AX[it];
+		}
+	
+    
+		LIST_VY[it] = LIST_VY[it]+dt/2.*(LIST_AY[it]+FY[it]/LIST_M[it]);
+		LIST_AY[it] = FY[it]/LIST_M[it];
+		LIST_Y[it]  = LIST_Y[it]+dt*LIST_VY[it]+dt*dt/2.*LIST_AY[it];
+
+		LIST_VZ[it] = LIST_VZ[it]+dt/2.*(LIST_AZ[it]+FZ[it]/LIST_M[it]);    
+		LIST_AZ[it] = FZ[it]/LIST_M[it];	
+		LIST_Z[it]  = LIST_Z[it]+dt*LIST_VZ[it]+dt*dt/2.*LIST_AZ[it];	
+
+		LIST_WX[it]  = LIST_WX[it]+dt/2.*(LIST_AWX[it]+MTX[it]/LIST_I[it]);
+		LIST_WY[it]  = LIST_WY[it]+dt/2.*(LIST_AWY[it]+MTY[it]/LIST_I[it]);	 
+		LIST_WZ[it]  = LIST_WZ[it]+dt/2.*(LIST_AWZ[it]+MTZ[it]/LIST_I[it]);	
+
+		LIST_AWX[it] = MTX[it]/LIST_I[it];
+		LIST_AWY[it] = MTY[it]/LIST_I[it];	 
+		LIST_AWZ[it] = MTZ[it]/LIST_I[it];	   	 
+
+		LIST_TX[it] = LIST_TX[it]+dt*LIST_WX[it]+dt*dt/2.*LIST_AWX[it];
+		LIST_TY[it] = LIST_TY[it]+dt*LIST_WY[it]+dt*dt/2.*LIST_AWY[it];     
+		LIST_TZ[it] = LIST_TZ[it]+dt*LIST_WZ[it]+dt*dt/2.*LIST_AWZ[it]; 
+
+		Ec+=0.5*LIST_M[it]*(LIST_VX[it]*LIST_VX[it]+LIST_VY[it]*LIST_VY[it]+LIST_VZ[it]*LIST_VZ[it]);
+		Ec+=0.5*LIST_I[it]*(LIST_WX[it]*LIST_WX[it]+LIST_WY[it]*LIST_WY[it]+LIST_WZ[it]*LIST_WZ[it]);
+		
+		if(EDGE1[it]) {	
+		Epp-=(fimp1)*(LIST_X[it]-LIST_XO[it]);
+		ftot+=FX[it];
+		dtot+=(LIST_X[it]-LIST_XO[it]);
+		ntot++;
+	    }
+	    
+		if(EDGE4[it]) {	
+		Epp-=(-fimp1)*(LIST_X[it]-LIST_XO[it]);
+	    }
+
+	  
+
+		FX[it] = 0.;
+		FY[it] = 0.;	
+		FZ[it] = 0.;
+			 
+		MTX[it] = 0.;
+		MTY[it] = 0.;   
+		MTZ[it] = 0.;   
+
+		NX= ((int) (LIST_X[it]*vecsizex/H_TOT));
+		NY= ((int) (LIST_Y[it]*vecsizey/V_TOT));
+		NZ= ((int) (LIST_Z[it]*vecsizez/Z_TOT));		
+		
+		if(NX<0) NX=0;
+		if(NX>=vecsizex) NX=vecsizex-1;		
+		if(NY<0) NY=0;
+		if(NY>=vecsizey) NY=vecsizey-1;		
+		if(NZ<0) NZ=0;
+		if(NZ>=vecsizez) NZ=vecsizez-1;		
+		
+		# pragma omp critical
+		{
+		coul[NX+NY*vecsizex+NZ*vecsizex*vecsizey].push_back(it);
+		}
+		LIST_C[it] = NX+NY*vecsizex+NZ*vecsizex*vecsizey;   
+
+}
+   	    
+	    dtot=dtot/ntot;
+
+}
+
+
+void verlet_comp(int NBENREG, R & ftot,R & ftot2, R epsi, R & Ec, R & Epp, int vecsize, int vecsizex, int vecsizey,int vecsizez, vector< vector<int>  > & coul,int * LIST_C,R & nuu, R &Emoy,R &Emoy1, int ite, R viti,R H_TOT,R V_TOT,R Z_TOT, int nD,R dt,R * LIST_M,R * LIST_I, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO, R * LIST_TX, R * LIST_TY, R * LIST_TZ, R * LIST_VX, R * LIST_VY, R * LIST_VZ, R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * LIST_AX, R * LIST_AY, R * LIST_AZ, R * LIST_AWX, R * LIST_AWY, R * LIST_AWZ, R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, bool * EDGE1,bool * EDGE2,bool * EDGE3,bool * EDGE4,bool * EDGE5,bool * EDGE6, R fimp, int nitf){
+					
+Epp=0.;
+
+ftot=0.;
+ftot2=0.;
+
+for(int it=0;it<vecsize;it++){
+coul[it].clear();	
+}
+
+int it,num_threads,NX,NY,NZ;
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+
+# pragma omp parallel for schedule(dynamic,int(nD/num_threads)) private(it,NX,NY,NZ) reduction(+:Ec,ftot,ftot2)
+	for(it=0;it<nD;it++){
+				
+		    if((!EDGE1[it])&&(!EDGE4[it])){
+			LIST_VX[it] = LIST_VX[it]+dt/2.*(LIST_AX[it]+FX[it]/LIST_M[it]);		
+			LIST_AX[it] = FX[it]/LIST_M[it];
+			LIST_X[it] = LIST_X[it]+dt*LIST_VX[it]+dt*dt/2.*LIST_AX[it];   
+
+		    }
+		    else if(EDGE4[it]){				
+			LIST_VX[it] = -viti;	
+			LIST_AX[it] = FX[it]/LIST_M[it];
+			LIST_X[it] = LIST_X[it]+dt*(-viti);				
+			ftot=ftot+FX[it];	
+			}
+			else{
+			ftot2=ftot2+FX[it];	
+			}
+            
+
+                        LIST_VY[it] = LIST_VY[it]+dt/2.*(LIST_AY[it]+FY[it]/LIST_M[it]);
+			LIST_AY[it] = FY[it]/LIST_M[it];
+			LIST_Y[it]  = LIST_Y[it]+dt*LIST_VY[it]+dt*dt/2.*LIST_AY[it];
+		    		
+			LIST_VZ[it] = LIST_VZ[it]+dt/2.*(LIST_AZ[it]+FZ[it]/LIST_M[it]);    
+			LIST_AZ[it] = FZ[it]/LIST_M[it];	
+			LIST_Z[it]  = LIST_Z[it]+dt*LIST_VZ[it]+dt*dt/2.*LIST_AZ[it];	
+
+			LIST_WX[it]  = LIST_WX[it]+dt/2.*(LIST_AWX[it]+MTX[it]/LIST_I[it]);
+			LIST_WY[it]  = LIST_WY[it]+dt/2.*(LIST_AWY[it]+MTY[it]/LIST_I[it]);	  
+			LIST_WZ[it]  = LIST_WZ[it]+dt/2.*(LIST_AWZ[it]+MTZ[it]/LIST_I[it]);	
+
+			LIST_AWX[it] = MTX[it]/LIST_I[it];
+			LIST_AWY[it] = MTY[it]/LIST_I[it];	 
+			LIST_AWZ[it] = MTZ[it]/LIST_I[it];	   	 
+
+			LIST_TX[it] = LIST_TX[it]+dt*LIST_WX[it]+dt*dt/2.*LIST_AWX[it];
+			LIST_TY[it] = LIST_TY[it]+dt*LIST_WY[it]+dt*dt/2.*LIST_AWY[it];     
+			LIST_TZ[it] = LIST_TZ[it]+dt*LIST_WZ[it]+dt*dt/2.*LIST_AWZ[it]; 
+			
+			Ec+=0.5*LIST_M[it]*(LIST_VX[it]*LIST_VX[it]+LIST_VY[it]*LIST_VY[it]+LIST_VZ[it]*LIST_VZ[it]);
+			Ec+=0.5*LIST_I[it]*(LIST_WX[it]*LIST_WX[it]+LIST_WY[it]*LIST_WY[it]+LIST_WZ[it]*LIST_WZ[it]);
+	
+			FX[it] = 0.;
+			FY[it] = 0.;	
+			FZ[it] = 0.;
+				 
+			MTX[it] = 0.;
+			MTY[it] = 0.;   
+			MTZ[it] = 0.;   
+
+			NX= ((int) (LIST_X[it]*vecsizex/H_TOT));
+			NY= ((int) (LIST_Y[it]*vecsizey/V_TOT));
+			NZ= ((int) (LIST_Z[it]*vecsizez/Z_TOT));		
+			
+			if(NX<0) NX=0;
+			if(NX>=vecsizex) NX=vecsizex-1;		
+			if(NY<0) NY=0;
+			if(NY>=vecsizey) NY=vecsizey-1;		
+			if(NZ<0) NZ=0;
+			if(NZ>=vecsizez) NZ=vecsizez-1;		
+			
+		# pragma omp critical
+		{
+		coul[NX+NY*vecsizex+NZ*vecsizex*vecsizey].push_back(it);
+		}
+			LIST_C[it] = NX+NY*vecsizex+NZ*vecsizex*vecsizey;   
+
+	}
+   	    
+   	  
+}
+
+void verlet_torsion(R & Ec, R & Epp, int vecsize, int vecsizex, int vecsizey,int vecsizez, vector< vector<int>  > & coul,int * LIST_C,R & nuu, R &Emoy,R &Emoy1, int ite, R viti,R H_TOT,R V_TOT,R Z_TOT, int nD,R dt,R * LIST_M,R * LIST_I, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO, R * LIST_TX, R * LIST_TY, R * LIST_TZ, R * LIST_VX, R * LIST_VY, R * LIST_VZ, R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * LIST_AX, R * LIST_AY, R * LIST_AZ, R * LIST_AWX, R * LIST_AWY, R * LIST_AWZ, R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, bool * EDGE1,bool * EDGE2,bool * EDGE3,bool * EDGE4,bool * EDGE5,bool * EDGE6, int NBENREG, R fimp,R mimp, int nitf)
+{
+
+for(int it=0;it<vecsize;it++){
+coul[it].clear();	
+}
+
+R fimp1;
+if(ite<nitf){
+fimp1=(fimp*R(ite))/nitf;
+}
+else
+{
+fimp1=fimp;	
+}
+
+R mimp1;
+if(ite<nitf){
+mimp1=(mimp*R(ite))/nitf;
+}
+else
+{
+mimp1=mimp;	
+}
+
+R ftot1=0.;
+R dtot1=0.;
+R z1=0.;
+R zO1=0.;
+int ntot1=0;
+R dtot2=0.;
+R z2=0.;
+R zO2=0.;
+R ftot2=0.;
+int ntot2=0;
+R mtot1=0.;
+R mtot2=0.;
+
+Ec=0.;
+Epp=0.;
+
+int it,num_threads,NX,NY,NZ;
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+
+# pragma omp parallel for schedule(dynamic,int(nD/num_threads)) private(it,NX,NY,NZ) reduction(+:Ec,ftot1,dtot1,z1,zO1,ntot1,dtot2,z2,zO2,ftot2,ntot2,mtot1,mtot2) reduction(-:Epp)
+for(it=0;it<nD;it++){
+	
+		if((!EDGE3[it])&&(!EDGE6[it])) {	
+			
+		LIST_VX[it] = LIST_VX[it]+dt/2.*(LIST_AX[it]+FX[it]/LIST_M[it]);		
+		LIST_AX[it] = FX[it]/LIST_M[it];
+		LIST_X[it]  = LIST_X[it]+dt*LIST_VX[it]+dt*dt/2.*LIST_AX[it];
+
+		LIST_VY[it] = LIST_VY[it]+dt/2.*(LIST_AY[it]+FY[it]/LIST_M[it]);
+		LIST_AY[it] = FY[it]/LIST_M[it];
+		LIST_Y[it]  = LIST_Y[it]+dt*LIST_VY[it]+dt*dt/2.*LIST_AY[it];	
+			
+		LIST_VZ[it] = LIST_VZ[it]+dt/2.*(LIST_AZ[it]+FZ[it]/LIST_M[it]);    
+		LIST_AZ[it] = (FZ[it])/LIST_M[it];	
+		LIST_Z[it]  = LIST_Z[it]+dt*LIST_VZ[it]+dt*dt/2.*LIST_AZ[it];
+			
+		LIST_WX[it]  = LIST_WX[it]+dt/2.*(LIST_AWX[it]+MTX[it]/LIST_I[it]);
+		LIST_WY[it]  = LIST_WY[it]+dt/2.*(LIST_AWY[it]+MTY[it]/LIST_I[it]);	 
+		LIST_WZ[it]  = LIST_WZ[it]+dt/2.*(LIST_AWZ[it]+MTZ[it]/LIST_I[it]);	
+
+		LIST_AWX[it] = MTX[it]/LIST_I[it];
+		LIST_AWY[it] = MTY[it]/LIST_I[it];	 
+		LIST_AWZ[it] = MTZ[it]/LIST_I[it];	   	 
+
+		LIST_TX[it] = LIST_TX[it]+dt*LIST_WX[it]+dt*dt/2.*LIST_AWX[it];
+		LIST_TY[it] = LIST_TY[it]+dt*LIST_WY[it]+dt*dt/2.*LIST_AWY[it];     
+		LIST_TZ[it] = LIST_TZ[it]+dt*LIST_WZ[it]+dt*dt/2.*LIST_AWZ[it]; 
+					
+		}
+		else if(EDGE6[it])
+		{
+			
+		LIST_VX[it] = LIST_VX[it]+dt/2.*(LIST_AX[it]+FX[it]/LIST_M[it]);		
+		LIST_AX[it] = FX[it]/LIST_M[it];
+		LIST_X[it]  = LIST_X[it]+dt*LIST_VX[it]+dt*dt/2.*LIST_AX[it];
+
+		LIST_VY[it] = LIST_VY[it]+dt/2.*(LIST_AY[it]+(FY[it])/LIST_M[it]);
+		LIST_AY[it] = (FY[it])/LIST_M[it];
+		LIST_Y[it]  = LIST_Y[it]+dt*LIST_VY[it]+dt*dt/2.*LIST_AY[it];	
+			
+		LIST_VZ[it] = LIST_VZ[it]+dt/2.*(LIST_AZ[it]+(FZ[it]-fimp1)/LIST_M[it]);    
+		LIST_AZ[it] = (FZ[it]-fimp1)/LIST_M[it];	
+		LIST_Z[it]  = LIST_Z[it]+dt*LIST_VZ[it]+dt*dt/2.*LIST_AZ[it];			
+			
+		LIST_WX[it]  = LIST_WX[it]+dt/2.*(LIST_AWX[it]+MTX[it]/LIST_I[it]);
+		LIST_WY[it]  = LIST_WY[it]+dt/2.*(LIST_AWY[it]+MTY[it]/LIST_I[it]);	 
+		LIST_WZ[it]  = LIST_WZ[it]+dt/2.*(LIST_AWZ[it]+(MTZ[it]+mimp1)/LIST_I[it]);	
+
+		LIST_AWX[it] = MTX[it]/LIST_I[it];
+		LIST_AWY[it] = MTY[it]/LIST_I[it];	 
+		LIST_AWZ[it] = (MTZ[it]+mimp1)/LIST_I[it];	   	 
+
+		LIST_TX[it] = LIST_TX[it]+dt*LIST_WX[it]+dt*dt/2.*LIST_AWX[it];
+		LIST_TY[it] = LIST_TY[it]+dt*LIST_WY[it]+dt*dt/2.*LIST_AWY[it];     
+		LIST_TZ[it] = LIST_TZ[it]+dt*LIST_WZ[it]+dt*dt/2.*LIST_AWZ[it]; 
+		
+		}
+		else{
+			
+		LIST_VX[it] = LIST_VX[it]+dt/2.*(LIST_AX[it]+FX[it]/LIST_M[it]);		
+		LIST_AX[it] = FX[it]/LIST_M[it];
+		LIST_X[it]  = LIST_X[it]+dt*LIST_VX[it]+dt*dt/2.*LIST_AX[it];
+
+		LIST_VY[it] = LIST_VY[it]+dt/2.*(LIST_AY[it]+(FY[it])/LIST_M[it]);
+		LIST_AY[it] = (FY[it])/LIST_M[it];
+		LIST_Y[it]  = LIST_Y[it]+dt*LIST_VY[it]+dt*dt/2.*LIST_AY[it];	
+			
+		LIST_VZ[it] = LIST_VZ[it]+dt/2.*(LIST_AZ[it]+(FZ[it]+fimp1)/LIST_M[it]);    
+		LIST_AZ[it] = (FZ[it]+fimp1)/LIST_M[it];	
+		LIST_Z[it]  = LIST_Z[it]+dt*LIST_VZ[it]+dt*dt/2.*LIST_AZ[it];
+			
+		LIST_WX[it]  = LIST_WX[it]+dt/2.*(LIST_AWX[it]+MTX[it]/LIST_I[it]);
+		LIST_WY[it]  = LIST_WY[it]+dt/2.*(LIST_AWY[it]+MTY[it]/LIST_I[it]);	 
+		LIST_WZ[it]  = LIST_WZ[it]+dt/2.*(LIST_AWZ[it]+(MTZ[it]-mimp1)/LIST_I[it]);	
+
+		LIST_AWX[it] = MTX[it]/LIST_I[it];
+		LIST_AWY[it] = MTY[it]/LIST_I[it];	 
+		LIST_AWZ[it] = (MTZ[it]-mimp1)/LIST_I[it];	   	 
+
+		LIST_TX[it] = LIST_TX[it]+dt*LIST_WX[it]+dt*dt/2.*LIST_AWX[it];
+		LIST_TY[it] = LIST_TY[it]+dt*LIST_WY[it]+dt*dt/2.*LIST_AWY[it];     
+		LIST_TZ[it] = LIST_TZ[it]+dt*LIST_WZ[it]+dt*dt/2.*LIST_AWZ[it]; 
+		}
+	
+
+
+		Ec+=0.5*LIST_M[it]*(LIST_VX[it]*LIST_VX[it]+LIST_VY[it]*LIST_VY[it]+LIST_VZ[it]*LIST_VZ[it]);
+		Ec+=0.5*LIST_I[it]*(LIST_WX[it]*LIST_WX[it]+LIST_WY[it]*LIST_WY[it]+LIST_WZ[it]*LIST_WZ[it]);
+		
+		if(EDGE3[it]) {	
+	//	Epp-=(fimp1)*(LIST_Z[it]-LIST_ZO[it]);
+		dtot1+=fabs(LIST_Z[it]-LIST_ZO[it]);
+		ftot1+=FZ[it];
+		z1+=LIST_Z[it]-LIST_R[it];
+		zO1+=LIST_ZO[it]-LIST_R[it];	
+		mtot1+=MTZ[it];
+		ntot1++;
+	    }
+	    
+		if(EDGE6[it]) {	
+	//	Epp-=(-fimp1)*(LIST_Z[it]-LIST_ZO[it]);
+		dtot2+=fabs(LIST_Z[it]-LIST_ZO[it]);
+		ftot2+=FZ[it];
+		z2+=LIST_Z[it]+LIST_R[it];		
+		zO2+=LIST_ZO[it]+LIST_R[it];		
+		mtot2+=MTZ[it];	
+		ntot2++;	
+	    }
+   
+		FX[it] = 0.;
+		FY[it] = 0.;	
+		FZ[it] = 0.;
+			 
+		MTX[it] = 0.;
+		MTY[it] = 0.;   
+		MTZ[it] = 0.;   
+
+		NX= ((int) (LIST_X[it]*vecsizex/H_TOT));
+		NY= ((int) (LIST_Y[it]*vecsizey/V_TOT));
+		NZ= ((int) (LIST_Z[it]*vecsizez/Z_TOT));		
+		
+		if(NX<0) NX=0;
+		if(NX>=vecsizex) NX=vecsizex-1;		
+		if(NY<0) NY=0;
+		if(NY>=vecsizey) NY=vecsizey-1;		
+		if(NZ<0) NZ=0;
+		if(NZ>=vecsizez) NZ=vecsizez-1;		
+		
+		# pragma omp critical
+		{
+		coul[NX+NY*vecsizex+NZ*vecsizex*vecsizey].push_back(it);
+		}
+		LIST_C[it] = NX+NY*vecsizex+NZ*vecsizex*vecsizey;   
+
+}
+   	    
+	    dtot1=dtot1/ntot1;
+	    dtot2=dtot2/ntot2;	    
+	    z1=z1/ntot1;
+	    z2=z2/ntot2;	   
+	    zO1=zO1/ntot1;
+	    zO2=zO2/ntot2;	   
+	    	     	    
+			
+		if(ite%NBENREG==0){
+
+         cout<<"Moment théorique :" <<ntot2*1e-5*ite/100.<<", eval. :"<<mtot1<<"  "<<mtot2<<endl;
+         cout<<"Forces :"<<ftot1<<"  "<<ftot2<<endl;
+			  	
+		}      
+		
+	
+
+}
+
+void verlet_trac_qs_nrj(R & Ec, R & Epp, int ite, int NB_SPH,R dt,R * LIST_M,R * LIST_I, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z,R * LIST_XO, R * LIST_YO, R * LIST_ZO,R * LIST_XA, R * LIST_YA, R * LIST_ZA,  R * LIST_TX, R * LIST_TY, R * LIST_TZ, R * LIST_TXA, R * LIST_TYA, R * LIST_TZA,R * LIST_VX, R * LIST_VY, R * LIST_VZ, R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * LIST_AX, R * LIST_AY, R * LIST_AZ, R * LIST_AWX, R * LIST_AWY, R * LIST_AWZ, R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, bool * EDGE1,bool * EDGE2,bool * EDGE3,bool * EDGE4,bool * EDGE5,bool * EDGE6, R fimp, int nitf, R & reac, R & dpct, R & dpct2)
+{
+
+Ec=0.;
+Epp=0.;
+dpct=0.;
+dpct2=0.;
+reac=0.;
+
+int nd=0;
+int nd2=0;
+
+R ff;
+if(ite<nitf){
+ff=fimp*R(ite)/nitf;
+}else{
+ff=fimp;	
+}
+
+int it,num_threads;
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it) reduction(+:Ec,Epp,dpct,dpct2,reac,nd,nd2) 
+for(it=0;it<NB_SPH;it++){
+	
+  
+   LIST_XA[it]=LIST_X[it];
+   LIST_YA[it]=LIST_Y[it];
+   LIST_ZA[it]=LIST_Z[it];  
+   
+   LIST_TXA[it]=LIST_TX[it];
+   LIST_TYA[it]=LIST_TY[it];
+   LIST_TZA[it]=LIST_TZ[it];   	
+	
+	if((!EDGE1[it])&&(!EDGE4[it])) {	
+		LIST_VX[it] = LIST_VX[it]+dt/2.*(LIST_AX[it]+FX[it]/LIST_M[it]);		
+		LIST_AX[it] = FX[it]/LIST_M[it];
+		LIST_X[it] = LIST_X[it]+dt*LIST_VX[it]+dt*dt/2.*LIST_AX[it];
+
+		LIST_VY[it] = LIST_VY[it]+dt/2.*(LIST_AY[it]+FY[it]/LIST_M[it]);
+		LIST_AY[it] = FY[it]/LIST_M[it];
+		LIST_Y[it] = LIST_Y[it]+dt*LIST_VY[it]+dt*dt/2.*LIST_AY[it];
+
+		LIST_VZ[it] = LIST_VZ[it]+dt/2.*(LIST_AZ[it]+FZ[it]/LIST_M[it]);    
+		LIST_AZ[it] = FZ[it]/LIST_M[it];	
+		LIST_Z[it] = LIST_Z[it]+dt*LIST_VZ[it]+dt*dt/2.*LIST_AZ[it];	
+
+		LIST_WX[it]  = LIST_WX[it]+dt/2.*(LIST_AWX[it]+MTX[it]/LIST_I[it]);
+		LIST_WY[it]  = LIST_WY[it]+dt/2.*(LIST_AWY[it]+MTY[it]/LIST_I[it]);	 
+		LIST_WZ[it]  = LIST_WZ[it]+dt/2.*(LIST_AWZ[it]+MTZ[it]/LIST_I[it]);	
+
+		LIST_AWX[it] = MTX[it]/LIST_I[it];
+		LIST_AWY[it] = MTY[it]/LIST_I[it];	 
+		LIST_AWZ[it] = MTZ[it]/LIST_I[it];	   	 
+
+		LIST_TX[it] = LIST_TX[it]+dt*LIST_WX[it]+dt*dt/2.*LIST_AWX[it];
+		LIST_TY[it] = LIST_TY[it]+dt*LIST_WY[it]+dt*dt/2.*LIST_AWY[it];     
+		LIST_TZ[it] = LIST_TZ[it]+dt*LIST_WZ[it]+dt*dt/2.*LIST_AWZ[it]; 
+     	    	
+    }
+    else if(EDGE4[it])
+    {		
+		LIST_VX[it] = LIST_VX[it]+dt/2.*(LIST_AX[it]+(ff+FX[it])/LIST_M[it]);		
+		LIST_AX[it] = (ff+FX[it])/LIST_M[it];
+		LIST_X[it] = LIST_X[it]+dt*LIST_VX[it]+dt*dt/2.*LIST_AX[it];
+
+		LIST_VY[it] = LIST_VY[it]+dt/2.*(LIST_AY[it]+FY[it]/LIST_M[it]);
+		LIST_AY[it] = FY[it]/LIST_M[it];
+		LIST_Y[it] = LIST_Y[it]+dt*LIST_VY[it]+dt*dt/2.*LIST_AY[it];
+
+		LIST_VZ[it] = LIST_VZ[it]+dt/2.*(LIST_AZ[it]+FZ[it]/LIST_M[it]);    
+		LIST_AZ[it] = FZ[it]/LIST_M[it];	
+		LIST_Z[it] = LIST_Z[it]+dt*LIST_VZ[it]+dt*dt/2.*LIST_AZ[it];	  
+
+		LIST_WX[it]  = LIST_WX[it]+dt/2.*(LIST_AWX[it]+MTX[it]/LIST_I[it]);
+		LIST_WY[it]  = LIST_WY[it]+dt/2.*(LIST_AWY[it]+MTY[it]/LIST_I[it]);	 
+		LIST_WZ[it]  = LIST_WZ[it]+dt/2.*(LIST_AWZ[it]+MTZ[it]/LIST_I[it]);	
+
+		LIST_AWX[it] = MTX[it]/LIST_I[it];
+		LIST_AWY[it] = MTY[it]/LIST_I[it];	 
+		LIST_AWZ[it] = MTZ[it]/LIST_I[it];	   	 
+
+		LIST_TX[it] = LIST_TX[it]+dt*LIST_WX[it]+dt*dt/2.*LIST_AWX[it];
+		LIST_TY[it] = LIST_TY[it]+dt*LIST_WY[it]+dt*dt/2.*LIST_AWY[it];     
+		LIST_TZ[it] = LIST_TZ[it]+dt*LIST_WZ[it]+dt*dt/2.*LIST_AWZ[it]; 
+     	
+	dpct+=(LIST_X[it]-LIST_XO[it]);
+	nd++;
+	}
+	else{
+	reac+=FX[it];
+    }
+	
+           
+    if(EDGE5[it]&&EDGE6[it]) {	
+	dpct2+=(LIST_Y[it]-LIST_YO[it]);	
+	nd2++;				
+    }       
+       
+ 
+	 Ec+=0.5*LIST_M[it]*(LIST_VX[it]*LIST_VX[it]+LIST_VY[it]*LIST_VY[it]+LIST_VZ[it]*LIST_VZ[it]);
+	 Ec+=0.5*LIST_I[it]*(LIST_WX[it]*LIST_WX[it]+LIST_WY[it]*LIST_WY[it]+LIST_WZ[it]*LIST_WZ[it]);
+          
+	 Epp+=(0.*-(LIST_X[it]-LIST_XO[it]));
+	 Epp+=(0.*-(LIST_Y[it]-LIST_YO[it]));
+ 	 Epp+=(0.*-(LIST_Z[it]-LIST_ZO[it]));         
+          
+	 FX[it] = 0.;
+	 FY[it] = 0.;	
+	 FZ[it] = 0.;
+	 		 
+     MTX[it] = 0.;
+     MTY[it] = 0.;   
+     MTZ[it] = 0.;   
+
+}
+
+dpct/=nd;
+dpct2/=nd2;
+
+}
+
+
+void verlet_brazil(int NBENREG, R & ftot,R & ftot2, R epsi, R & Ec, R & Epp, int vecsize, int vecsizex, int vecsizey,int vecsizez, vector< vector<int>  > & coul,int * LIST_C,R & nuu, R &Emoy,R &Emoy1, int ite, R viti,R H_TOT,R V_TOT,R Z_TOT, int nD,R dt,R * LIST_M,R * LIST_I, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO, R * LIST_TX, R * LIST_TY, R * LIST_TZ, R * LIST_VX, R * LIST_VY, R * LIST_VZ, R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * LIST_AX, R * LIST_AY, R * LIST_AZ, R * LIST_AWX, R * LIST_AWY, R * LIST_AWZ, R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, bool * EDGE1,bool * EDGE2,bool * EDGE3,bool * EDGE4,bool * EDGE5,bool * EDGE6, R fimp, int nitf)
+{
+
+					
+Epp=0.;
+		    
+ftot=0.;
+ftot2=0.;
+
+for(int it=0;it<vecsize;it++){
+coul[it].clear();	
+}
+
+int NX,NY,NZ,it;
+int num_threads;
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+
+# pragma omp parallel for schedule(dynamic,int(nD/num_threads)) private(it,NX,NY,NZ) reduction(+:Ec,ftot,ftot2) 
+	for(it=0;it<nD;it++){
+				
+		    if((!EDGE1[it])&&(!EDGE4[it])){
+			LIST_VX[it] = LIST_VX[it]+dt/2.*(LIST_AX[it]+FX[it]/LIST_M[it]);		
+			LIST_AX[it] = FX[it]/LIST_M[it];
+			LIST_X[it] = LIST_X[it]+dt*LIST_VX[it]+dt*dt/2.*LIST_AX[it];   
+
+		    }
+		    else if(EDGE4[it]){				
+			LIST_VX[it] = -viti;	
+			LIST_AX[it] = FX[it]/LIST_M[it];
+			LIST_X[it] = LIST_X[it]+dt*(-viti);				
+			ftot=ftot+FX[it];	
+			}
+			else{
+			LIST_VX[it] = viti;	
+			LIST_AX[it] = FX[it]/LIST_M[it];
+			LIST_X[it] = LIST_X[it]+dt*(viti);	
+			ftot2=ftot2+FX[it];	
+			}
+            
+
+            LIST_VY[it] = LIST_VY[it]+dt/2.*(LIST_AY[it]+FY[it]/LIST_M[it]);
+			LIST_AY[it] = FY[it]/LIST_M[it];
+			LIST_Y[it]  = LIST_Y[it]+dt*LIST_VY[it]+dt*dt/2.*LIST_AY[it];
+		    		
+			LIST_VZ[it] = LIST_VZ[it]+dt/2.*(LIST_AZ[it]+FZ[it]/LIST_M[it]);    
+			LIST_AZ[it] = FZ[it]/LIST_M[it];	
+			LIST_Z[it]  = LIST_Z[it]+dt*LIST_VZ[it]+dt*dt/2.*LIST_AZ[it];	
+
+			LIST_WX[it]  = LIST_WX[it]+dt/2.*(LIST_AWX[it]+MTX[it]/LIST_I[it]);
+			LIST_WY[it]  = LIST_WY[it]+dt/2.*(LIST_AWY[it]+MTY[it]/LIST_I[it]);	 
+			LIST_WZ[it]  = LIST_WZ[it]+dt/2.*(LIST_AWZ[it]+MTZ[it]/LIST_I[it]);	
+
+			LIST_AWX[it] = MTX[it]/LIST_I[it];
+			LIST_AWY[it] = MTY[it]/LIST_I[it];	 
+			LIST_AWZ[it] = MTZ[it]/LIST_I[it];	   	 
+
+			LIST_TX[it] = LIST_TX[it]+dt*LIST_WX[it]+dt*dt/2.*LIST_AWX[it];
+			LIST_TY[it] = LIST_TY[it]+dt*LIST_WY[it]+dt*dt/2.*LIST_AWY[it];     
+			LIST_TZ[it] = LIST_TZ[it]+dt*LIST_WZ[it]+dt*dt/2.*LIST_AWZ[it]; 
+			
+			Ec+=0.5*LIST_M[it]*(LIST_VX[it]*LIST_VX[it]+LIST_VY[it]*LIST_VY[it]+LIST_VZ[it]*LIST_VZ[it]);
+			Ec+=0.5*LIST_I[it]*(LIST_WX[it]*LIST_WX[it]+LIST_WY[it]*LIST_WY[it]+LIST_WZ[it]*LIST_WZ[it]);
+		
+			FX[it] = 0.;
+			FY[it] = 0.;	
+			FZ[it] = 0.;
+				 
+			MTX[it] = 0.;
+			MTY[it] = 0.;   
+			MTZ[it] = 0.;   
+
+			NX= ((int) (LIST_X[it]*vecsizex/H_TOT));
+			NY= ((int) (LIST_Y[it]*vecsizey/V_TOT));
+			NZ= ((int) (LIST_Z[it]*vecsizez/Z_TOT));		
+			
+			if(NX<0) NX=0;
+			if(NX>=vecsizex) NX=vecsizex-1;		
+			if(NY<0) NY=0;
+			if(NY>=vecsizey) NY=vecsizey-1;		
+			if(NZ<0) NZ=0;
+			if(NZ>=vecsizez) NZ=vecsizez-1;		
+			
+		# pragma omp critical
+		{
+		coul[NX+NY*vecsizex+NZ*vecsizex*vecsizey].push_back(it);
+		}
+			LIST_C[it] = NX+NY*vecsizex+NZ*vecsizex*vecsizey;   
+
+	}
+   	    
+   	  
+}
+
+void verlet_brazil_qs(int NBENREG, R & ftot,R & ftot2, R epsi, R & Ec, R & Epp,R & nuu, R &Emoy,R &Emoy1, int ite, R viti,R H_TOT,R V_TOT,R Z_TOT, int nD,R dt,R * LIST_M,R * LIST_I, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO, R * LIST_TX, R * LIST_TY, R * LIST_TZ, R * LIST_VX, R * LIST_VY, R * LIST_VZ, R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * LIST_AX, R * LIST_AY, R * LIST_AZ, R * LIST_AWX, R * LIST_AWY, R * LIST_AWZ, R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, bool * EDGE1,bool * EDGE2,bool * EDGE3,bool * EDGE4,bool * EDGE5,bool * EDGE6, R fimp, int nitf)
+{
+
+ftot=0.;
+ftot2=0.;
+			
+Epp=0.;
+int it,num_threads;
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+
+# pragma omp parallel for schedule(dynamic,int(nD/num_threads)) private(it,NX,NY,NZ) reduction(+:Ec,ftot,ftot2) 
+	for(it=0;it<nD;it++){
+				
+		    if((!EDGE1[it])&&(!EDGE4[it])){
+			LIST_VX[it] = LIST_VX[it]+dt/2.*(LIST_AX[it]+FX[it]/LIST_M[it]);		
+			LIST_AX[it] = FX[it]/LIST_M[it];
+			LIST_X[it] = LIST_X[it]+dt*LIST_VX[it]+dt*dt/2.*LIST_AX[it];   
+
+		    }
+		    else if(EDGE4[it]){				
+			LIST_VX[it] = -viti;	
+			LIST_AX[it] = FX[it]/LIST_M[it];
+			LIST_X[it] = LIST_X[it]+dt*(-viti);				
+			ftot=ftot+FX[it];	
+			}
+			else{
+			LIST_VX[it] = viti;	
+			LIST_AX[it] = FX[it]/LIST_M[it];
+			LIST_X[it] = LIST_X[it]+dt*(viti);	
+			ftot2=ftot2+FX[it];	
+			}
+            
+
+            LIST_VY[it] = LIST_VY[it]+dt/2.*(LIST_AY[it]+FY[it]/LIST_M[it]);
+			LIST_AY[it] = FY[it]/LIST_M[it];
+			LIST_Y[it]  = LIST_Y[it]+dt*LIST_VY[it]+dt*dt/2.*LIST_AY[it];
+		    		
+			LIST_VZ[it] = LIST_VZ[it]+dt/2.*(LIST_AZ[it]+FZ[it]/LIST_M[it]);    
+			LIST_AZ[it] = FZ[it]/LIST_M[it];	
+			LIST_Z[it]  = LIST_Z[it]+dt*LIST_VZ[it]+dt*dt/2.*LIST_AZ[it];	
+
+			LIST_WX[it]  = LIST_WX[it]+dt/2.*(LIST_AWX[it]+MTX[it]/LIST_I[it]);
+			LIST_WY[it]  = LIST_WY[it]+dt/2.*(LIST_AWY[it]+MTY[it]/LIST_I[it]);	 
+			LIST_WZ[it]  = LIST_WZ[it]+dt/2.*(LIST_AWZ[it]+MTZ[it]/LIST_I[it]);	
+
+			LIST_AWX[it] = MTX[it]/LIST_I[it];
+			LIST_AWY[it] = MTY[it]/LIST_I[it];	 
+			LIST_AWZ[it] = MTZ[it]/LIST_I[it];	   	 
+
+			LIST_TX[it] = LIST_TX[it]+dt*LIST_WX[it]+dt*dt/2.*LIST_AWX[it];
+			LIST_TY[it] = LIST_TY[it]+dt*LIST_WY[it]+dt*dt/2.*LIST_AWY[it];     
+			LIST_TZ[it] = LIST_TZ[it]+dt*LIST_WZ[it]+dt*dt/2.*LIST_AWZ[it]; 
+			
+			Ec+=0.5*LIST_M[it]*(LIST_VX[it]*LIST_VX[it]+LIST_VY[it]*LIST_VY[it]+LIST_VZ[it]*LIST_VZ[it]);
+			Ec+=0.5*LIST_I[it]*(LIST_WX[it]*LIST_WX[it]+LIST_WY[it]*LIST_WY[it]+LIST_WZ[it]*LIST_WZ[it]);
+	
+			FX[it] = 0.;
+			FY[it] = 0.;	
+			FZ[it] = 0.;
+				 
+			MTX[it] = 0.;
+			MTY[it] = 0.;   
+			MTZ[it] = 0.;   
+
+	}
+   	    
+   	  
+}
+
+
+

@@ -1,0 +1,19 @@
+#ifndef __LECTFIC__
+#define __LECTFIC__
+
+typedef double R;
+
+void read_paroi(int & NB_PAR, R ** LIST_PX, R ** LIST_PY, R ** LIST_PZ);
+void read_sphp_ind(R & H_TOT, R & V_TOT, R & Z_TOT, int & NB_SPH, R & R_SPH, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R & RMAX, R rind);
+void read_sph(R & H_TOT, R & V_TOT, R & Z_TOT, int & NB_SPH, R & R_SPH, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R & RMAX);
+void read_sphp(R & H_TOT, R & V_TOT, R & Z_TOT, int & NB_SPH, R & R_SPH, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R & RMAX);
+void read_sphp_car(R EE,R & H_TOT, R & V_TOT, R & Z_TOT, int & NB_SPH, R & R_SPH, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R & RMAX);
+void read_phase(int H_TOT, int V_TOT, int Z_TOT, int NB_SPH, R * LIST_X, R * LIST_Y, R * LIST_Z, bool * LIST_P);
+void read_phase_rupt(int H_TOT, int V_TOT, int Z_TOT, int NB_SPH, R * LIST_X, R * LIST_Y, R * LIST_Z, bool * LIST_P, int * LIST_B);
+void read_phase_compo(int H_TOT, int V_TOT, int Z_TOT, int NB_SPH, R * LIST_X, R * LIST_Y, R * LIST_Z, bool * LIST_P);
+void read_ver_tet4(int & NB_NOVER, int & NB_VER, R ** NOEUD, int ** TET4);
+void read_ver_pri6(int & NB_NOVER, int & NB_VER, R ** NOEUD, int ** PRI6);
+void read_ver_pri6_from_tri3(int & NB_NOVER, int & NB_VER, R ** NOEUD, int ** PRI6);
+void genesis_tet4(int NB_VER, R ** NOEUD, int ** TET4,R * VOLT, int NT,int VT,int HT,int * LIST_N);
+void genesis_pri6(int NB_VER, R ** NOEUD, int ** PRI6,R * VOLT, int NT,int VT,int HT,int * LIST_N);
+#endif

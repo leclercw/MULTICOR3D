@@ -1,0 +1,25 @@
+#ifndef __CMDGKS__
+#define __CMDGKS__
+
+typedef double R;
+
+void ExpDEPL(R dplct, int ite,bool bstart);
+void ExpREAC(R reac, int ite,bool bstart);
+void ExpENERGY(R Ec, R Ep,R Epa, int ite,bool bstart);
+void ExpVISU(int ite, R dt, int NB_SPH, R H_TOT, R V_TOT, R Z_TOT, R* LIST_X, R* LIST_Y, R* LIST_Z, R* LIST_R,R * VONMIS,R * TRACE,R * SIG11,R * SIG12,R * SIG13,R * SIG22,R * SIG23,R * SIG33,R * SIG1,R * SIG2,R * SIG3,R * DEP1,R * DEP2,R * DEP3,R maxvm, R minvm, R maxtrac, R mintrac,R maxsig11, R minsig11,R maxsig12, R minsig12,R maxsig13, R minsig13,R maxsig22, R minsig22,R maxsig23, R minsig23,R maxsig33, R minsig33,R maxsig1, R minsig1,R maxsig2, R minsig2,R maxsig3, R minsig3,R maxdep1, R mindep1,R maxdep2, R mindep2,R maxdep3, R mindep3, bool bout, int * LIST_B, bool * EDGE);
+void ExpVISU_VER(int ite, R dt, int NB_SPH, R H_TOT, R V_TOT, R Z_TOT, R* LIST_X, R* LIST_Y, R* LIST_Z, R* LIST_R, int NB_VER, int NX, int NY, int NZ, R * VONMISV,R maxvmv, R minvmv, bool bout);
+void ExpVISU_VER_TET4(int ite, R dt, int NB_SPH, R H_TOT, R V_TOT, R Z_TOT, R* LIST_X, R* LIST_Y, R* LIST_Z, R* LIST_R,int NB_VER,R * VONMISV,R maxvmv, R minvmv,R ** NOEUD, int ** TET4, int HT, int NT, R * sigN, bool bout);
+void ExpVISU_VER_PRI6(int ite, R dt, int NB_SPH, R H_TOT, R V_TOT, R Z_TOT, R* LIST_X, R* LIST_Y, R* LIST_Z, R* LIST_R,int NB_VER,R * VONMISV,R maxvmv, R minvmv,R ** NOEUD, int ** PRI6, int HT, int NT, R * sigN, bool bout);
+void ExpMeshHAMZA(R SIZEX, R SIZEY, R SIZEZ, int NB_SPH, R* LIST_X, R* LIST_Y, R* LIST_Z, R* LIST_R);
+void ExpMeshMULTICOR(R SIZEX, R SIZEY, R SIZEZ, int NB_SPH, R* LIST_X, R* LIST_Y, R* LIST_Z, R* LIST_R);
+void ExpVER(int NB_VER, R * VONMISV);
+void ExpPRI6(int & NB_NOVER, int & NB_VER, R ** NOEUD, int ** PRI6);
+void ExpPARAMETER(R Emoy,R nuu, int NB_DIS, int NBCO, R cpu, int ite, R dt, R coord1);
+void ExpPARAMETER_VER(R minvm, R maxvm, R moyvm, R sd, int ite);
+void ExpPARAMETER_rupt(int nrt, int nrc, int nrcis, int nrtot, int ite);
+
+void ExpPARAMETER_sig_dep(R ff, int ite, R ti, int NB_SPH, R H_TOT, R V_TOT, R Z_TOT, R* LIST_X, R* LIST_Y, R* LIST_Z, R* LIST_R,R * VONMIS,R * TRACE,R * SIG11,R * SIG12,R * SIG13,R * SIG22,R * SIG23,R * SIG33,R * SIG1,R * SIG2,R * SIG3,R * DEP1,R * DEP2,R * DEP3,R maxvm, R minvm, R maxtrac, R mintrac,R maxsig11, R minsig11,R maxsig12, R minsig12,R maxsig13, R minsig13,R maxsig22, R minsig22,R maxsig23, R minsig23,R maxsig33, R minsig33,R maxsig1, R minsig1,R maxsig2, R minsig2,R maxsig3, R minsig3,R maxdep1, R mindep1,R maxdep2, R mindep2,R maxdep3, R mindep3,int * LIST_B, bool * EDGE);
+
+#endif
+
+

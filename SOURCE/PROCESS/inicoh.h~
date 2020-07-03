@@ -1,0 +1,10 @@
+#ifndef __INICOH__
+#define __INICOH__
+
+typedef double R;
+
+void inicoh2(bool * TYPCO, R & dt, R epsi, int  nbco,  int ** CONT, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_M, R * LIST_I, R * DCONT,R * DCONTO,  R ** NCONT, R ** VALCOH, R ** VALAMO, int ** NOCONT, int * NBCONTCO, R * DCONTX, R * DCONTY, R * DCONTZ, R * DCONTXO, R * DCONTYO, R * DCONTZO, R Pi, R Cs, bool * LIST_P, R rmu1, R rmu2, R Emu1, R Emu2, R nuu1, R nuu2, R amort);
+void inicoh2_int(bool * TYPCO, R & dt, R epsi, int  nbco,  int ** CONT, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_M, R * LIST_I, R * DCONT,R * DCONTO,  R ** NCONT, R ** VALCOH, R ** VALAMO, int ** NOCONT, int * NBCONTCO, R * DCONTX, R * DCONTY, R * DCONTZ, R * DCONTXO, R * DCONTYO, R * DCONTZO, R Pi, R Cs, bool * LIST_P, R rmu1, R rmu2, R Emu1, R Emu2, R nuu1, R nuu2, R amort);
+void inicoh(bool * TYPCO, R & dt, R epsi, int  nbco,  int ** CONT, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_M, R * LIST_I, R * DCONT,R * DCONTO, R ** NCONT, R ** VALCOH, R ** VALAMO, int ** NOCONT, int * NBCONTCO, R * DCONTX, R * DCONTY, R * DCONTZ, R * DCONTXO, R * DCONTYO, R * DCONTZO, R Pi, R Cs, R Emu, R rmu, R nuu, R amort);
+
+#endif

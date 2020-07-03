@@ -1,0 +1,2222 @@
+#include <cstdlib>
+#include <cstdio>
+#include <iomanip>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <cmath>
+#include <time.h> 
+#include <sys/time.h> 
+#include <sys/resource.h> 
+#include <string.h>
+#include <map>
+#include <cassert>
+#include <vector>
+#include <limits>
+
+using namespace std;
+
+#include "selco.h"
+
+void selco_paroi(R epsi, int & nbcop,int ** CONTP, R * DCONTP, R ** NCONTP, int NB_PAR, R ** LIST_PX, R ** LIST_PY, R ** LIST_PZ, R ** LIST_PN, int NB_SPH, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z) 
+{
+	
+R p,dist;	
+nbcop=0;
+
+
+	for(int jt=0;jt<NB_SPH;jt++){
+		
+		for(int it=0;it<NB_PAR;it++){
+
+          
+		p= (LIST_PN[it][0]*(LIST_X[jt]-LIST_PX[it][0])+LIST_PN[it][1]*(LIST_Y[jt]-LIST_PY[it][0])+LIST_PN[it][2]*(LIST_Z[jt]-LIST_PZ[it][0]));
+        dist=fabs(p);
+        
+           // if(it==1&&jt==1){
+		   //  cout<<"n:"<<LIST_PN[it][0]<<", "<<LIST_PN[it][1]<<", "<<LIST_PN[it][2]<<endl;
+		   //  cout<<"dist:"<<dist<<", "<<LIST_X[jt]<<", "<<LIST_PX[it][0]<<endl;}	
+     
+		  if(dist<LIST_R[jt]+epsi){
+		  
+				CONTP[nbcop][0]=it;
+	            CONTP[nbcop][1]=jt;
+				DCONTP[nbcop]=dist;
+				NCONTP[nbcop][0]=-p*LIST_PN[it][0]/dist;
+				NCONTP[nbcop][1]=-p*LIST_PN[it][1]/dist; 
+				NCONTP[nbcop][2]=-p*LIST_PN[it][2]/dist;   
+			  
+			nbcop++;  
+		//	cout<<"nbcop:"<<nbcop<<endl;
+		  }
+		  
+		
+		}
+		
+	}	
+	
+}
+
+
+void selco_corci_qs(R & dt, R epsi, int & nbco,  int ** CONT, int vecsize, int vecsizex, int vecsizey, int vecsizez, R H_TOT, R V_TOT, R Z_TOT, vector< vector<int> > & coul,vector< vector<int> > & numc, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_M, R * LIST_I, R * DCONT, R ** NCONT, R ** VALCOH, R ** VALAMO, int ** NOCONT, int * NBCONTCO, R * DCONTX, R * DCONTY, R * DCONTZ, R Pi, R Cs, R Emu, R rmu, R nuu, R amort)
+{
+
+nbco=0;
+
+R dx,dy,dz,nd2,r2, S,I,ray,ray1,ray2;
+R kkn,kkt;
+R fors,norms;
+                        
+	for(int ii=0;ii<vecsize;ii++){
+
+		for(int lt=0;lt<coul[ii].size();lt++){
+			
+		int it = coul[ii][lt];
+
+			for(int kt=0;kt<numc[ii].size();kt++){
+
+				 for(int kjt=0;kjt<coul[numc[ii][kt]].size();kjt++){ 
+					 
+					  int jt=coul[numc[ii][kt]][kjt];
+		
+						
+					  if((kt>0)||((kt==0)&&(jt>it))){	      
+					  dx=LIST_X[it]-LIST_X[jt]; 
+					  dy=LIST_Y[it]-LIST_Y[jt]; 
+					  dz=LIST_Z[it]-LIST_Z[jt]; 					  
+					  nd2=sqrt(dx*dx+dy*dy+dz*dz);
+					  r2=(LIST_R[it]+LIST_R[jt]);
+					
+/////////////////////////////////////////////////////////////////////////	//Collision
+					  if(nd2<r2+epsi)
+					  {
+					   CONT[nbco][0]=it;
+                       CONT[nbco][1]=jt;
+                       
+                       NOCONT[it][NBCONTCO[it]]=nbco;
+					   NOCONT[jt][NBCONTCO[jt]]=nbco;
+					   NBCONTCO[it]++;
+					   NBCONTCO[jt]++;   
+						   
+                       DCONTX[nbco]=dx;
+                       DCONTY[nbco]=dy;
+                       DCONTZ[nbco]=dz;  
+                       DCONT[nbco]=nd2;
+                       
+                       // Normale
+                       
+                       NCONT[nbco][0]=dx/nd2;
+                       NCONT[nbco][1]=dy/nd2; 
+                       NCONT[nbco][2]=dz/nd2;       
+                       
+                       // Zero numerique
+                       
+                       if(fabs(NCONT[nbco][0])<1e-18) NCONT[nbco][0]=0.;
+                       if(fabs(NCONT[nbco][1])<1e-18) NCONT[nbco][1]=0.;
+                       if(fabs(NCONT[nbco][2])<1e-18) NCONT[nbco][2]=0.;
+                       
+					   // Tangente s
+                       
+                       if((NCONT[nbco][0]*NCONT[nbco][1]==0.)&&(NCONT[nbco][1]*NCONT[nbco][2]==0.)&&(NCONT[nbco][2]*NCONT[nbco][0]==0.)){
+						  
+						  if(NCONT[nbco][0]!=0.){
+						   NCONT[nbco][3] = 0.;
+						   NCONT[nbco][4] = 0.;
+						   NCONT[nbco][5] = 1.;						
+					      }else if(NCONT[nbco][1]!=0.){
+						   NCONT[nbco][3] = 1.;
+						   NCONT[nbco][4] = 0.;
+						   NCONT[nbco][5] = 0.;									  
+						  }else if(NCONT[nbco][2]!=0.){
+						   NCONT[nbco][3] = 0.;
+						   NCONT[nbco][4] = 1.;
+						   NCONT[nbco][5] = 0.;									  
+						  }
+						   
+					   }else{
+							
+							if(NCONT[nbco][0]==0.){
+							
+							fors  = -(NCONT[nbco][1])/NCONT[nbco][2];
+						    norms = sqrt(fors*fors+2.);
+
+						    NCONT[nbco][3] = 1./norms;
+						    NCONT[nbco][4] = 1./norms;
+						    NCONT[nbco][5] = fors/norms;					
+							
+					    	}else{
+								
+						   fors  = -(NCONT[nbco][1]+NCONT[nbco][2])/NCONT[nbco][0];
+						   norms = sqrt(fors*fors+2.);
+
+						   NCONT[nbco][3] = fors/norms;
+						   NCONT[nbco][4] = 1./norms;
+						   NCONT[nbco][5] = 1./norms;							
+							
+						    }
+													
+							
+					   }
+                       
+                       
+
+					   /*
+					   if(fabs(NCONT[nbco][0])>1e-6){
+
+						   fors  = -(NCONT[nbco][1]+NCONT[nbco][2])/NCONT[nbco][0];
+						   norms = sqrt(fors*fors+2.);
+
+						   NCONT[nbco][3] = fors/norms;
+						   NCONT[nbco][4] = 1./norms;
+						   NCONT[nbco][5] = 1./norms;
+
+					   }					   
+					   else if(fabs(NCONT[nbco][1])>1e-6){
+
+						   fors  = -(NCONT[nbco][0]+NCONT[nbco][2])/NCONT[nbco][1];
+						   norms = sqrt(fors*fors+2.);
+
+						   NCONT[nbco][3] = 1./norms;
+						   NCONT[nbco][4] = fors/norms;
+						   NCONT[nbco][5] = 1./norms;
+						   
+					   }						   
+					   else if(fabs(NCONT[nbco][2])>1e-6){
+						   
+						   fors  = -(NCONT[nbco][0]+NCONT[nbco][1])/NCONT[nbco][2];
+						   norms = sqrt(fors*fors+2.);
+
+						   NCONT[nbco][3] = 1./norms;
+						   NCONT[nbco][4] = 1./norms;
+						   NCONT[nbco][5] = fors/norms;
+
+					   }		*/
+					   			   
+					   // Tangente t				   
+					   
+						NCONT[nbco][6] = NCONT[nbco][1]*NCONT[nbco][5] - NCONT[nbco][2]*NCONT[nbco][4];
+						NCONT[nbco][7] = NCONT[nbco][2]*NCONT[nbco][3] - NCONT[nbco][0]*NCONT[nbco][5];
+						NCONT[nbco][8] = NCONT[nbco][0]*NCONT[nbco][4] - NCONT[nbco][1]*NCONT[nbco][3];              
+                       
+                       // Cohesion
+					 
+					 //  ray1=LIST_R[it];
+					 //  ray2=LIST_R[jt];   
+                                                           
+						 ray=rmu*r2/2.;
+						 S=(Pi*ray*ray);
+						 I=Pi*pow((2.*ray),4)/64.;
+                         
+						 kkn=Emu*S/nd2;
+						 kkt=12.*Emu*I/(pow(nd2,3));                                   
+                         
+ 						 VALCOH[nbco][0]=kkn;
+						 VALCOH[nbco][1]=kkt;
+						 VALCOH[nbco][2]=nd2*kkt/2.;	
+						 VALCOH[nbco][3]=nd2*nd2*kkt/3.;	
+						 VALCOH[nbco][4]=nd2*nd2*kkt/6.;
+						 VALCOH[nbco][5]=Emu*I/((1+nuu)*nd2) ;
+                        
+  						 VALAMO[nbco][0]=amort*VALCOH[nbco][0];
+						 VALAMO[nbco][1]=amort*VALCOH[nbco][1];
+						 VALAMO[nbco][2]=amort*VALCOH[nbco][2];	
+						 VALAMO[nbco][3]=amort*VALCOH[nbco][3];	
+						 VALAMO[nbco][4]=amort*VALCOH[nbco][4];                       
+						 VALAMO[nbco][5]=amort*VALCOH[nbco][5];                        
+                       
+						 dt=min(dt,sqrt(LIST_M[it]/kkn));
+						 dt=min(dt,sqrt(LIST_M[jt]/kkn));
+						 dt=min(dt,sqrt(LIST_I[it]/(kkt*LIST_R[it]*LIST_R[it])));
+						 dt=min(dt,sqrt(LIST_I[jt]/(kkt*LIST_R[jt]*LIST_R[jt])));  
+
+                                                nbco++;      
+					  }
+/////////////////////////////////////////////////////////////////////////	
+				
+					  } 
+
+			     }
+
+			}	
+
+		}
+		
+	}
+
+dt=Cs*dt;
+cout<<"Pas de temps:"<<dt<<endl;
+}
+
+void selco_corci2_qs(R & dt, R epsi, int & nbco,  int ** CONT, int vecsize, int vecsizex, int vecsizey, int vecsizez, R H_TOT, R V_TOT, R Z_TOT, vector< vector<int> > & coul,vector< vector<int> > & numc, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_M, R * LIST_I, R * DCONT, R ** NCONT, R ** VALCOH, R ** VALAMO, int ** NOCONT, int * NBCONTCO, R * DCONTX, R * DCONTY, R * DCONTZ, R Pi, R Cs, bool * LIST_P, R rmu1, R rmu2, R Emu1, R Emu2, R nuu1, R nuu2, R amort)
+{
+
+nbco=0;
+
+R dx,dy,dz,nd2,r2, S,I,ray,ray1,ray2;
+R kkn,kkt;
+R fors,norms;
+R Emui,nuui,rmui;          
+                        
+	for(int ii=0;ii<vecsize;ii++){
+
+		for(int lt=0;lt<coul[ii].size();lt++){
+			
+		int it = coul[ii][lt];
+
+			for(int kt=0;kt<numc[ii].size();kt++){
+
+				 for(int kjt=0;kjt<coul[numc[ii][kt]].size();kjt++){ 
+					 
+					  int jt=coul[numc[ii][kt]][kjt];
+		
+						
+					  if((kt>0)||((kt==0)&&(jt>it))){	      
+					  dx=LIST_X[it]-LIST_X[jt]; 
+					  dy=LIST_Y[it]-LIST_Y[jt]; 
+					  dz=LIST_Z[it]-LIST_Z[jt]; 					  
+					  nd2=sqrt(dx*dx+dy*dy+dz*dz);
+					  r2=(LIST_R[it]+LIST_R[jt]);
+					
+/////////////////////////////////////////////////////////////////////////	//Collision
+					  if(nd2<r2+epsi)
+					  {
+					   CONT[nbco][0]=it;
+                       CONT[nbco][1]=jt;
+                       
+                       NOCONT[it][NBCONTCO[it]]=nbco;
+					   NOCONT[jt][NBCONTCO[jt]]=nbco;
+					   NBCONTCO[it]++;
+					   NBCONTCO[jt]++;   
+						   
+                       DCONTX[nbco]=dx;
+                       DCONTY[nbco]=dy;
+                       DCONTZ[nbco]=dz;  
+                       DCONT[nbco]=nd2;
+                       
+                       // Normale
+                       
+                       NCONT[nbco][0]=dx/nd2;
+                       NCONT[nbco][1]=dy/nd2; 
+                       NCONT[nbco][2]=dz/nd2;       
+                       
+                       // Zero numerique
+                       
+                       if(fabs(NCONT[nbco][0])<1e-18) NCONT[nbco][0]=0.;
+                       if(fabs(NCONT[nbco][1])<1e-18) NCONT[nbco][1]=0.;
+                       if(fabs(NCONT[nbco][2])<1e-18) NCONT[nbco][2]=0.;
+                       
+					   // Tangente s
+                       
+                       if((NCONT[nbco][0]*NCONT[nbco][1]==0.)&&(NCONT[nbco][1]*NCONT[nbco][2]==0.)&&(NCONT[nbco][2]*NCONT[nbco][0]==0.)){
+						  
+						  if(NCONT[nbco][0]!=0.){
+						   NCONT[nbco][3] = 0.;
+						   NCONT[nbco][4] = 0.;
+						   NCONT[nbco][5] = 1.;						
+					      }else if(NCONT[nbco][1]!=0.){
+						   NCONT[nbco][3] = 1.;
+						   NCONT[nbco][4] = 0.;
+						   NCONT[nbco][5] = 0.;									  
+						  }else if(NCONT[nbco][2]!=0.){
+						   NCONT[nbco][3] = 0.;
+						   NCONT[nbco][4] = 1.;
+						   NCONT[nbco][5] = 0.;									  
+						  }
+						   
+					   }else{
+							
+							if(NCONT[nbco][0]==0.){
+							
+							fors  = -(NCONT[nbco][1])/NCONT[nbco][2];
+						    norms = sqrt(fors*fors+2.);
+
+						    NCONT[nbco][3] = 1./norms;
+						    NCONT[nbco][4] = 1./norms;
+						    NCONT[nbco][5] = fors/norms;					
+							
+					    	}else{
+								
+						   fors  = -(NCONT[nbco][1]+NCONT[nbco][2])/NCONT[nbco][0];
+						   norms = sqrt(fors*fors+2.);
+
+						   NCONT[nbco][3] = fors/norms;
+						   NCONT[nbco][4] = 1./norms;
+						   NCONT[nbco][5] = 1./norms;							
+							
+						    }
+													
+							
+					   }
+                       
+                       
+
+					   /*
+					   if(fabs(NCONT[nbco][0])>1e-6){
+
+						   fors  = -(NCONT[nbco][1]+NCONT[nbco][2])/NCONT[nbco][0];
+						   norms = sqrt(fors*fors+2.);
+
+						   NCONT[nbco][3] = fors/norms;
+						   NCONT[nbco][4] = 1./norms;
+						   NCONT[nbco][5] = 1./norms;
+
+					   }					   
+					   else if(fabs(NCONT[nbco][1])>1e-6){
+
+						   fors  = -(NCONT[nbco][0]+NCONT[nbco][2])/NCONT[nbco][1];
+						   norms = sqrt(fors*fors+2.);
+
+						   NCONT[nbco][3] = 1./norms;
+						   NCONT[nbco][4] = fors/norms;
+						   NCONT[nbco][5] = 1./norms;
+						   
+					   }						   
+					   else if(fabs(NCONT[nbco][2])>1e-6){
+						   
+						   fors  = -(NCONT[nbco][0]+NCONT[nbco][1])/NCONT[nbco][2];
+						   norms = sqrt(fors*fors+2.);
+
+						   NCONT[nbco][3] = 1./norms;
+						   NCONT[nbco][4] = 1./norms;
+						   NCONT[nbco][5] = fors/norms;
+
+					   }		*/
+					   			   
+					   // Tangente t				   
+					   
+						NCONT[nbco][6] = NCONT[nbco][1]*NCONT[nbco][5] - NCONT[nbco][2]*NCONT[nbco][4];
+						NCONT[nbco][7] = NCONT[nbco][2]*NCONT[nbco][3] - NCONT[nbco][0]*NCONT[nbco][5];
+						NCONT[nbco][8] = NCONT[nbco][0]*NCONT[nbco][4] - NCONT[nbco][1]*NCONT[nbco][3];              
+                       
+                       // Cohesion
+					 
+					 //  ray1=LIST_R[it];
+					 //  ray2=LIST_R[jt];   
+               
+               		     if((LIST_P[it]==0)&&(LIST_P[jt]==0)){	                                            
+
+						 ray=rmu1*r2/2.;
+						 S=(Pi*ray*ray);
+						 I=Pi*pow((2.*ray),4)/64.;
+                         
+						 kkn=Emu1*S/nd2;
+						 kkt=12.*Emu1*I/(pow(nd2,3));   
+					     
+ 						 VALCOH[nbco][0]=kkn;
+						 VALCOH[nbco][1]=kkt;
+						 VALCOH[nbco][2]=nd2*kkt/2.;	
+						 VALCOH[nbco][3]=nd2*nd2*kkt/3.;	
+						 VALCOH[nbco][4]=nd2*nd2*kkt/6.;
+						 VALCOH[nbco][5]=Emu1*I/((1+nuu1)*nd2) ;}
+	               		 else if(((LIST_P[it]==0)&&(LIST_P[jt]==1))||((LIST_P[it]==1)&&(LIST_P[jt]==0))){	                                            
+						 					 
+				   	     rmui=(rmu1+rmu2)/2.;
+                 		 Emui=(Emu1+Emu2)/2.; 
+                 		 nuui=(nuu1+nuu2)/2.; 
+                 		 					 
+						 ray=rmui*r2/2.;
+						 S=(Pi*ray*ray);
+						 I=Pi*pow((2.*ray),4)/64.;
+                         
+						 kkn=Emui*S/nd2;
+						 kkt=12.*Emui*I/(pow(nd2,3));   
+					     
+ 						 VALCOH[nbco][0]=kkn;
+						 VALCOH[nbco][1]=kkt;
+						 VALCOH[nbco][2]=nd2*kkt/2.;	
+						 VALCOH[nbco][3]=nd2*nd2*kkt/3.;	
+						 VALCOH[nbco][4]=nd2*nd2*kkt/6.;
+						 VALCOH[nbco][5]=Emui*I/((1+nuui)*nd2) ;}					 
+               		     else if((LIST_P[it]==1)&&(LIST_P[jt]==1)){	    
+                         
+						 ray=rmu2*r2/2.;
+						 S=(Pi*ray*ray);
+						 I=Pi*pow((2.*ray),4)/64.;
+                         
+						 kkn=Emu2*S/nd2;
+						 kkt=12.*Emu2*I/(pow(nd2,3));   
+					     
+ 						 VALCOH[nbco][0]=kkn;
+						 VALCOH[nbco][1]=kkt;
+						 VALCOH[nbco][2]=nd2*kkt/2.;	
+						 VALCOH[nbco][3]=nd2*nd2*kkt/3.;	
+						 VALCOH[nbco][4]=nd2*nd2*kkt/6.;
+						 VALCOH[nbco][5]=Emu2*I/((1+nuu2)*nd2) ;}						 
+						 
+						 
+                        
+  						 VALAMO[nbco][0]=amort*VALCOH[nbco][0];
+						 VALAMO[nbco][1]=amort*VALCOH[nbco][1];
+						 VALAMO[nbco][2]=amort*VALCOH[nbco][2];	
+						 VALAMO[nbco][3]=amort*VALCOH[nbco][3];	
+						 VALAMO[nbco][4]=amort*VALCOH[nbco][4];                       
+						 VALAMO[nbco][5]=amort*VALCOH[nbco][5];                        
+                       
+						 dt=min(dt,sqrt(LIST_M[it]/kkn));
+						 dt=min(dt,sqrt(LIST_M[jt]/kkn));
+						 dt=min(dt,sqrt(LIST_I[it]/(kkt*LIST_R[it]*LIST_R[it])));
+						 dt=min(dt,sqrt(LIST_I[jt]/(kkt*LIST_R[jt]*LIST_R[jt])));  
+
+                       nbco++;      
+					  }
+/////////////////////////////////////////////////////////////////////////	
+				
+					  } 
+
+			     }
+
+			}	
+
+		}
+		
+	}
+
+dt=Cs*dt;
+cout<<"Pas de temps:"<<dt<<endl;
+}
+
+void selco_corci_ori(R epsi, int & nbco,  int ** CONT, int vecsize, int vecsizex, int vecsizey, int vecsizez, vector< vector<int> > & coul,vector< vector<int> > & numc, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, int ** NOCONT, int * NBCONTCO)
+{
+
+nbco=0;
+
+R dx,dy,dz,nd2,r2;
+R kkn,kkt;
+R fors,norms;
+                        
+	for(int ii=0;ii<vecsize;ii++){
+
+		for(int lt=0;lt<coul[ii].size();lt++){
+			
+		int it = coul[ii][lt];
+
+			for(int kt=0;kt<numc[ii].size();kt++){
+
+				 for(int kjt=0;kjt<coul[numc[ii][kt]].size();kjt++){ 
+					 
+					  int jt=coul[numc[ii][kt]][kjt];
+		
+						
+					  if((kt>0)||((kt==0)&&(jt>it))){	      
+					  dx=LIST_X[it]-LIST_X[jt]; 
+					  dy=LIST_Y[it]-LIST_Y[jt]; 
+					  dz=LIST_Z[it]-LIST_Z[jt]; 					  
+					  nd2=sqrt(dx*dx+dy*dy+dz*dz);
+					  r2=(LIST_R[it]+LIST_R[jt]);
+					
+/////////////////////////////////////////////////////////////////////////	//Collision
+					  if(nd2<r2+epsi)
+					  {
+					   CONT[nbco][0]=it;
+                       CONT[nbco][1]=jt;
+                       
+                       NOCONT[it][NBCONTCO[it]]=nbco;
+					   NOCONT[jt][NBCONTCO[jt]]=nbco;
+					   NBCONTCO[it]++;
+					   NBCONTCO[jt]++;   
+
+                       nbco++;      
+					  }
+/////////////////////////////////////////////////////////////////////////	
+				
+					  } 
+
+			     }
+
+			}	
+
+		}
+		
+	}
+
+cout<<"nbco:"<<nbco<<endl;
+
+}
+
+void selco_corci_ind(bool * TYPCO, R & dt, R epsi, int & nbco, int & nbcoh, int & nbcoe, int & nbci, int NB_SPH, int ** CONT, int vecsize, int vecsizex, int vecsizey, int vecsizez, R H_TOT, R V_TOT, R Z_TOT, vector< vector<int> > & coul,vector< vector<int> > & numc, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_M, R * LIST_I, R * DCONT, R * DCONTO, R ** NCONT, R ** VALCOH, R ** VALAMO, int ** NOCONT, int * NBCONTCO, R * DCONTX, R * DCONTY, R * DCONTZ, R Pi, R Cs, R E1, R nu1, R E2, R nu2)
+{
+
+R dx,dy,dz,nd2,r2,rij,hij,iEij,Eij;
+R Kn,Kt;
+R fors,norms;
+
+// Mise à blanc des contacts par corci
+  for(int it=0;it<NB_SPH;it++){
+     NBCONTCO[it]=0;
+  }
+
+dt=1e9;
+
+// Traitement anciens contacts
+int nbco1=0;
+nbcoh=0;
+nbcoe=0;
+
+  for(int ii=0;ii<nbco;ii++){
+	  
+	  if(TYPCO[ii]){
+	       nbcoh++;
+		   TYPCO[nbco1]=1;  	
+		   
+           CONT[nbco1][0]=CONT[ii][0];
+		   CONT[nbco1][1]=CONT[ii][1];                       
+		   
+		   int it=CONT[nbco1][0];
+		   int jt=CONT[nbco1][1];     
+		    
+   		   DCONTX[nbco1]=DCONTX[ii];
+		   DCONTY[nbco1]=DCONTY[ii];
+		   DCONTZ[nbco1]=DCONTZ[ii];		   
+		   DCONT[nbco1] =DCONT[ii];		
+		   DCONTO[nbco1]=DCONTO[ii];	
+
+		   NCONT[nbco1][0]=NCONT[ii][0];
+		   NCONT[nbco1][1]=NCONT[ii][1]; 
+		   NCONT[nbco1][2]=NCONT[ii][2];
+		   NCONT[nbco1][3]=NCONT[ii][3];
+		   NCONT[nbco1][4]=NCONT[ii][4]; 
+		   NCONT[nbco1][5]=NCONT[ii][5];     
+		   NCONT[nbco1][6]=NCONT[ii][6];
+		   NCONT[nbco1][7]=NCONT[ii][7]; 
+		   NCONT[nbco1][8]=NCONT[ii][8];     		                     		    
+                       		    
+		   NOCONT[it][NBCONTCO[it]]=nbco1;
+		   NOCONT[jt][NBCONTCO[jt]]=nbco1;
+		   NBCONTCO[it]++;
+		   NBCONTCO[jt]++; 		                       		    
+
+			 VALCOH[nbco1][0]=VALCOH[ii][0];
+			 VALCOH[nbco1][1]=VALCOH[ii][1];
+			 VALCOH[nbco1][2]=VALCOH[ii][2];	
+			 VALCOH[nbco1][3]=VALCOH[ii][3];	
+			 VALCOH[nbco1][4]=VALCOH[ii][4];
+			 VALCOH[nbco1][5]=VALCOH[ii][5];
+			 VALCOH[nbco1][6]=VALCOH[ii][6];	
+			
+			 VALAMO[nbco1][0]=VALAMO[ii][0];
+			 VALAMO[nbco1][1]=VALAMO[ii][1];
+			 VALAMO[nbco1][2]=VALAMO[ii][2];
+			 VALAMO[nbco1][3]=VALAMO[ii][3];
+			 VALAMO[nbco1][4]=VALAMO[ii][4];                      
+			 VALAMO[nbco1][5]=VALAMO[ii][5];
+			 VALAMO[nbco1][6]=VALAMO[ii][6];	                       
+		   
+			 dt=min(dt,sqrt(LIST_M[it]/VALCOH[nbco1][0]));
+			 dt=min(dt,sqrt(LIST_M[jt]/VALCOH[nbco1][0]));
+			 dt=min(dt,sqrt(LIST_I[it]/(VALCOH[nbco1][1]*LIST_R[it]*LIST_R[it])));
+			 dt=min(dt,sqrt(LIST_I[jt]/(VALCOH[nbco1][1]*LIST_R[jt]*LIST_R[jt])));  
+
+		  
+		  nbco1++;
+	  }
+	  else{
+	
+					   int it=CONT[ii][0];
+					   int jt=CONT[ii][1];
+		          
+					  dx=LIST_X[it]-LIST_X[jt]; 
+					  dy=LIST_Y[it]-LIST_Y[jt]; 
+					  dz=LIST_Z[it]-LIST_Z[jt]; 	
+					  nd2=sqrt(dx*dx+dy*dy+dz*dz);
+					  r2=(LIST_R[it]+LIST_R[jt]);  
+				/////////////////////////////////////////////////////////////////////////	//Contact
+					  if(nd2<r2+epsi)
+					  {
+						
+						   TYPCO[nbco1]=0;  		
+						 	  nbcoe++; 
+						       CONT[nbco1][0]=it;
+							   CONT[nbco1][1]=jt;                       
+							   
+							   DCONTX[nbco1]=dx;
+							   DCONTY[nbco1]=dy;
+							   DCONTZ[nbco1]=dz;	   
+							   DCONT[nbco1] =nd2;
+				               DCONTO[nbco1]=DCONTO[ii];	
+  
+		                         // Normale
+							   
+							   NCONT[nbco1][0]=dx/nd2;
+							   NCONT[nbco1][1]=dy/nd2; 
+							   NCONT[nbco1][2]=dz/nd2;       
+							   
+							   // Zero numerique
+							   
+							   if(fabs(NCONT[nbco1][0])<1e-18) NCONT[nbco1][0]=0.;
+							   if(fabs(NCONT[nbco1][1])<1e-18) NCONT[nbco1][1]=0.;
+							   if(fabs(NCONT[nbco1][2])<1e-18) NCONT[nbco1][2]=0.;
+							   
+							   // Tangente s
+							   
+							   if((NCONT[nbco1][0]*NCONT[nbco1][1]==0.)&&(NCONT[nbco1][1]*NCONT[nbco1][2]==0.)&&(NCONT[nbco1][2]*NCONT[nbco1][0]==0.)){
+								  
+								  if(NCONT[nbco1][0]!=0.){
+								   NCONT[nbco1][3] = 0.;
+								   NCONT[nbco1][4] = 0.;
+								   NCONT[nbco1][5] = 1.;						
+								  }else if(NCONT[nbco1][1]!=0.){
+								   NCONT[nbco1][3] = 1.;
+								   NCONT[nbco1][4] = 0.;
+								   NCONT[nbco1][5] = 0.;									  
+								  }else if(NCONT[nbco1][2]!=0.){
+								   NCONT[nbco1][3] = 0.;
+								   NCONT[nbco1][4] = 1.;
+								   NCONT[nbco1][5] = 0.;									  
+								  }
+								   
+							   }else{
+									
+									if(NCONT[nbco1][0]==0.){
+									
+									fors  = -(NCONT[nbco1][1])/NCONT[nbco1][2];
+									norms = sqrt(fors*fors+2.);
+
+									NCONT[nbco1][3] = 1./norms;
+									NCONT[nbco1][4] = 1./norms;
+									NCONT[nbco1][5] = fors/norms;					
+									
+									}else{
+										
+								   fors  = -(NCONT[nbco1][1]+NCONT[nbco1][2])/NCONT[nbco1][0];
+								   norms = sqrt(fors*fors+2.);
+
+								   NCONT[nbco1][3] = fors/norms;
+								   NCONT[nbco1][4] = 1./norms;
+								   NCONT[nbco1][5] = 1./norms;							
+									
+									}
+															
+									
+							   }
+							   
+							   
+							   // Tangente t				   
+							   
+								NCONT[nbco1][6] = NCONT[nbco1][1]*NCONT[nbco1][5] - NCONT[nbco1][2]*NCONT[nbco1][4];
+								NCONT[nbco1][7] = NCONT[nbco1][2]*NCONT[nbco1][3] - NCONT[nbco1][0]*NCONT[nbco1][5];
+								NCONT[nbco1][8] = NCONT[nbco1][0]*NCONT[nbco1][4] - NCONT[nbco1][1]*NCONT[nbco1][3];    
+								
+															   
+								NOCONT[it][NBCONTCO[it]]=nbco1;
+								NOCONT[jt][NBCONTCO[jt]]=nbco1;
+								NBCONTCO[it]++;
+								NBCONTCO[jt]++; 	
+									   
+								 rij=(LIST_R[it]*LIST_R[jt])/(LIST_R[it]+LIST_R[jt]);								
+								 hij=fabs(DCONT[nbco1]-(LIST_R[it]+LIST_R[jt]));
+								 iEij=2.*(1.-nu2*nu2)/E2;
+								 Eij=1./iEij;	
+								// Kn=4.*Eij*rij;
+								 Kn=10.*4.*Eij*sqrt(rij*hij)/3.;						
+								 Kt=Kn;
+								 
+								dt=min(dt,sqrt(LIST_M[it]/Kn));
+								dt=min(dt,sqrt(LIST_M[jt]/Kn));
+								dt=min(dt,sqrt(LIST_I[it]/(Kt*LIST_R[it]*LIST_R[it])));
+								dt=min(dt,sqrt(LIST_I[jt]/(Kt*LIST_R[jt]*LIST_R[jt])));  				
+						
+						
+						
+						  nbco1++;		  
+					  }	  
+					  	  
+		  
+	  }
+	  
+  }	  
+
+nbco=nbco1;
+
+// Recherche nouveaux contacts
+                        
+	for(int ii=0;ii<vecsize;ii++){
+
+		for(int lt=0;lt<coul[ii].size();lt++){
+			
+		int it = coul[ii][lt];
+
+			for(int kt=0;kt<numc[ii].size();kt++){
+
+				 for(int kjt=0;kjt<coul[numc[ii][kt]].size();kjt++){ 
+					 
+					  int jt=coul[numc[ii][kt]][kjt];
+		
+						
+					  if((kt>0)||((kt==0)&&(jt>it))){	      
+					  dx=LIST_X[it]-LIST_X[jt]; 
+					  dy=LIST_Y[it]-LIST_Y[jt]; 
+					  dz=LIST_Z[it]-LIST_Z[jt]; 					  
+					  nd2=sqrt(dx*dx+dy*dy+dz*dz);
+					  r2=(LIST_R[it]+LIST_R[jt]);
+					
+/////////////////////////////////////////////////////////////////////////	//Contact
+					  if(nd2<r2+epsi)
+					  {
+                           
+							   bool booloc=0 ; 
+								  
+							   if(NBCONTCO[it]>0){
+								 int ite=0;
+								 while((ite<NBCONTCO[it])&&(!booloc)){
+								   int numco=NOCONT[it][ite];
+								 
+								   if((numco<nbco1)&&(((CONT[numco][0]==it)&&(CONT[numco][1]==jt))||((CONT[numco][0]==jt)&&(CONT[numco][1]==it)))) booloc=1;			   	
+								
+								  ite++;						   
+								 } 
+							   }	
+									
+							   if(!booloc){  
+                             //      cout<<"hello!"<<endl;
+							   TYPCO[nbco]=0;
+										  nbcoe++;
+							   CONT[nbco][0]=it;
+							   CONT[nbco][1]=jt;                       
+							   
+							   DCONTX[nbco]=dx;
+							   DCONTY[nbco]=dy;
+							   DCONTZ[nbco]=dz;	   
+							   DCONT[nbco] =nd2;
+							   DCONTO[nbco1]=r2;
+							   
+		                         // Normale
+							   
+							   NCONT[nbco][0]=dx/nd2;
+							   NCONT[nbco][1]=dy/nd2; 
+							   NCONT[nbco][2]=dz/nd2;       
+							   
+							   // Zero numerique
+							   
+							   if(fabs(NCONT[nbco][0])<1e-18) NCONT[nbco][0]=0.;
+							   if(fabs(NCONT[nbco][1])<1e-18) NCONT[nbco][1]=0.;
+							   if(fabs(NCONT[nbco][2])<1e-18) NCONT[nbco][2]=0.;
+							   
+							   // Tangente s
+							   
+							   if((NCONT[nbco][0]*NCONT[nbco][1]==0.)&&(NCONT[nbco][1]*NCONT[nbco][2]==0.)&&(NCONT[nbco][2]*NCONT[nbco][0]==0.)){
+								  
+								  if(NCONT[nbco][0]!=0.){
+								   NCONT[nbco][3] = 0.;
+								   NCONT[nbco][4] = 0.;
+								   NCONT[nbco][5] = 1.;						
+								  }else if(NCONT[nbco][1]!=0.){
+								   NCONT[nbco][3] = 1.;
+								   NCONT[nbco][4] = 0.;
+								   NCONT[nbco][5] = 0.;									  
+								  }else if(NCONT[nbco][2]!=0.){
+								   NCONT[nbco][3] = 0.;
+								   NCONT[nbco][4] = 1.;
+								   NCONT[nbco][5] = 0.;									  
+								  }
+								   
+							   }else{
+									
+									if(NCONT[nbco][0]==0.){
+									
+									fors  = -(NCONT[nbco][1])/NCONT[nbco][2];
+									norms = sqrt(fors*fors+2.);
+
+									NCONT[nbco][3] = 1./norms;
+									NCONT[nbco][4] = 1./norms;
+									NCONT[nbco][5] = fors/norms;					
+									
+									}else{
+										
+								   fors  = -(NCONT[nbco][1]+NCONT[nbco][2])/NCONT[nbco][0];
+								   norms = sqrt(fors*fors+2.);
+
+								   NCONT[nbco][3] = fors/norms;
+								   NCONT[nbco][4] = 1./norms;
+								   NCONT[nbco][5] = 1./norms;							
+									
+									}
+															
+									
+							   }
+							   
+							   
+							   // Tangente t				   
+							   
+								NCONT[nbco][6] = NCONT[nbco][1]*NCONT[nbco][5] - NCONT[nbco][2]*NCONT[nbco][4];
+								NCONT[nbco][7] = NCONT[nbco][2]*NCONT[nbco][3] - NCONT[nbco][0]*NCONT[nbco][5];
+								NCONT[nbco][8] = NCONT[nbco][0]*NCONT[nbco][4] - NCONT[nbco][1]*NCONT[nbco][3];    
+								
+															   
+								NOCONT[it][NBCONTCO[it]]=nbco;
+								NOCONT[jt][NBCONTCO[jt]]=nbco;
+								NBCONTCO[it]++;
+								NBCONTCO[jt]++; 	
+									   
+								 rij=(LIST_R[it]*LIST_R[jt])/(LIST_R[it]+LIST_R[jt]);								
+								 hij=fabs(DCONT[nbco]-(LIST_R[it]+LIST_R[jt]));
+								 iEij=2.*(1.-nu2*nu2)/E2;
+								 Eij=1./iEij;	
+								// Kn=4.*Eij*rij;
+								 Kn=10.*4.*Eij*sqrt(rij*hij)/3.;	 			
+								 				                                        Kn=Kn/10000.;		
+		
+								 Kt=Kn;
+								 
+								dt=min(dt,sqrt(LIST_M[it]/Kn));
+								dt=min(dt,sqrt(LIST_M[jt]/Kn));
+								dt=min(dt,sqrt(LIST_I[it]/(Kt*LIST_R[it]*LIST_R[it])));
+								dt=min(dt,sqrt(LIST_I[jt]/(Kt*LIST_R[jt]*LIST_R[jt])));  		
+															   
+							   nbco++;						   
+							   }														   
+						   
+					  }
+/////////////////////////////////////////////////////////////////////////	
+				
+					  } 
+
+			     }
+
+			}	
+
+		}
+		
+	}
+
+
+// Contacts indenteur
+								
+nbci=0.;
+		for(int it=0;it<NB_SPH-1;it++){
+
+			int jt=NB_SPH-1;
+			dx=LIST_X[it]-LIST_X[jt]; 
+			dy=LIST_Y[it]-LIST_Y[jt]; 
+			dz=LIST_Z[it]-LIST_Z[jt]; 					  
+			nd2=sqrt(dx*dx+dy*dy+dz*dz);
+			r2=(LIST_R[it]+LIST_R[jt]);
+					
+/////////////////////////////////////////////////////////////////////////	//Contact
+					  if(nd2<r2+epsi)
+					  {
+                                        // cout<<"contact détecté"<<endl;
+							   TYPCO[nbco]=0;
+									
+							   CONT[nbco][0]=it;
+							   CONT[nbco][1]=jt;                       
+							   
+							   DCONTX[nbco]=dx;
+							   DCONTY[nbco]=dy;
+							   DCONTZ[nbco]=dz;	   
+							   DCONT[nbco] =nd2;
+							   DCONT[nbco] =r2;
+		  // Normale
+							   
+							   NCONT[nbco][0]=dx/nd2;
+							   NCONT[nbco][1]=dy/nd2; 
+							   NCONT[nbco][2]=dz/nd2;       
+							   
+							   // Zero numerique
+							   
+							   if(fabs(NCONT[nbco][0])<1e-18) NCONT[nbco][0]=0.;
+							   if(fabs(NCONT[nbco][1])<1e-18) NCONT[nbco][1]=0.;
+							   if(fabs(NCONT[nbco][2])<1e-18) NCONT[nbco][2]=0.;
+							   
+							   // Tangente s
+							   
+							   if((NCONT[nbco][0]*NCONT[nbco][1]==0.)&&(NCONT[nbco][1]*NCONT[nbco][2]==0.)&&(NCONT[nbco][2]*NCONT[nbco][0]==0.)){
+								  
+								  if(NCONT[nbco][0]!=0.){
+								   NCONT[nbco][3] = 0.;
+								   NCONT[nbco][4] = 0.;
+								   NCONT[nbco][5] = 1.;						
+								  }else if(NCONT[nbco][1]!=0.){
+								   NCONT[nbco][3] = 1.;
+								   NCONT[nbco][4] = 0.;
+								   NCONT[nbco][5] = 0.;									  
+								  }else if(NCONT[nbco][2]!=0.){
+								   NCONT[nbco][3] = 0.;
+								   NCONT[nbco][4] = 1.;
+								   NCONT[nbco][5] = 0.;									  
+								  }
+								   
+							   }else{
+									
+									if(NCONT[nbco][0]==0.){
+									
+									fors  = -(NCONT[nbco][1])/NCONT[nbco][2];
+									norms = sqrt(fors*fors+2.);
+
+									NCONT[nbco][3] = 1./norms;
+									NCONT[nbco][4] = 1./norms;
+									NCONT[nbco][5] = fors/norms;					
+									
+									}else{
+										
+								   fors  = -(NCONT[nbco][1]+NCONT[nbco][2])/NCONT[nbco][0];
+								   norms = sqrt(fors*fors+2.);
+
+								   NCONT[nbco][3] = fors/norms;
+								   NCONT[nbco][4] = 1./norms;
+								   NCONT[nbco][5] = 1./norms;							
+									
+									}
+															
+									
+							   }
+							   
+							   
+							   // Tangente t				   
+							   
+								NCONT[nbco][6] = NCONT[nbco][1]*NCONT[nbco][5] - NCONT[nbco][2]*NCONT[nbco][4];
+								NCONT[nbco][7] = NCONT[nbco][2]*NCONT[nbco][3] - NCONT[nbco][0]*NCONT[nbco][5];
+								NCONT[nbco][8] = NCONT[nbco][0]*NCONT[nbco][4] - NCONT[nbco][1]*NCONT[nbco][3];    
+								
+															   
+								NOCONT[it][NBCONTCO[it]]=nbco;
+								NOCONT[jt][NBCONTCO[jt]]=nbco;
+								NBCONTCO[it]++;
+								NBCONTCO[jt]++; 	
+									   
+								rij=(LIST_R[it]*LIST_R[jt])/(LIST_R[it]+LIST_R[jt]);								
+								hij=fabs(DCONT[nbco]-(LIST_R[it]+LIST_R[jt]));
+								iEij=(1.-nu1*nu1)/E1+(1.-nu2*nu2)/E2;								
+								Eij=1./iEij;	
+								Kn=10.*4.*Eij*sqrt(rij*hij)/3.;							
+								Kt=Kn;
+								 
+								dt=min(dt,sqrt(LIST_M[it]/Kn));
+								dt=min(dt,sqrt(LIST_M[jt]/Kn));
+								dt=min(dt,sqrt(LIST_I[it]/(Kt*LIST_R[it]*LIST_R[it])));
+								dt=min(dt,sqrt(LIST_I[jt]/(Kt*LIST_R[jt]*LIST_R[jt])));  		
+															   
+							   nbco++;	
+nbci++;							   
+													   
+						   
+					  }
+
+ }
+
+
+dt=Cs*dt;
+//cout<<"Pas de temps:"<<dt<<endl;
+}
+
+void selco_corci(bool * TYPCO, R & dt, R epsi, int & nbco,int & nbcoh,int & nbcoe, int NB_SPH, int ** CONT, int vecsize, int vecsizex, int vecsizey, int vecsizez, R H_TOT, R V_TOT, R Z_TOT, vector< vector<int> > & coul,vector< vector<int> > & numc, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_M, R * LIST_I, R * DCONT, R * DCONTO, R ** NCONT, R ** VALCOH, R ** VALAMO, int ** NOCONT, int * NBCONTCO, R * DCONTX, R * DCONTY, R * DCONTZ, R Pi, R Cs, R E, R nu)
+{
+
+R dx,dy,dz,nd2,r2,rij,hij,iEij,Eij;
+R Kn,Kt;
+R fors,norms;
+
+// Mise à blanc des contacts par corci
+  for(int it=0;it<NB_SPH;it++){
+     NBCONTCO[it]=0;
+  }
+
+dt=1e9;
+
+// Traitement anciens contacts
+int nbco1=0;
+nbcoh=0;
+nbcoe=0;
+
+  for(int ii=0;ii<nbco;ii++){
+	  
+	  if(TYPCO[ii]){
+	       nbcoh++;
+		   TYPCO[nbco1]=1;  	
+		   
+           CONT[nbco1][0]=CONT[ii][0];
+		   CONT[nbco1][1]=CONT[ii][1];                       
+		   
+		   int it=CONT[nbco1][0];
+		   int jt=CONT[nbco1][1];     
+		    
+   		   DCONTX[nbco1]=DCONTX[ii];
+		   DCONTY[nbco1]=DCONTY[ii];
+		   DCONTZ[nbco1]=DCONTZ[ii];		   
+		   DCONT[nbco1] =DCONT[ii];		
+		   DCONTO[nbco1]=DCONTO[ii];	
+
+		   NCONT[nbco1][0]=NCONT[ii][0];
+		   NCONT[nbco1][1]=NCONT[ii][1]; 
+		   NCONT[nbco1][2]=NCONT[ii][2];
+		   NCONT[nbco1][3]=NCONT[ii][3];
+		   NCONT[nbco1][4]=NCONT[ii][4]; 
+		   NCONT[nbco1][5]=NCONT[ii][5];     
+		   NCONT[nbco1][6]=NCONT[ii][6];
+		   NCONT[nbco1][7]=NCONT[ii][7]; 
+		   NCONT[nbco1][8]=NCONT[ii][8];     		                     		    
+                       		    
+		   NOCONT[it][NBCONTCO[it]]=nbco1;
+		   NOCONT[jt][NBCONTCO[jt]]=nbco1;
+		   NBCONTCO[it]++;
+		   NBCONTCO[jt]++; 		                       		    
+
+			 VALCOH[nbco1][0]=VALCOH[ii][0];
+			 VALCOH[nbco1][1]=VALCOH[ii][1];
+			 VALCOH[nbco1][2]=VALCOH[ii][2];	
+			 VALCOH[nbco1][3]=VALCOH[ii][3];	
+			 VALCOH[nbco1][4]=VALCOH[ii][4];
+			 VALCOH[nbco1][5]=VALCOH[ii][5];
+			 VALCOH[nbco1][6]=VALCOH[ii][6];	
+			
+			 VALAMO[nbco1][0]=VALAMO[ii][0];
+			 VALAMO[nbco1][1]=VALAMO[ii][1];
+			 VALAMO[nbco1][2]=VALAMO[ii][2];
+			 VALAMO[nbco1][3]=VALAMO[ii][3];
+			 VALAMO[nbco1][4]=VALAMO[ii][4];                      
+			 VALAMO[nbco1][5]=VALAMO[ii][5];
+			 VALAMO[nbco1][6]=VALAMO[ii][6];	                       
+		   
+			 dt=min(dt,sqrt(LIST_M[it]/VALCOH[nbco1][0]));
+			 dt=min(dt,sqrt(LIST_M[jt]/VALCOH[nbco1][0]));
+			 dt=min(dt,sqrt(LIST_I[it]/(VALCOH[nbco1][1]*LIST_R[it]*LIST_R[it])));
+			 dt=min(dt,sqrt(LIST_I[jt]/(VALCOH[nbco1][1]*LIST_R[jt]*LIST_R[jt])));  
+
+		  
+		  nbco1++;
+	  }
+	  else{
+	
+					   int it=CONT[ii][0];
+					   int jt=CONT[ii][1];
+		          
+					  dx=LIST_X[it]-LIST_X[jt]; 
+					  dy=LIST_Y[it]-LIST_Y[jt]; 
+					  dz=LIST_Z[it]-LIST_Z[jt]; 	
+					  nd2=sqrt(dx*dx+dy*dy+dz*dz);
+					  r2=(LIST_R[it]+LIST_R[jt]);  
+				/////////////////////////////////////////////////////////////////////////	//Contact
+					  if(nd2<r2+epsi)
+					  {
+						
+						   TYPCO[nbco1]=0;  		
+						 	  nbcoe++; 
+						       CONT[nbco1][0]=it;
+							   CONT[nbco1][1]=jt;                       
+							   
+							   DCONTX[nbco1]=dx;
+							   DCONTY[nbco1]=dy;
+							   DCONTZ[nbco1]=dz;	   
+							   DCONT[nbco1] =nd2;
+				               DCONTO[nbco1]=DCONTO[ii];	
+  
+		                         // Normale
+							   
+							   NCONT[nbco1][0]=dx/nd2;
+							   NCONT[nbco1][1]=dy/nd2; 
+							   NCONT[nbco1][2]=dz/nd2;       
+							   
+							   // Zero numerique
+							   
+							   if(fabs(NCONT[nbco1][0])<1e-18) NCONT[nbco1][0]=0.;
+							   if(fabs(NCONT[nbco1][1])<1e-18) NCONT[nbco1][1]=0.;
+							   if(fabs(NCONT[nbco1][2])<1e-18) NCONT[nbco1][2]=0.;
+							   
+							   // Tangente s
+							   
+							   if((NCONT[nbco1][0]*NCONT[nbco1][1]==0.)&&(NCONT[nbco1][1]*NCONT[nbco1][2]==0.)&&(NCONT[nbco1][2]*NCONT[nbco1][0]==0.)){
+								  
+								  if(NCONT[nbco1][0]!=0.){
+								   NCONT[nbco1][3] = 0.;
+								   NCONT[nbco1][4] = 0.;
+								   NCONT[nbco1][5] = 1.;						
+								  }else if(NCONT[nbco1][1]!=0.){
+								   NCONT[nbco1][3] = 1.;
+								   NCONT[nbco1][4] = 0.;
+								   NCONT[nbco1][5] = 0.;									  
+								  }else if(NCONT[nbco1][2]!=0.){
+								   NCONT[nbco1][3] = 0.;
+								   NCONT[nbco1][4] = 1.;
+								   NCONT[nbco1][5] = 0.;									  
+								  }
+								   
+							   }else{
+									
+									if(NCONT[nbco1][0]==0.){
+									
+									fors  = -(NCONT[nbco1][1])/NCONT[nbco1][2];
+									norms = sqrt(fors*fors+2.);
+
+									NCONT[nbco1][3] = 1./norms;
+									NCONT[nbco1][4] = 1./norms;
+									NCONT[nbco1][5] = fors/norms;					
+									
+									}else{
+										
+								   fors  = -(NCONT[nbco1][1]+NCONT[nbco1][2])/NCONT[nbco1][0];
+								   norms = sqrt(fors*fors+2.);
+
+								   NCONT[nbco1][3] = fors/norms;
+								   NCONT[nbco1][4] = 1./norms;
+								   NCONT[nbco1][5] = 1./norms;							
+									
+									}
+															
+									
+							   }
+							   
+							   
+							   // Tangente t				   
+							   
+								NCONT[nbco1][6] = NCONT[nbco1][1]*NCONT[nbco1][5] - NCONT[nbco1][2]*NCONT[nbco1][4];
+								NCONT[nbco1][7] = NCONT[nbco1][2]*NCONT[nbco1][3] - NCONT[nbco1][0]*NCONT[nbco1][5];
+								NCONT[nbco1][8] = NCONT[nbco1][0]*NCONT[nbco1][4] - NCONT[nbco1][1]*NCONT[nbco1][3];    
+								
+															   
+								NOCONT[it][NBCONTCO[it]]=nbco1;
+								NOCONT[jt][NBCONTCO[jt]]=nbco1;
+								NBCONTCO[it]++;
+								NBCONTCO[jt]++; 	
+									   
+								 rij=(LIST_R[it]*LIST_R[jt])/(LIST_R[it]+LIST_R[jt]);								
+								 hij=fabs(DCONT[nbco1]-(LIST_R[it]+LIST_R[jt]));
+								 iEij=2.*(1.-nu*nu)/E;
+								 Eij=1./iEij;	
+								// Kn=4.*Eij*rij;
+								 Kn=4.*Eij*sqrt(rij*hij)/3.;	
+								 	     Kn=Kn/100.;	
+									     Kn=2.5e8;	 							
+								 Kt=Kn;
+								 
+								dt=min(dt,sqrt(LIST_M[it]/Kn));
+								dt=min(dt,sqrt(LIST_M[jt]/Kn));
+								dt=min(dt,sqrt(LIST_I[it]/(Kt*LIST_R[it]*LIST_R[it])));
+								dt=min(dt,sqrt(LIST_I[jt]/(Kt*LIST_R[jt]*LIST_R[jt])));  				
+						
+						
+						
+						  nbco1++;		  
+					  }	  
+					  	  
+		  
+	  }
+	  
+  }	  
+
+nbco=nbco1;
+
+// Recherche nouveaux contacts
+                        
+	for(int ii=0;ii<vecsize;ii++){
+
+		for(int lt=0;lt<coul[ii].size();lt++){
+			
+		int it = coul[ii][lt];
+
+			for(int kt=0;kt<numc[ii].size();kt++){
+
+				 for(int kjt=0;kjt<coul[numc[ii][kt]].size();kjt++){ 
+					 
+					  int jt=coul[numc[ii][kt]][kjt];
+		
+						
+					  if((kt>0)||((kt==0)&&(jt>it))){	      
+					  dx=LIST_X[it]-LIST_X[jt]; 
+					  dy=LIST_Y[it]-LIST_Y[jt]; 
+					  dz=LIST_Z[it]-LIST_Z[jt]; 					  
+					  nd2=sqrt(dx*dx+dy*dy+dz*dz);
+					  r2=(LIST_R[it]+LIST_R[jt]);
+					
+/////////////////////////////////////////////////////////////////////////	//Contact
+					  if(nd2<r2+epsi)
+					  {
+                           
+							   bool booloc=0 ; 
+								  
+							   if(NBCONTCO[it]>0){
+								 int ite=0;
+								 while((ite<NBCONTCO[it])&&(!booloc)){
+								   int numco=NOCONT[it][ite];
+								 
+								   if((numco<nbco1)&&(((CONT[numco][0]==it)&&(CONT[numco][1]==jt))||((CONT[numco][0]==jt)&&(CONT[numco][1]==it)))) booloc=1;			   	
+								
+								  ite++;						   
+								 } 
+							   }	
+									
+							   if(!booloc){  
+                             //      cout<<"hello!"<<endl;
+							   TYPCO[nbco]=0;
+										  nbcoe++;
+							   CONT[nbco][0]=it;
+							   CONT[nbco][1]=jt;                       
+							   
+							   DCONTX[nbco]=dx;
+							   DCONTY[nbco]=dy;
+							   DCONTZ[nbco]=dz;	   
+							   DCONT[nbco] =nd2;
+							   DCONTO[nbco1]=r2;
+							   
+		                         // Normale
+							   
+							   NCONT[nbco][0]=dx/nd2;
+							   NCONT[nbco][1]=dy/nd2; 
+							   NCONT[nbco][2]=dz/nd2;       
+							   
+							   // Zero numerique
+							   
+							   if(fabs(NCONT[nbco][0])<1e-18) NCONT[nbco][0]=0.;
+							   if(fabs(NCONT[nbco][1])<1e-18) NCONT[nbco][1]=0.;
+							   if(fabs(NCONT[nbco][2])<1e-18) NCONT[nbco][2]=0.;
+							   
+							   // Tangente s
+							   
+							   if((NCONT[nbco][0]*NCONT[nbco][1]==0.)&&(NCONT[nbco][1]*NCONT[nbco][2]==0.)&&(NCONT[nbco][2]*NCONT[nbco][0]==0.)){
+								  
+								  if(NCONT[nbco][0]!=0.){
+								   NCONT[nbco][3] = 0.;
+								   NCONT[nbco][4] = 0.;
+								   NCONT[nbco][5] = 1.;						
+								  }else if(NCONT[nbco][1]!=0.){
+								   NCONT[nbco][3] = 1.;
+								   NCONT[nbco][4] = 0.;
+								   NCONT[nbco][5] = 0.;									  
+								  }else if(NCONT[nbco][2]!=0.){
+								   NCONT[nbco][3] = 0.;
+								   NCONT[nbco][4] = 1.;
+								   NCONT[nbco][5] = 0.;									  
+								  }
+								   
+							   }else{
+									
+									if(NCONT[nbco][0]==0.){
+									
+									fors  = -(NCONT[nbco][1])/NCONT[nbco][2];
+									norms = sqrt(fors*fors+2.);
+
+									NCONT[nbco][3] = 1./norms;
+									NCONT[nbco][4] = 1./norms;
+									NCONT[nbco][5] = fors/norms;					
+									
+									}else{
+										
+								   fors  = -(NCONT[nbco][1]+NCONT[nbco][2])/NCONT[nbco][0];
+								   norms = sqrt(fors*fors+2.);
+
+								   NCONT[nbco][3] = fors/norms;
+								   NCONT[nbco][4] = 1./norms;
+								   NCONT[nbco][5] = 1./norms;							
+									
+									}
+															
+									
+							   }
+							   
+							   
+							   // Tangente t				   
+							   
+								NCONT[nbco][6] = NCONT[nbco][1]*NCONT[nbco][5] - NCONT[nbco][2]*NCONT[nbco][4];
+								NCONT[nbco][7] = NCONT[nbco][2]*NCONT[nbco][3] - NCONT[nbco][0]*NCONT[nbco][5];
+								NCONT[nbco][8] = NCONT[nbco][0]*NCONT[nbco][4] - NCONT[nbco][1]*NCONT[nbco][3];    
+								
+															   
+								NOCONT[it][NBCONTCO[it]]=nbco;
+								NOCONT[jt][NBCONTCO[jt]]=nbco;
+								NBCONTCO[it]++;
+								NBCONTCO[jt]++; 	
+									   
+								 rij=(LIST_R[it]*LIST_R[jt])/(LIST_R[it]+LIST_R[jt]);								
+								 hij=fabs(DCONT[nbco]-(LIST_R[it]+LIST_R[jt]));
+								 iEij=2.*(1.-nu*nu)/E;
+								 Eij=1./iEij;	
+								// Kn=4.*Eij*rij;
+								 Kn=4.*Eij*sqrt(rij*hij)/3.;	
+								 	     Kn=Kn/100.;	
+									     Kn=2.5e8;	 							
+								 Kt=Kn;
+								 
+								dt=min(dt,sqrt(LIST_M[it]/Kn));
+								dt=min(dt,sqrt(LIST_M[jt]/Kn));
+								dt=min(dt,sqrt(LIST_I[it]/(Kt*LIST_R[it]*LIST_R[it])));
+								dt=min(dt,sqrt(LIST_I[jt]/(Kt*LIST_R[jt]*LIST_R[jt])));  		
+															   
+							   nbco++;						   
+							   }														   
+						   
+					  }
+/////////////////////////////////////////////////////////////////////////	
+				
+					  } 
+
+			     }
+
+			}	
+
+		}
+		
+	}
+
+dt=Cs*dt;
+//cout<<"Pas de temps:"<<dt<<endl;
+}
+
+void selco_corci2(bool * TYPCO, R & dt, R epsi, int & nbco,int & nbcoh,int & nbcoe,int NB_SPH, int ** CONT, int vecsize, int vecsizex, int vecsizey, int vecsizez, R H_TOT, R V_TOT, R Z_TOT, vector< vector<int> > & coul,vector< vector<int> > & numc, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_M, R * LIST_I, R * DCONT, R * DCONTO,  R ** NCONT, R ** VALCOH, R ** VALAMO, int ** NOCONT, int * NBCONTCO, R * DCONTX, R * DCONTY, R * DCONTZ, R Pi, R Cs, R E1, R nu1, R E2, R nu2, bool * LIST_P)
+{
+
+// Mise à blanc des contacts par corci
+  for(int it=0;it<NB_SPH;it++){
+     NBCONTCO[it]=0;
+  }
+
+R dx,dy,dz,nd2,r2,rij,hij,iEij,Eij;
+R Kn,Kt;
+R fors,norms;
+
+dt=1e9;
+
+// Traitement anciens contacts
+int nbco1=0;
+nbcoh=0;
+nbcoe=0;
+
+  for(int ii=0;ii<nbco;ii++){
+	  
+	  if(TYPCO[ii]){
+	       nbcoh++;
+		   TYPCO[nbco1]=1;  	
+		   
+           CONT[nbco1][0]=CONT[ii][0];
+		   CONT[nbco1][1]=CONT[ii][1];                       
+		   
+		   int it=CONT[nbco1][0];
+		   int jt=CONT[nbco1][1];     
+		    
+   		   DCONTX[nbco1]=DCONTX[ii];
+		   DCONTY[nbco1]=DCONTY[ii];
+		   DCONTZ[nbco1]=DCONTZ[ii];		   
+		   DCONT[nbco1] =DCONT[ii];		
+		   DCONTO[nbco1]=DCONTO[ii];	
+
+		   NCONT[nbco1][0]=NCONT[ii][0];
+		   NCONT[nbco1][1]=NCONT[ii][1]; 
+		   NCONT[nbco1][2]=NCONT[ii][2];
+		   NCONT[nbco1][3]=NCONT[ii][3];
+		   NCONT[nbco1][4]=NCONT[ii][4]; 
+		   NCONT[nbco1][5]=NCONT[ii][5];     
+		   NCONT[nbco1][6]=NCONT[ii][6];
+		   NCONT[nbco1][7]=NCONT[ii][7]; 
+		   NCONT[nbco1][8]=NCONT[ii][8];     		                     		    
+                       		    
+		   NOCONT[it][NBCONTCO[it]]=nbco1;
+		   NOCONT[jt][NBCONTCO[jt]]=nbco1;
+		   NBCONTCO[it]++;
+		   NBCONTCO[jt]++; 		                       		    
+
+			 VALCOH[nbco1][0]=VALCOH[ii][0];
+			 VALCOH[nbco1][1]=VALCOH[ii][1];
+			 VALCOH[nbco1][2]=VALCOH[ii][2];	
+			 VALCOH[nbco1][3]=VALCOH[ii][3];	
+			 VALCOH[nbco1][4]=VALCOH[ii][4];
+			 VALCOH[nbco1][5]=VALCOH[ii][5];
+			 VALCOH[nbco1][6]=VALCOH[ii][6];	
+			
+			 VALAMO[nbco1][0]=VALAMO[ii][0];
+			 VALAMO[nbco1][1]=VALAMO[ii][1];
+			 VALAMO[nbco1][2]=VALAMO[ii][2];
+			 VALAMO[nbco1][3]=VALAMO[ii][3];
+			 VALAMO[nbco1][4]=VALAMO[ii][4];                      
+			 VALAMO[nbco1][5]=VALAMO[ii][5];
+			 VALAMO[nbco1][6]=VALAMO[ii][6];	                       
+		   
+			 dt=min(dt,sqrt(LIST_M[it]/VALCOH[nbco1][0]));
+			 dt=min(dt,sqrt(LIST_M[jt]/VALCOH[nbco1][0]));
+			 dt=min(dt,sqrt(LIST_I[it]/(VALCOH[nbco1][1]*LIST_R[it]*LIST_R[it])));
+			 dt=min(dt,sqrt(LIST_I[jt]/(VALCOH[nbco1][1]*LIST_R[jt]*LIST_R[jt])));  
+
+		  
+		  nbco1++;
+	  }
+	  else{
+	
+					   int it=CONT[ii][0];
+					   int jt=CONT[ii][1];
+		          
+					  dx=LIST_X[it]-LIST_X[jt]; 
+					  dy=LIST_Y[it]-LIST_Y[jt]; 
+					  dz=LIST_Z[it]-LIST_Z[jt]; 	
+					  nd2=sqrt(dx*dx+dy*dy+dz*dz);
+					  r2=(LIST_R[it]+LIST_R[jt]);  
+				/////////////////////////////////////////////////////////////////////////	//Contact
+					  if(nd2<r2+epsi)
+					  {
+						
+						   TYPCO[nbco1]=0;  		
+						 	  nbcoe++; 
+						       CONT[nbco1][0]=it;
+							   CONT[nbco1][1]=jt;                       
+							   
+							   DCONTX[nbco1]=dx;
+							   DCONTY[nbco1]=dy;
+							   DCONTZ[nbco1]=dz;	   
+							   DCONT[nbco1] =nd2;
+				               DCONTO[nbco1]=DCONTO[ii];	
+  
+		                         // Normale
+							   
+							   NCONT[nbco1][0]=dx/nd2;
+							   NCONT[nbco1][1]=dy/nd2; 
+							   NCONT[nbco1][2]=dz/nd2;       
+							   
+							   // Zero numerique
+							   
+							   if(fabs(NCONT[nbco1][0])<1e-18) NCONT[nbco1][0]=0.;
+							   if(fabs(NCONT[nbco1][1])<1e-18) NCONT[nbco1][1]=0.;
+							   if(fabs(NCONT[nbco1][2])<1e-18) NCONT[nbco1][2]=0.;
+							   
+							   // Tangente s
+							   
+							   if((NCONT[nbco1][0]*NCONT[nbco1][1]==0.)&&(NCONT[nbco1][1]*NCONT[nbco1][2]==0.)&&(NCONT[nbco1][2]*NCONT[nbco1][0]==0.)){
+								  
+								  if(NCONT[nbco1][0]!=0.){
+								   NCONT[nbco1][3] = 0.;
+								   NCONT[nbco1][4] = 0.;
+								   NCONT[nbco1][5] = 1.;						
+								  }else if(NCONT[nbco1][1]!=0.){
+								   NCONT[nbco1][3] = 1.;
+								   NCONT[nbco1][4] = 0.;
+								   NCONT[nbco1][5] = 0.;									  
+								  }else if(NCONT[nbco1][2]!=0.){
+								   NCONT[nbco1][3] = 0.;
+								   NCONT[nbco1][4] = 1.;
+								   NCONT[nbco1][5] = 0.;									  
+								  }
+								   
+							   }else{
+									
+									if(NCONT[nbco1][0]==0.){
+									
+									fors  = -(NCONT[nbco1][1])/NCONT[nbco1][2];
+									norms = sqrt(fors*fors+2.);
+
+									NCONT[nbco1][3] = 1./norms;
+									NCONT[nbco1][4] = 1./norms;
+									NCONT[nbco1][5] = fors/norms;					
+									
+									}else{
+										
+								   fors  = -(NCONT[nbco1][1]+NCONT[nbco1][2])/NCONT[nbco1][0];
+								   norms = sqrt(fors*fors+2.);
+
+								   NCONT[nbco1][3] = fors/norms;
+								   NCONT[nbco1][4] = 1./norms;
+								   NCONT[nbco1][5] = 1./norms;							
+									
+									}
+															
+									
+							   }
+							   
+							   
+							   // Tangente t				   
+							   
+								NCONT[nbco1][6] = NCONT[nbco1][1]*NCONT[nbco1][5] - NCONT[nbco1][2]*NCONT[nbco1][4];
+								NCONT[nbco1][7] = NCONT[nbco1][2]*NCONT[nbco1][3] - NCONT[nbco1][0]*NCONT[nbco1][5];
+								NCONT[nbco1][8] = NCONT[nbco1][0]*NCONT[nbco1][4] - NCONT[nbco1][1]*NCONT[nbco1][3];    
+								
+															   
+								NOCONT[it][NBCONTCO[it]]=nbco1;
+								NOCONT[jt][NBCONTCO[jt]]=nbco1;
+								NBCONTCO[it]++;
+								NBCONTCO[jt]++; 	
+									   
+								 rij=(LIST_R[it]*LIST_R[jt])/(LIST_R[it]+LIST_R[jt]);								
+								 hij=fabs(DCONT[nbco1]-(LIST_R[it]+LIST_R[jt]));
+								 
+									if((LIST_P[it]==0)&&(LIST_P[jt]==0)){				  
+									iEij=(1.-nu1*nu1)/E1+(1.-nu1*nu1)/E1;		  
+									}
+									if(((LIST_P[it]==1)&&(LIST_P[jt]==0))||((LIST_P[it]==0)&&(LIST_P[jt]==1))) {	
+									iEij=(1.-nu1*nu1)/E1+(1.-nu2*nu2)/E2;	
+									}
+									if((LIST_P[it]==1)&&(LIST_P[jt]==1)){				  
+									iEij=(1.-nu2*nu2)/E2+(1.-nu2*nu2)/E2;	     
+									}
+									
+								 Eij=1./iEij;	
+								// Kn=4.*Eij*rij;
+								 Kn=4.*Eij*sqrt(rij*hij)/3.;	
+								 	     Kn=Kn/100.;	
+									     Kn=2.5e8;	 							
+								 Kt=Kn;
+								 
+								dt=min(dt,sqrt(LIST_M[it]/Kn));
+								dt=min(dt,sqrt(LIST_M[jt]/Kn));
+								dt=min(dt,sqrt(LIST_I[it]/(Kt*LIST_R[it]*LIST_R[it])));
+								dt=min(dt,sqrt(LIST_I[jt]/(Kt*LIST_R[jt]*LIST_R[jt])));  				
+						
+						
+						
+						  nbco1++;		  
+					  }	  
+					  	  
+		  
+	  }
+	  
+	  
+  }	  
+
+nbco=nbco1;
+// Recherche nouveaux contacts
+
+                       
+	for(int ii=0;ii<vecsize;ii++){
+
+		for(int lt=0;lt<coul[ii].size();lt++){
+			
+		int it = coul[ii][lt];
+
+			for(int kt=0;kt<numc[ii].size();kt++){
+
+				 for(int kjt=0;kjt<coul[numc[ii][kt]].size();kjt++){ 
+					 
+					  int jt=coul[numc[ii][kt]][kjt];
+		
+						
+					  if((kt>0)||((kt==0)&&(jt>it))){	      
+					  dx=LIST_X[it]-LIST_X[jt]; 
+					  dy=LIST_Y[it]-LIST_Y[jt]; 
+					  dz=LIST_Z[it]-LIST_Z[jt]; 					  
+					  nd2=sqrt(dx*dx+dy*dy+dz*dz);
+					  r2=(LIST_R[it]+LIST_R[jt]);
+					
+/////////////////////////////////////////////////////////////////////////	//Contact
+					  if(nd2<r2+epsi)
+					  {
+							   bool booloc=0 ; 
+								  
+							   if(NBCONTCO[it]>0){
+								 int ite=0;
+								 while((ite<NBCONTCO[it])&&(!booloc)){
+								   int numco=NOCONT[it][ite];
+								 
+								   if((numco<nbco1)&&(((CONT[numco][0]==it)&&(CONT[numco][1]==jt))||((CONT[numco][0]==jt)&&(CONT[numco][1]==it)))) booloc=1;			   	
+								
+								  ite++;						   
+								 } 
+							   }	
+									
+							   if(!booloc){  
+                            
+							   TYPCO[nbco]=0;
+						       nbcoe++;
+							   CONT[nbco][0]=it;
+							   CONT[nbco][1]=jt;                       
+							   
+							   DCONTX[nbco]=dx;
+							   DCONTY[nbco]=dy;
+							   DCONTZ[nbco]=dz;	   
+							   DCONT[nbco] =nd2;
+							   DCONTO[nbco1]=r2;
+							   
+		                         // Normale
+							   
+							   NCONT[nbco][0]=dx/nd2;
+							   NCONT[nbco][1]=dy/nd2; 
+							   NCONT[nbco][2]=dz/nd2;       
+							   
+							   // Zero numerique
+							   
+							   if(fabs(NCONT[nbco][0])<1e-18) NCONT[nbco][0]=0.;
+							   if(fabs(NCONT[nbco][1])<1e-18) NCONT[nbco][1]=0.;
+							   if(fabs(NCONT[nbco][2])<1e-18) NCONT[nbco][2]=0.;
+							   
+							   // Tangente s
+							   
+							   if((NCONT[nbco][0]*NCONT[nbco][1]==0.)&&(NCONT[nbco][1]*NCONT[nbco][2]==0.)&&(NCONT[nbco][2]*NCONT[nbco][0]==0.)){
+								  
+								  if(NCONT[nbco][0]!=0.){
+								   NCONT[nbco][3] = 0.;
+								   NCONT[nbco][4] = 0.;
+								   NCONT[nbco][5] = 1.;						
+								  }else if(NCONT[nbco][1]!=0.){
+								   NCONT[nbco][3] = 1.;
+								   NCONT[nbco][4] = 0.;
+								   NCONT[nbco][5] = 0.;									  
+								  }else if(NCONT[nbco][2]!=0.){
+								   NCONT[nbco][3] = 0.;
+								   NCONT[nbco][4] = 1.;
+								   NCONT[nbco][5] = 0.;									  
+								  }
+								   
+							   }else{
+									
+									if(NCONT[nbco][0]==0.){
+									
+									fors  = -(NCONT[nbco][1])/NCONT[nbco][2];
+									norms = sqrt(fors*fors+2.);
+
+									NCONT[nbco][3] = 1./norms;
+									NCONT[nbco][4] = 1./norms;
+									NCONT[nbco][5] = fors/norms;					
+									
+									}else{
+										
+								   fors  = -(NCONT[nbco][1]+NCONT[nbco][2])/NCONT[nbco][0];
+								   norms = sqrt(fors*fors+2.);
+
+								   NCONT[nbco][3] = fors/norms;
+								   NCONT[nbco][4] = 1./norms;
+								   NCONT[nbco][5] = 1./norms;							
+									
+									}
+															
+									
+							   }
+							   
+							   
+							   // Tangente t				   
+							   
+								NCONT[nbco][6] = NCONT[nbco][1]*NCONT[nbco][5] - NCONT[nbco][2]*NCONT[nbco][4];
+								NCONT[nbco][7] = NCONT[nbco][2]*NCONT[nbco][3] - NCONT[nbco][0]*NCONT[nbco][5];
+								NCONT[nbco][8] = NCONT[nbco][0]*NCONT[nbco][4] - NCONT[nbco][1]*NCONT[nbco][3];    
+								
+															   
+								NOCONT[it][NBCONTCO[it]]=nbco;
+								NOCONT[jt][NBCONTCO[jt]]=nbco;
+								NBCONTCO[it]++;
+								NBCONTCO[jt]++; 	
+									   
+								 rij=(LIST_R[it]*LIST_R[jt])/(LIST_R[it]+LIST_R[jt]);								
+								 hij=fabs(DCONT[nbco]-(LIST_R[it]+LIST_R[jt]));
+								 
+								 
+									if((LIST_P[it]==0)&&(LIST_P[jt]==0)){				  
+									iEij=(1.-nu1*nu1)/E1+(1.-nu1*nu1)/E1;		  
+									}
+									if(((LIST_P[it]==1)&&(LIST_P[jt]==0))||((LIST_P[it]==0)&&(LIST_P[jt]==1))) {	
+									iEij=(1.-nu1*nu1)/E1+(1.-nu2*nu2)/E2;	
+									}
+									if((LIST_P[it]==1)&&(LIST_P[jt]==1)){				  
+									iEij=(1.-nu2*nu2)/E2+(1.-nu2*nu2)/E2;	     
+									}
+								 
+								 Eij=1./iEij;	
+								// Kn=4.*Eij*rij;
+								 Kn=4.*Eij*sqrt(rij*hij)/3.;	
+								 	     Kn=Kn/100.;	
+									     Kn=2.5e8;	 							
+								 Kt=Kn;
+								 
+								dt=min(dt,sqrt(LIST_M[it]/Kn));
+								dt=min(dt,sqrt(LIST_M[jt]/Kn));
+								dt=min(dt,sqrt(LIST_I[it]/(Kt*LIST_R[it]*LIST_R[it])));
+								dt=min(dt,sqrt(LIST_I[jt]/(Kt*LIST_R[jt]*LIST_R[jt])));  		
+															   
+							   nbco++;						   
+							   }	
+							   
+							   
+					  }
+/////////////////////////////////////////////////////////////////////////	
+				
+					  } 
+
+			     }
+
+			}	
+
+		}
+		
+	}
+
+dt=Cs*dt;
+//cout<<"Pas de temps:"<<dt<<endl;
+//cout<<"nbco:"<<nbco<<endl;
+}
+
+void selco_corci2_int(bool * TYPCO, R & dt, R epsi, int & nbco,int & nbcoh,int & nbcoe, int NB_SPH, int ** CONT, int vecsize, int vecsizex, int vecsizey, int vecsizez, R H_TOT, R V_TOT, R Z_TOT, vector< vector<int> > & coul,vector< vector<int> > & numc, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_M, R * LIST_I, R * DCONT,R * DCONTO, R ** NCONT, R ** VALCOH, R ** VALAMO, int ** NOCONT, int * NBCONTCO, R * DCONTX, R * DCONTY, R * DCONTZ,R * DCONTXO, R * DCONTYO, R * DCONTZO, R Pi, R Cs, R E1, R nu1, R E2, R nu2, R Emu1, R rmu1, R Emu2, R rmu2, R amort, bool * LIST_P, R siglimti)
+{
+
+R dx,dy,dz,nd2,r2,rij,hij,iEij,Eij;
+R Kn,Kt;
+R fors,norms;
+R Emui,rmui;
+R S,kkn,kkn0,un,unc,ray;
+
+// Mise à blanc des contacts par corci
+  for(int it=0;it<NB_SPH;it++){
+     NBCONTCO[it]=0;
+  }
+
+dt=1e9;
+// Traitement anciens contacts
+int nbco1=0;
+nbcoh=0;
+nbcoe=0;
+
+  for(int ii=0;ii<nbco;ii++){
+	  
+	  if(TYPCO[ii]){
+	
+            nbcoh++;
+		   TYPCO[nbco1]=1;  	
+		   
+           CONT[nbco1][0]=CONT[ii][0];
+		   CONT[nbco1][1]=CONT[ii][1];                       
+		   
+		   int it=CONT[nbco1][0];
+		   int jt=CONT[nbco1][1];     
+		    
+   		   DCONTX[nbco1]=DCONTX[ii];
+		   DCONTY[nbco1]=DCONTY[ii];
+		   DCONTZ[nbco1]=DCONTZ[ii];		   
+		   DCONT[nbco1] =DCONT[ii];		
+		   DCONTO[nbco1]=DCONTO[ii];	
+
+		   NCONT[nbco1][0]=NCONT[ii][0];
+		   NCONT[nbco1][1]=NCONT[ii][1]; 
+		   NCONT[nbco1][2]=NCONT[ii][2];
+		   NCONT[nbco1][3]=NCONT[ii][3];
+		   NCONT[nbco1][4]=NCONT[ii][4]; 
+		   NCONT[nbco1][5]=NCONT[ii][5];     
+		   NCONT[nbco1][6]=NCONT[ii][6];
+		   NCONT[nbco1][7]=NCONT[ii][7]; 
+		   NCONT[nbco1][8]=NCONT[ii][8];     		                     		    
+                       		    
+		   NOCONT[it][NBCONTCO[it]]=nbco1;
+		   NOCONT[jt][NBCONTCO[jt]]=nbco1;
+		   NBCONTCO[it]++;
+		   NBCONTCO[jt]++; 		                       		    
+
+			 VALCOH[nbco1][0]=VALCOH[ii][0];
+			 VALCOH[nbco1][1]=VALCOH[ii][1];
+			 VALCOH[nbco1][2]=VALCOH[ii][2];	
+			 VALCOH[nbco1][3]=VALCOH[ii][3];	
+			 VALCOH[nbco1][4]=VALCOH[ii][4];
+			 VALCOH[nbco1][5]=VALCOH[ii][5];
+			 VALCOH[nbco1][6]=VALCOH[ii][6];	
+			
+			 VALAMO[nbco1][0]=VALAMO[ii][0];
+			 VALAMO[nbco1][1]=VALAMO[ii][1];
+			 VALAMO[nbco1][2]=VALAMO[ii][2];
+			 VALAMO[nbco1][3]=VALAMO[ii][3];
+			 VALAMO[nbco1][4]=VALAMO[ii][4];                      
+			 VALAMO[nbco1][5]=VALAMO[ii][5];
+			 VALAMO[nbco1][6]=VALAMO[ii][6]; 
+			 
+ // Cas interfaciel			 
+ 			if(((LIST_P[it]==1)&&(LIST_P[jt]==0))||((LIST_P[it]==0)&&(LIST_P[jt]==1))) {	
+ 
+			rmui=(rmu1+rmu2)/2.;
+            Emui=(Emu1+Emu2)/2.;
+            
+		    ray=rmui*(LIST_R[it]+LIST_R[jt])/2.;
+			S=(Pi*ray*ray);
+            
+			kkn0=Emui*S/(LIST_R[it]+LIST_R[jt]);
+			unc=siglimti*S/kkn0;
+			
+		    dx=LIST_X[it]-LIST_X[jt]; 
+		    dy=LIST_Y[it]-LIST_Y[jt]; 			
+		    dz=LIST_Z[it]-LIST_Z[jt]; 					
+			nd2=sqrt(dx*dx+dy*dy+dz*dz);	
+			
+			un=(dx/nd2)*(dx-DCONTXO[nbco1]);
+			un+=(dy/nd2)*(dy-DCONTYO[nbco1]);	
+			un+=(dz/nd2)*(dz-DCONTZO[nbco1]);						
+         	
+         	if(un<unc) {kkn=kkn0;}
+			else if((un>=unc)&&(un<15.*unc)) {kkn=kkn0*exp(-(un-unc)/unc);}
+			else if(un>=15.*unc) {kkn=0.;TYPCO[nbco1]=0; }
+			
+		//	cout<<"un:"<<un<<", unc:"<<unc<<endl;}
+						
+			VALCOH[nbco1][0]=kkn;
+			VALCOH[nbco1][1]=0.;
+			VALCOH[nbco1][2]=0.;				 						 
+			VALCOH[nbco1][3]=0.;				 
+			VALCOH[nbco1][4]=0.;
+			VALCOH[nbco1][5]=0.;
+			VALCOH[nbco1][6]=0.;
+			
+			VALAMO[nbco1][0]=amort*kkn;
+			VALAMO[nbco1][1]=0.;
+			VALAMO[nbco1][2]=0.;						 						 
+			VALAMO[nbco1][3]=0.;					 
+			VALAMO[nbco1][4]=0.;
+			VALAMO[nbco1][5]=0.;
+			VALAMO[nbco1][6]=0.; 
+ 		
+            }
+            
+             dt=min(dt,sqrt(LIST_M[it]/VALCOH[nbco1][0]));
+			 dt=min(dt,sqrt(LIST_M[jt]/VALCOH[nbco1][0]));
+			 dt=min(dt,sqrt(LIST_I[it]/(VALCOH[nbco1][1]*LIST_R[it]*LIST_R[it])));
+			 dt=min(dt,sqrt(LIST_I[jt]/(VALCOH[nbco1][1]*LIST_R[jt]*LIST_R[jt])));  
+		  
+		  nbco1++;
+	  }
+	  else{
+	
+					   int it=CONT[ii][0];
+					   int jt=CONT[ii][1];
+		          
+					  dx=LIST_X[it]-LIST_X[jt]; 
+					  dy=LIST_Y[it]-LIST_Y[jt]; 
+					  dz=LIST_Z[it]-LIST_Z[jt]; 	
+					  nd2=sqrt(dx*dx+dy*dy+dz*dz);
+					  r2=(LIST_R[it]+LIST_R[jt]);  
+				/////////////////////////////////////////////////////////////////////////	//Contact
+					  if(nd2<r2+epsi)
+					  {
+						
+						   TYPCO[nbco1]=0;  		
+						 	  nbcoe++; 
+						       CONT[nbco1][0]=it;
+							   CONT[nbco1][1]=jt;                       
+							   
+							   DCONTX[nbco1]=dx;
+							   DCONTY[nbco1]=dy;
+							   DCONTZ[nbco1]=dz;	   
+							   DCONT[nbco1] =nd2;
+				               DCONTO[nbco1]=DCONTO[ii];	
+  
+		                         // Normale
+							   
+							   NCONT[nbco1][0]=dx/nd2;
+							   NCONT[nbco1][1]=dy/nd2; 
+							   NCONT[nbco1][2]=dz/nd2;       
+							   
+							   // Zero numerique
+							   
+							   if(fabs(NCONT[nbco1][0])<1e-18) NCONT[nbco1][0]=0.;
+							   if(fabs(NCONT[nbco1][1])<1e-18) NCONT[nbco1][1]=0.;
+							   if(fabs(NCONT[nbco1][2])<1e-18) NCONT[nbco1][2]=0.;
+							   
+							   // Tangente s
+							   
+							   if((NCONT[nbco1][0]*NCONT[nbco1][1]==0.)&&(NCONT[nbco1][1]*NCONT[nbco1][2]==0.)&&(NCONT[nbco1][2]*NCONT[nbco1][0]==0.)){
+								  
+								  if(NCONT[nbco1][0]!=0.){
+								   NCONT[nbco1][3] = 0.;
+								   NCONT[nbco1][4] = 0.;
+								   NCONT[nbco1][5] = 1.;						
+								  }else if(NCONT[nbco1][1]!=0.){
+								   NCONT[nbco1][3] = 1.;
+								   NCONT[nbco1][4] = 0.;
+								   NCONT[nbco1][5] = 0.;									  
+								  }else if(NCONT[nbco1][2]!=0.){
+								   NCONT[nbco1][3] = 0.;
+								   NCONT[nbco1][4] = 1.;
+								   NCONT[nbco1][5] = 0.;									  
+								  }
+								   
+							   }else{
+									
+									if(NCONT[nbco1][0]==0.){
+									
+									fors  = -(NCONT[nbco1][1])/NCONT[nbco1][2];
+									norms = sqrt(fors*fors+2.);
+
+									NCONT[nbco1][3] = 1./norms;
+									NCONT[nbco1][4] = 1./norms;
+									NCONT[nbco1][5] = fors/norms;					
+									
+									}else{
+										
+								   fors  = -(NCONT[nbco1][1]+NCONT[nbco1][2])/NCONT[nbco1][0];
+								   norms = sqrt(fors*fors+2.);
+
+								   NCONT[nbco1][3] = fors/norms;
+								   NCONT[nbco1][4] = 1./norms;
+								   NCONT[nbco1][5] = 1./norms;							
+									
+									}
+															
+									
+							   }
+							   
+							   
+							   // Tangente t				   
+							   
+								NCONT[nbco1][6] = NCONT[nbco1][1]*NCONT[nbco1][5] - NCONT[nbco1][2]*NCONT[nbco1][4];
+								NCONT[nbco1][7] = NCONT[nbco1][2]*NCONT[nbco1][3] - NCONT[nbco1][0]*NCONT[nbco1][5];
+								NCONT[nbco1][8] = NCONT[nbco1][0]*NCONT[nbco1][4] - NCONT[nbco1][1]*NCONT[nbco1][3];    
+								
+															   
+								NOCONT[it][NBCONTCO[it]]=nbco1;
+								NOCONT[jt][NBCONTCO[jt]]=nbco1;
+								NBCONTCO[it]++;
+								NBCONTCO[jt]++; 	
+									   
+								 rij=(LIST_R[it]*LIST_R[jt])/(LIST_R[it]+LIST_R[jt]);								
+								 hij=fabs(DCONT[nbco1]-(LIST_R[it]+LIST_R[jt]));
+								 
+									if((LIST_P[it]==0)&&(LIST_P[jt]==0)){				  
+									iEij=(1.-nu1*nu1)/E1+(1.-nu1*nu1)/E1;		  
+									}
+									if(((LIST_P[it]==1)&&(LIST_P[jt]==0))||((LIST_P[it]==0)&&(LIST_P[jt]==1))) {	
+									iEij=(1.-nu1*nu1)/E1+(1.-nu2*nu2)/E2;	
+									}
+									if((LIST_P[it]==1)&&(LIST_P[jt]==1)){				  
+									iEij=(1.-nu2*nu2)/E2+(1.-nu2*nu2)/E2;	     
+									}
+									
+								 Eij=1./iEij;	
+								// Kn=4.*Eij*rij;
+								 Kn=4.*Eij*sqrt(rij*hij)/3.;	
+								 	     Kn=Kn/100.;	
+									     Kn=2.5e8;	 							
+								 Kt=Kn;
+								 
+								dt=min(dt,sqrt(LIST_M[it]/Kn));
+								dt=min(dt,sqrt(LIST_M[jt]/Kn));
+								dt=min(dt,sqrt(LIST_I[it]/(Kt*LIST_R[it]*LIST_R[it])));
+								dt=min(dt,sqrt(LIST_I[jt]/(Kt*LIST_R[jt]*LIST_R[jt])));  				
+						
+						
+						
+						  nbco1++;		  
+					  }	  
+					  	  
+		  
+	  }
+	  
+	  
+	  
+  }	  
+
+nbco=nbco1;
+
+// Nouveau contacts
+                        
+	for(int ii=0;ii<vecsize;ii++){
+
+		for(int lt=0;lt<coul[ii].size();lt++){
+			
+		int it = coul[ii][lt];
+
+			for(int kt=0;kt<numc[ii].size();kt++){
+
+				 for(int kjt=0;kjt<coul[numc[ii][kt]].size();kjt++){ 
+					 
+					  int jt=coul[numc[ii][kt]][kjt];
+		
+						
+					  if((kt>0)||((kt==0)&&(jt>it))){	      
+					  dx=LIST_X[it]-LIST_X[jt]; 
+					  dy=LIST_Y[it]-LIST_Y[jt]; 
+					  dz=LIST_Z[it]-LIST_Z[jt]; 					  
+					  nd2=sqrt(dx*dx+dy*dy+dz*dz);
+					  r2=(LIST_R[it]+LIST_R[jt]);
+					
+/////////////////////////////////////////////////////////////////////////	//Contact
+					  if(nd2<r2+epsi)
+					  {
+                            
+							   bool booloc=0 ; 
+								  
+							   if(NBCONTCO[it]>0){
+								 int ite=0;
+								 while((ite<NBCONTCO[it])&&(!booloc)){
+								   int numco=NOCONT[it][ite];
+								 
+								   if((numco<nbco1)&&(((CONT[numco][0]==it)&&(CONT[numco][1]==jt))||((CONT[numco][0]==jt)&&(CONT[numco][1]==it)))) booloc=1;			   	
+								
+								  ite++;						   
+								 } 
+							   }	
+							   
+							   if(!booloc){  
+                            
+							   TYPCO[nbco]=0;
+						       nbcoe++;
+							   CONT[nbco][0]=it;
+							   CONT[nbco][1]=jt;                       
+							   
+							   DCONTX[nbco]=dx;
+							   DCONTY[nbco]=dy;
+							   DCONTZ[nbco]=dz;	   
+							   DCONT[nbco] =nd2;
+							   DCONTO[nbco1]=r2;
+							   
+		                         // Normale
+							   
+							   NCONT[nbco][0]=dx/nd2;
+							   NCONT[nbco][1]=dy/nd2; 
+							   NCONT[nbco][2]=dz/nd2;       
+							   
+							   // Zero numerique
+							   
+							   if(fabs(NCONT[nbco][0])<1e-18) NCONT[nbco][0]=0.;
+							   if(fabs(NCONT[nbco][1])<1e-18) NCONT[nbco][1]=0.;
+							   if(fabs(NCONT[nbco][2])<1e-18) NCONT[nbco][2]=0.;
+							   
+							   // Tangente s
+							   
+							   if((NCONT[nbco][0]*NCONT[nbco][1]==0.)&&(NCONT[nbco][1]*NCONT[nbco][2]==0.)&&(NCONT[nbco][2]*NCONT[nbco][0]==0.)){
+								  
+								  if(NCONT[nbco][0]!=0.){
+								   NCONT[nbco][3] = 0.;
+								   NCONT[nbco][4] = 0.;
+								   NCONT[nbco][5] = 1.;						
+								  }else if(NCONT[nbco][1]!=0.){
+								   NCONT[nbco][3] = 1.;
+								   NCONT[nbco][4] = 0.;
+								   NCONT[nbco][5] = 0.;									  
+								  }else if(NCONT[nbco][2]!=0.){
+								   NCONT[nbco][3] = 0.;
+								   NCONT[nbco][4] = 1.;
+								   NCONT[nbco][5] = 0.;									  
+								  }
+								   
+							   }else{
+									
+									if(NCONT[nbco][0]==0.){
+									
+									fors  = -(NCONT[nbco][1])/NCONT[nbco][2];
+									norms = sqrt(fors*fors+2.);
+
+									NCONT[nbco][3] = 1./norms;
+									NCONT[nbco][4] = 1./norms;
+									NCONT[nbco][5] = fors/norms;					
+									
+									}else{
+										
+								   fors  = -(NCONT[nbco][1]+NCONT[nbco][2])/NCONT[nbco][0];
+								   norms = sqrt(fors*fors+2.);
+
+								   NCONT[nbco][3] = fors/norms;
+								   NCONT[nbco][4] = 1./norms;
+								   NCONT[nbco][5] = 1./norms;							
+									
+									}
+															
+									
+							   }
+							   
+							   
+							   // Tangente t				   
+							   
+								NCONT[nbco][6] = NCONT[nbco][1]*NCONT[nbco][5] - NCONT[nbco][2]*NCONT[nbco][4];
+								NCONT[nbco][7] = NCONT[nbco][2]*NCONT[nbco][3] - NCONT[nbco][0]*NCONT[nbco][5];
+								NCONT[nbco][8] = NCONT[nbco][0]*NCONT[nbco][4] - NCONT[nbco][1]*NCONT[nbco][3];    
+								
+															   
+								NOCONT[it][NBCONTCO[it]]=nbco;
+								NOCONT[jt][NBCONTCO[jt]]=nbco;
+								NBCONTCO[it]++;
+								NBCONTCO[jt]++; 	
+									   
+								 rij=(LIST_R[it]*LIST_R[jt])/(LIST_R[it]+LIST_R[jt]);								
+								 hij=fabs(DCONT[nbco]-(LIST_R[it]+LIST_R[jt]));
+								 
+								 
+									if((LIST_P[it]==0)&&(LIST_P[jt]==0)){				  
+									iEij=(1.-nu1*nu1)/E1+(1.-nu1*nu1)/E1;		  
+									}
+									if(((LIST_P[it]==1)&&(LIST_P[jt]==0))||((LIST_P[it]==0)&&(LIST_P[jt]==1))) {	
+									iEij=(1.-nu1*nu1)/E1+(1.-nu2*nu2)/E2;	
+									}
+									if((LIST_P[it]==1)&&(LIST_P[jt]==1)){				  
+									iEij=(1.-nu2*nu2)/E2+(1.-nu2*nu2)/E2;	     
+									}
+								 
+								 Eij=1./iEij;	
+								// Kn=4.*Eij*rij;
+								 Kn=4.*Eij*sqrt(rij*hij)/3.;	
+								 	     Kn=Kn/100.;	
+									     Kn=2.5e8;	 							
+								 Kt=Kn;
+								 
+								dt=min(dt,sqrt(LIST_M[it]/Kn));
+								dt=min(dt,sqrt(LIST_M[jt]/Kn));
+								dt=min(dt,sqrt(LIST_I[it]/(Kt*LIST_R[it]*LIST_R[it])));
+								dt=min(dt,sqrt(LIST_I[jt]/(Kt*LIST_R[jt]*LIST_R[jt])));  		
+															   
+							   nbco++;						   
+							   }														   
+						
+						  
+					  }
+/////////////////////////////////////////////////////////////////////////	
+				
+					  } 
+
+			     }
+
+			}	
+
+		}
+		
+	}
+
+dt=Cs*dt;
+//cout<<"Pas de temps:"<<dt<<endl;
+//cout<<"nbco:"<<nbco<<endl;
+}
+
+void selco_corci0(bool * TYPCO, R & dt, int & nbco, int NB_SPH, int ** CONT, R * LIST_R, R * LIST_M, R * LIST_I, R * DCONT, R ** NCONT, R ** VALCOH, R ** VALAMO, int ** NOCONT, int * NBCONTCO, R * DCONTX, R * DCONTY, R * DCONTZ, R Cs)
+{
+
+// Mise à blanc des contacts par corci
+  for(int it=0;it<NB_SPH;it++){
+     NBCONTCO[it]=0;
+  }
+
+dt=1e9;
+int nbco1=0;
+
+  for(int ii=0;ii<nbco;ii++){
+	  
+	  if(TYPCO[ii]){
+	
+		   TYPCO[nbco1]=1;  	
+		   
+           CONT[nbco1][0]=CONT[ii][0];
+		   CONT[nbco1][1]=CONT[ii][1];                       
+		   
+		   int it=CONT[nbco1][0];
+		   int jt=CONT[nbco1][1];     
+		    
+   		   DCONTX[nbco1]=DCONTX[ii];
+		   DCONTY[nbco1]=DCONTY[ii];
+		   DCONTZ[nbco1]=DCONTZ[ii];		   
+		   DCONT[nbco1] =DCONT[ii];		 
+
+		   NCONT[nbco1][0]=NCONT[ii][0];
+		   NCONT[nbco1][1]=NCONT[ii][1]; 
+		   NCONT[nbco1][2]=NCONT[ii][2];
+		   NCONT[nbco1][3]=NCONT[ii][3];
+		   NCONT[nbco1][4]=NCONT[ii][4]; 
+		   NCONT[nbco1][5]=NCONT[ii][5];     
+		   NCONT[nbco1][6]=NCONT[ii][6];
+		   NCONT[nbco1][7]=NCONT[ii][7]; 
+		   NCONT[nbco1][8]=NCONT[ii][8];     		                     		    
+                       		    
+		   NOCONT[it][NBCONTCO[it]]=nbco1;
+		   NOCONT[jt][NBCONTCO[jt]]=nbco1;
+		   NBCONTCO[it]++;
+		   NBCONTCO[jt]++; 		                       		    
+
+			 VALCOH[nbco1][0]=VALCOH[ii][0];
+			 VALCOH[nbco1][1]=VALCOH[ii][1];
+			 VALCOH[nbco1][2]=VALCOH[ii][2];	
+			 VALCOH[nbco1][3]=VALCOH[ii][3];	
+			 VALCOH[nbco1][4]=VALCOH[ii][4];
+			 VALCOH[nbco1][5]=VALCOH[ii][5];
+			 VALCOH[nbco1][6]=VALCOH[ii][6];	
+			
+			 VALAMO[nbco1][0]=VALAMO[ii][0];
+			 VALAMO[nbco1][1]=VALAMO[ii][1];
+			 VALAMO[nbco1][2]=VALAMO[ii][2];
+			 VALAMO[nbco1][3]=VALAMO[ii][3];
+			 VALAMO[nbco1][4]=VALAMO[ii][4];                      
+			 VALAMO[nbco1][5]=VALAMO[ii][5];
+			 VALAMO[nbco1][6]=VALAMO[ii][6];	                       
+		   
+			 dt=min(dt,sqrt(LIST_M[it]/VALCOH[nbco1][0]));
+			 dt=min(dt,sqrt(LIST_M[jt]/VALCOH[nbco1][0]));
+			 dt=min(dt,sqrt(LIST_I[it]/(VALCOH[nbco1][1]*LIST_R[it]*LIST_R[it])));
+			 dt=min(dt,sqrt(LIST_I[jt]/(VALCOH[nbco1][1]*LIST_R[jt]*LIST_R[jt])));  
+
+		  
+		  nbco1++;
+	  }
+	  
+  }	  
+
+nbco=nbco1;
+
+dt=Cs*dt;
+//cout<<"Pas de temps:"<<dt<<endl;
+}

@@ -1,0 +1,1716 @@
+#include <cstdlib>
+#include <cstdio>
+#include <iomanip>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <cmath>
+#include <time.h> 
+#include <sys/time.h> 
+#include <sys/resource.h> 
+#include <string.h>
+#include <map>
+#include <cassert>
+#include <vector>
+#include <limits>
+
+using namespace std;
+
+#include "init.h"
+
+
+void init_size(int & vecsize, int & vecsizex,int & vecsizey, int & vecsizez, vector< vector<int>  > & coul,vector< vector<int>  > & numc, R H_TOT, R V_TOT, R Z_TOT, int NB_SPH, R R_SPH, R RMAX)
+{
+
+// Vecteur des couleurs  
+/*
+R Reff = ((2*R_SPH+1e-8)>(2*H_TOT/pow(NB_SPH,1./3)))?(2*R_SPH+1e-8):(2*H_TOT/pow(NB_SPH,1./3)); 
+vecsizex=(floor(H_TOT/Reff)>4)?floor(H_TOT/Reff):4;
+vecsizex+=2;
+Reff = ((2*R_SPH+1e-8)>(2*V_TOT/pow(NB_SPH,1./3)))?(2*R_SPH+1e-8):(2*V_TOT/pow(NB_SPH,1./3)); 
+vecsizey=(floor(V_TOT/Reff)>4)?floor(V_TOT/Reff):4;
+vecsizey+=2;
+Reff = ((2*R_SPH+1e-8)>(2*Z_TOT/pow(NB_SPH,1./3)))?(2*R_SPH+1e-8):(2*Z_TOT/pow(NB_SPH,1./3)); 
+vecsizez=(floor(Z_TOT/Reff)>4)?floor(Z_TOT/Reff):4;
+vecsizez+=2;
+*/
+
+	vecsizex=(floor(H_TOT/(2*RMAX))>4)?(floor(H_TOT/(2*RMAX))-1):4;
+	vecsizex-=2;
+	vecsizey=(floor(V_TOT/(2*RMAX))>4)?(floor(V_TOT/(2*RMAX))-1):4;
+	vecsizey-=2;
+	vecsizez=(floor(Z_TOT/(2*RMAX))>4)?(floor(Z_TOT/(2*RMAX))-1):4;		
+	vecsizez-=2;
+	
+vecsize=vecsizex*vecsizey*vecsizez;
+
+for (int i = 0; i < vecsize; i++) {
+    coul.push_back(vector<int>()); // Add an empty row
+}
+for (int ii = 0; ii < vecsize; ii++) {
+	numc.push_back(vector<int>()); // Add an empty row
+}
+
+for (int ii = 0; ii < vecsize; ii++) {
+ //cout<<"ii :"<<ii<<" - "<<vecsizex<<endl;
+	int NX  = ii%vecsizex;
+	int NY  = (ii%(vecsizex*vecsizey))/vecsizex;
+	int NZ  = ii/(vecsizex*vecsizey);
+	
+	int NXP1= (NX+vecsizex+1)%vecsizex;
+	int NXM1= (NX+vecsizex-1)%vecsizex;
+	int NYP1= (NY+vecsizey+1)%vecsizey;	
+	int NYM1= (NY+vecsizey-1)%vecsizey;
+	//int NZP1= (NZ+vecsizez+1)%vecsizez;	
+	int NZM1= (NZ+vecsizez-1)%vecsizez;		
+
+	numc[ii].push_back(ii);
+	if(NZM1==(NZ-1)){
+	 if((NYM1==(NY-1))&&(NXM1==(NX-1))){numc[ii].push_back(NXM1+vecsizex*NYM1+vecsizex*vecsizey*NZM1);}
+	 if(NYM1==(NY-1)){numc[ii].push_back(NX+vecsizex*NYM1+vecsizex*vecsizey*NZM1);}
+	 if((NYM1==(NY-1))&&(NXP1==(NX+1))){numc[ii].push_back(NXP1+vecsizex*NYM1+vecsizex*vecsizey*NZM1);}
+	 if(NXM1==(NX-1)){numc[ii].push_back(NXM1+vecsizex*NY+vecsizex*vecsizey*NZM1);}	 
+	 numc[ii].push_back(NX+vecsizex*NY+vecsizex*vecsizey*NZM1);
+	 if(NXP1==(NX+1)){numc[ii].push_back(NXP1+vecsizex*NY+vecsizex*vecsizey*NZM1);}
+	 if((NYP1==(NY+1))&&(NXM1==(NX-1))){numc[ii].push_back(NXM1+vecsizex*NYP1+vecsizex*vecsizey*NZM1);}
+	 if(NYP1==(NY+1)){numc[ii].push_back(NX+vecsizex*NYP1+vecsizex*vecsizey*NZM1);}
+	 if((NYP1==(NY+1))&&(NXP1==(NX+1))){numc[ii].push_back(NXP1+vecsizex*NYP1+vecsizex*vecsizey*NZM1);}	 	 
+	}	
+		
+	if(NYM1==(NY-1)){
+	 if(NXM1==(NX-1)){numc[ii].push_back((NXM1+vecsizex*NYM1+vecsizex*vecsizey*NZ));}
+	 numc[ii].push_back((NX+vecsizex*NYM1+vecsizex*vecsizey*NZ));
+	}	
+	if(NXP1==(NX+1)){
+	 if(NYM1==(NY-1)){numc[ii].push_back((NXP1+vecsizex*NYM1+vecsizex*vecsizey*NZ));}
+	 numc[ii].push_back((NXP1+vecsizex*NY+vecsizex*vecsizey*NZ)); 
+	}	
+	
+ 
+ }	 
+ 
+ 
+ cout<<"NXYZ:"<<vecsizex<<", "<<vecsizey<<", "<<vecsizez<<endl;
+ 	
+
+}
+
+void init_sizeh(int & vecsizeh, int & vecsizexh,int & vecsizeyh, int & vecsizezh, vector< vector<int>  > & coulh,vector< vector<int>  > & numch, R H_TOT, R V_TOT, R Z_TOT, R RHALO)
+{
+	vecsizexh=floor(H_TOT/RHALO)-1;
+	vecsizeyh=floor(V_TOT/RHALO)-1;
+	vecsizezh=floor(Z_TOT/RHALO)-1;
+	
+vecsizeh=vecsizexh*vecsizeyh*vecsizezh;
+
+for (int i = 0; i < vecsizeh; i++) {
+    coulh.push_back(vector<int>()); // Add an empty row
+}
+for (int ii = 0; ii < vecsizeh; ii++) {
+	numch.push_back(vector<int>()); // Add an empty row
+}
+
+for (int ii = 0; ii < vecsizeh; ii++) {
+
+	int NX  = ii%vecsizexh;
+	int NY  = (ii%(vecsizexh*vecsizeyh))/vecsizexh;
+	int NZ  = ii/(vecsizexh*vecsizeyh);
+	
+	int NXP1= (NX+vecsizexh+1)%vecsizexh;
+	int NXM1= (NX+vecsizexh-1)%vecsizexh;
+	int NYP1= (NY+vecsizeyh+1)%vecsizeyh;	
+	int NYM1= (NY+vecsizeyh-1)%vecsizeyh;
+    int NZP1= (NZ+vecsizezh+1)%vecsizezh;	
+	int NZM1= (NZ+vecsizezh-1)%vecsizezh;		
+
+	numch[ii].push_back(ii);
+	
+    numch[ii].push_back(NXM1+vecsizexh*NYM1+vecsizexh*vecsizeyh*NZM1);	
+	numch[ii].push_back(NX+vecsizexh*NYM1+vecsizexh*vecsizeyh*NZM1);
+    numch[ii].push_back(NXP1+vecsizexh*NYM1+vecsizexh*vecsizeyh*NZM1);
+    numch[ii].push_back(NXM1+vecsizexh*NY+vecsizexh*vecsizeyh*NZM1);	
+	numch[ii].push_back(NX+vecsizexh*NY+vecsizexh*vecsizeyh*NZM1);
+    numch[ii].push_back(NXP1+vecsizexh*NY+vecsizexh*vecsizeyh*NZM1);
+    numch[ii].push_back(NXM1+vecsizexh*NYP1+vecsizexh*vecsizeyh*NZM1);	
+	numch[ii].push_back(NX+vecsizexh*NYP1+vecsizexh*vecsizeyh*NZM1);
+    numch[ii].push_back(NXP1+vecsizexh*NYP1+vecsizexh*vecsizeyh*NZM1);  
+     
+    numch[ii].push_back(NXM1+vecsizexh*NYM1+vecsizexh*vecsizeyh*NZ);	
+	numch[ii].push_back(NX+vecsizexh*NYM1+vecsizexh*vecsizeyh*NZ);
+    numch[ii].push_back(NXP1+vecsizexh*NYM1+vecsizexh*vecsizeyh*NZ);
+    numch[ii].push_back(NXM1+vecsizexh*NY+vecsizexh*vecsizeyh*NZ);	
+    numch[ii].push_back(NXP1+vecsizexh*NY+vecsizexh*vecsizeyh*NZ);
+    numch[ii].push_back(NXM1+vecsizexh*NYP1+vecsizexh*vecsizeyh*NZ);	
+	numch[ii].push_back(NX+vecsizexh*NYP1+vecsizexh*vecsizeyh*NZ);
+    numch[ii].push_back(NXP1+vecsizexh*NYP1+vecsizexh*vecsizeyh*NZ);  
+	
+    numch[ii].push_back(NXM1+vecsizexh*NYM1+vecsizexh*vecsizeyh*NZP1);	
+	numch[ii].push_back(NX+vecsizexh*NYM1+vecsizexh*vecsizeyh*NZP1);
+    numch[ii].push_back(NXP1+vecsizexh*NYM1+vecsizexh*vecsizeyh*NZP1);
+    numch[ii].push_back(NXM1+vecsizexh*NY+vecsizexh*vecsizeyh*NZP1);	
+	numch[ii].push_back(NX+vecsizexh*NY+vecsizexh*vecsizeyh*NZP1);
+    numch[ii].push_back(NXP1+vecsizexh*NY+vecsizexh*vecsizeyh*NZP1);
+    numch[ii].push_back(NXM1+vecsizexh*NYP1+vecsizexh*vecsizeyh*NZP1);	
+	numch[ii].push_back(NX+vecsizexh*NYP1+vecsizexh*vecsizeyh*NZP1);
+    numch[ii].push_back(NXP1+vecsizexh*NYP1+vecsizexh*vecsizeyh*NZP1); 
+
+ }	 
+  
+ cout<<"NXYZ_halo:"<<vecsizexh<<", "<<vecsizeyh<<", "<<vecsizezh<<endl;
+ 	
+
+}
+
+void init_paroi(int NB_PAR, R densp, R epaisp, R ** LIST_PX, R ** LIST_PY, R ** LIST_PZ, R ** LIST_PVX, R ** LIST_PVY, R ** LIST_PVZ, R ** LIST_PAX, R ** LIST_PAY, R ** LIST_PAZ, R ** LIST_PN, R * LIST_PM)
+{
+
+R distij,distil,distp;
+R det1,det2,det3;
+R fors,norms;
+
+	// DISTRIBUTION INITIALE DE SPHERES
+	for(int it=0;it<NB_PAR;it++){
+		
+	//	cout<<"--paroi :"<<it<<endl
+		
+		for(int jt=0;jt<4;jt++){	
+		
+		LIST_PVX[it][jt]=0.;
+		LIST_PVY[it][jt]=0.;		
+		LIST_PVZ[it][jt]=0.;		
+
+		LIST_PAX[it][jt]=0.;
+		LIST_PAY[it][jt]=0.;		
+		LIST_PAZ[it][jt]=0.;	
+				
+	    }
+		
+		distij=(LIST_PX[it][0]-LIST_PX[it][1])*(LIST_PX[it][0]-LIST_PX[it][1]);
+		distij+=(LIST_PY[it][0]-LIST_PY[it][1])*(LIST_PY[it][0]-LIST_PY[it][1]);		
+		distij+=(LIST_PZ[it][0]-LIST_PZ[it][1])*(LIST_PZ[it][0]-LIST_PZ[it][1]);			
+		distij=sqrt(distij);
+		
+		distil=(LIST_PX[it][0]-LIST_PX[it][3])*(LIST_PX[it][0]-LIST_PX[it][3]);
+		distil+=(LIST_PY[it][0]-LIST_PY[it][3])*(LIST_PY[it][0]-LIST_PY[it][3]);		
+		distil+=(LIST_PZ[it][0]-LIST_PZ[it][3])*(LIST_PZ[it][0]-LIST_PZ[it][3]);			
+		distil=sqrt(distil);	
+		
+		LIST_PM[it]=distij*distil*epaisp*densp;
+	
+		det1=((LIST_PY[it][1]-LIST_PY[it][0])*(LIST_PZ[it][3]-LIST_PZ[it][0])-(LIST_PY[it][3]-LIST_PY[it][0])*(LIST_PZ[it][1]-LIST_PZ[it][0]));
+        det2=((LIST_PX[it][3]-LIST_PX[it][0])*(LIST_PZ[it][1]-LIST_PZ[it][0])-(LIST_PX[it][1]-LIST_PX[it][0])*(LIST_PZ[it][3]-LIST_PZ[it][0]));
+        det3=((LIST_PX[it][1]-LIST_PX[it][0])*(LIST_PY[it][3]-LIST_PY[it][0])-(LIST_PX[it][3]-LIST_PX[it][0])*(LIST_PY[it][1]-LIST_PY[it][0]));  
+
+        LIST_PN[it][0]=det1/sqrt(det1*det1+det2*det2+det3*det3);
+        LIST_PN[it][1]=det2/sqrt(det1*det1+det2*det2+det3*det3);      
+        LIST_PN[it][2]=det3/sqrt(det1*det1+det2*det2+det3*det3);  
+        
+	   // Zero numerique
+	   
+	   if(fabs(LIST_PN[it][0])<1e-18) LIST_PN[it][0]=0.;
+	   if(fabs(LIST_PN[it][1])<1e-18) LIST_PN[it][1]=0.;
+	   if(fabs(LIST_PN[it][2])<1e-18) LIST_PN[it][2]=0.;
+	   
+	   // Tangente s
+	   
+	   if((LIST_PN[it][0]*LIST_PN[it][1]==0.)&&(LIST_PN[it][1]*LIST_PN[it][2]==0.)&&(LIST_PN[it][2]*LIST_PN[it][0]==0.)){
+		  
+		  if(LIST_PN[it][0]!=0.){
+		   LIST_PN[it][3] = 0.;
+		   LIST_PN[it][4] = 0.;
+		   LIST_PN[it][5] = 1.;						
+		  }else if(LIST_PN[it][1]!=0.){
+		   LIST_PN[it][3] = 1.;
+		   LIST_PN[it][4] = 0.;
+		   LIST_PN[it][5] = 0.;									  
+		  }else if(LIST_PN[it][2]!=0.){
+		   LIST_PN[it][3] = 0.;
+		   LIST_PN[it][4] = 1.;
+		   LIST_PN[it][5] = 0.;									  
+		  }
+		   
+	   }else{
+			
+			if(LIST_PN[it][0]==0.){
+			
+			fors  = -(LIST_PN[it][1])/LIST_PN[it][2];
+			norms = sqrt(fors*fors+2.);
+
+			LIST_PN[it][3] = 1./norms;
+			LIST_PN[it][4] = 1./norms;
+			LIST_PN[it][5] = fors/norms;					
+			
+			}else{
+				
+		   fors  = -(LIST_PN[it][1]+LIST_PN[it][2])/LIST_PN[it][0];
+		   norms = sqrt(fors*fors+2.);
+
+		   LIST_PN[it][3] = fors/norms;
+		   LIST_PN[it][4] = 1./norms;
+		   LIST_PN[it][5] = 1./norms;							
+			
+			}
+									
+			
+	   }
+	   
+	   
+	   // Tangente t				   
+	   
+		LIST_PN[it][6] = LIST_PN[it][1]*LIST_PN[it][5] - LIST_PN[it][2]*LIST_PN[it][4];
+		LIST_PN[it][7] = LIST_PN[it][2]*LIST_PN[it][3] - LIST_PN[it][0]*LIST_PN[it][5];
+		LIST_PN[it][8] = LIST_PN[it][0]*LIST_PN[it][4] - LIST_PN[it][1]*LIST_PN[it][3];          
+       
+				
+	}
+	
+	
+} 
+
+
+void init_sph(bool * TYPCO, int NBCONT, R Pi, R dens, R epsi, int vecsizex, int vecsizey, int vecsizez,vector< vector<int>  > & coul, R & PR_SPH, R H_TOT, R V_TOT, R Z_TOT, int NB_SPH, R R_SPH, int * LIST_B, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO,R * LIST_XA, R * LIST_YA, R * LIST_ZA, R * LIST_TX, R * LIST_TY, R * LIST_TZ,R * LIST_TXA, R * LIST_TYA, R * LIST_TZA, R * LIST_VX, R * LIST_VY, R * LIST_VZ, R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * LIST_AX, R * LIST_AY, R * LIST_AZ, R * LIST_AWX, R * LIST_AWY, R * LIST_AWZ, int * LIST_C, R * LIST_M, R * LIST_I, R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, bool * EDGE, bool * EDGE1, bool * EDGE2, bool * EDGE3, bool * EDGE4,  bool * EDGE5, bool * EDGE6, int * NBCONTCO)
+{
+
+    // CONTACTS COHESIFS INITIALEMENT
+    for(int it=0;it<NBCONT;it++){
+		TYPCO[it]=1;		
+	}
+	
+//cout<<"Nombre de spheres:"<<NB_SPH<<endl;
+
+PR_SPH=0.;
+R coef;
+	// DISTRIBUTION INITIALE DE SPHERES
+  for(int it=0;it<NB_SPH;it++){
+      coef=1.;
+      PR_SPH+=(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it];
+      
+            LIST_B[it]=0.;
+      EDGE[it]=0;      
+      EDGE1[it]=0;
+      EDGE2[it]=0;
+      EDGE3[it]=0;
+      EDGE4[it]=0;
+      EDGE5[it]=0;
+      EDGE6[it]=0;     
+         
+      NBCONTCO[it]= 0;
+      		
+      if(fabs(LIST_X[it])<epsi) { EDGE1[it]=1;    EDGE[it]=1; coef/=2.; }
+      if(fabs(LIST_Y[it])<epsi) { EDGE2[it]=1;   EDGE[it]=1; coef/=2.; }
+      if(fabs(LIST_Z[it])<epsi) { EDGE3[it]=1;   EDGE[it]=1; coef/=2.;}
+      if(fabs(LIST_X[it]-H_TOT)<epsi) { EDGE4[it]=1;   EDGE[it]=1; coef/=2.;}	
+      if(fabs(LIST_Y[it]-V_TOT)<epsi) { EDGE5[it]=1;   EDGE[it]=1; coef/=2.;} 
+      if(fabs(LIST_Z[it]-Z_TOT)<epsi) { EDGE6[it]=1;    EDGE[it]=1;coef/=2.; } 
+    		
+		int NX= ((int) (LIST_X[it]*vecsizex/H_TOT));
+		int NY= ((int) (LIST_Y[it]*vecsizey/V_TOT));
+		int NZ= ((int) (LIST_Z[it]*vecsizez/Z_TOT));		
+		
+		if(NX<0) NX=0;
+		if(NX>=vecsizex) NX=vecsizex-1;		
+		if(NY<0) NY=0;
+		if(NY>=vecsizey) NY=vecsizey-1;		
+		if(NZ<0) NZ=0;
+		if(NZ>=vecsizez) NZ=vecsizez-1;		
+		
+		coul[NX+NY*vecsizex+NZ*vecsizex*vecsizey].push_back(it);
+		LIST_C[it] = NX+NY*vecsizex+NZ*vecsizex*vecsizey;   
+
+		LIST_XO[it] = LIST_X[it];
+		LIST_YO[it] = LIST_Y[it];
+		LIST_ZO[it] = LIST_Z[it];
+		
+		LIST_XA[it] = LIST_X[it];
+		LIST_YA[it] = LIST_Y[it];
+		LIST_ZA[it] = LIST_Z[it];	
+
+		LIST_TX[it] = 0.;
+		LIST_TY[it] = 0.;
+		LIST_TZ[it] = 0.;
+		
+		LIST_TXA[it] = 0.;
+		LIST_TYA[it] = 0.;
+		LIST_TZA[it] = 0.;		
+				
+		LIST_VX[it] = 0.;
+		LIST_VY[it] = 0.; 
+		LIST_VZ[it] = 0.;
+					
+		LIST_WX[it] = 0.;        
+		LIST_WY[it] = 0.;    
+		LIST_WZ[it] = 0.;		
+		
+		LIST_AX[it] = 0.;
+		LIST_AY[it] = 0.;
+		LIST_AZ[it] = 0.;	
+			
+		LIST_AWX[it] = 0.;  
+		LIST_AWY[it] = 0.;  		 
+		LIST_AWZ[it] = 0.;  
+			    		
+		FX[it] = 0.;
+		FY[it] = 0.;	
+		FZ[it] = 0.;	
+				
+		MTX[it] = 0.;		
+		MTY[it] = 0.;					
+		MTZ[it] = 0.;		
+
+		LIST_M[it]  = dens*(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it]*coef;		
+		LIST_I[it]  = LIST_M[it]*(2./5.)*LIST_R[it]*LIST_R[it];	
+
+	}
+	
+	PR_SPH=PR_SPH/(H_TOT*V_TOT*Z_TOT);
+
+}
+
+void init_sphp(bool * TYPCO, int NBCONT, R Pi, R dens, R epsi, int vecsizex, int vecsizey, int vecsizez,vector< vector<int>  > & coul, R & PR_SPH, R H_TOT, R V_TOT, R Z_TOT, int NB_SPH, R R_SPH, int * LIST_B, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO,R * LIST_XA, R * LIST_YA, R * LIST_ZA, R * LIST_TX, R * LIST_TY, R * LIST_TZ,R * LIST_TXA, R * LIST_TYA, R * LIST_TZA, R * LIST_VX, R * LIST_VY, R * LIST_VZ, R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * LIST_AX, R * LIST_AY, R * LIST_AZ, R * LIST_AWX, R * LIST_AWY, R * LIST_AWZ, int * LIST_C, R * LIST_M, R * LIST_I, R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, bool * EDGE, bool * EDGE1, bool * EDGE2, bool * EDGE3, bool * EDGE4,  bool * EDGE5, bool * EDGE6, int * NBCONTCO)
+{
+
+    // CONTACTS COHESIFS INITIALEMENT
+    for(int it=0;it<NBCONT;it++){
+		TYPCO[it]=1;		
+	}
+	
+//cout<<"Nombre de spheres:"<<NB_SPH<<endl;
+
+PR_SPH=0.;
+
+int nb1=0;
+int nb4=0;
+
+	// DISTRIBUTION INITIALE DE SPHERES
+	for(int it=0;it<NB_SPH;it++){
+      
+      PR_SPH+=(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it];
+   
+         LIST_B[it]=0.;   
+      EDGE[it]=0;      
+      EDGE1[it]=0;
+      EDGE2[it]=0;
+      EDGE3[it]=0;
+      EDGE4[it]=0;
+      EDGE5[it]=0;
+      EDGE6[it]=0;     
+      
+      R EE=1.;
+         
+      NBCONTCO[it]= 0;
+            
+      if(fabs(LIST_X[it]-EE-LIST_R[it])<epsi) { EDGE1[it]=1;   nb1++; }
+      if(fabs(LIST_Y[it]-LIST_R[it])<epsi) { EDGE2[it]=1; }
+      if(fabs(LIST_Z[it]-LIST_R[it])<epsi) { EDGE3[it]=1;  }
+      if(fabs(LIST_X[it]+LIST_R[it]-H_TOT+EE)<epsi) { EDGE4[it]=1;  nb4++; }
+      if(fabs(LIST_Y[it]+LIST_R[it]-V_TOT)<epsi) { EDGE5[it]=1;   }
+      if(fabs(LIST_Z[it]+LIST_R[it]-Z_TOT)<epsi) { EDGE6[it]=1;   }          	
+  
+    		
+		int NX= ((int) (LIST_X[it]*vecsizex/H_TOT));
+		int NY= ((int) (LIST_Y[it]*vecsizey/V_TOT));
+		int NZ= ((int) (LIST_Z[it]*vecsizez/Z_TOT));		
+		
+		if(NX<0) NX=0;
+		if(NX>=vecsizex) NX=vecsizex-1;		
+		if(NY<0) NY=0;
+		if(NY>=vecsizey) NY=vecsizey-1;		
+		if(NZ<0) NZ=0;
+		if(NZ>=vecsizez) NZ=vecsizez-1;		
+		
+		coul[NX+NY*vecsizex+NZ*vecsizex*vecsizey].push_back(it);
+		LIST_C[it] = NX+NY*vecsizex+NZ*vecsizex*vecsizey;   
+
+		LIST_XO[it] = LIST_X[it];
+		LIST_YO[it] = LIST_Y[it];
+		LIST_ZO[it] = LIST_Z[it];
+
+		LIST_XA[it] = LIST_X[it];
+		LIST_YA[it] = LIST_Y[it];
+		LIST_ZA[it] = LIST_Z[it];
+
+		LIST_TX[it] = 0.;
+		LIST_TY[it] = 0.;
+		LIST_TZ[it] = 0.;
+
+		LIST_TXA[it] = 0.;
+		LIST_TYA[it] = 0.;
+		LIST_TZA[it] = 0.;
+		
+		LIST_VX[it] = 0.;
+		LIST_VY[it] = 0.; 
+		LIST_VZ[it] = 0.;
+					
+		LIST_WX[it] = 0.;        
+		LIST_WY[it] = 0.;    
+		LIST_WZ[it] = 0.;		
+		
+		LIST_AX[it] = 0.;
+		LIST_AY[it] = 0.;
+		LIST_AZ[it] = 0.;	
+			
+		LIST_AWX[it] = 0.;  
+		LIST_AWY[it] = 0.;  		 
+		LIST_AWZ[it] = 0.;  
+			    		
+		FX[it] = 0.;
+		FY[it] = 0.;	
+		FZ[it] = 0.;	
+				
+		MTX[it] = 0.;		
+		MTY[it] = 0.;					
+		MTZ[it] = 0.;		
+
+		LIST_M[it]  = dens*(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it]*1.;		
+		LIST_I[it]  = LIST_M[it]*(2./5.)*LIST_R[it]*LIST_R[it];	
+
+	}
+	
+	PR_SPH=PR_SPH/(H_TOT*V_TOT*Z_TOT);
+
+      cout<<"nb14:"<<nb1<<", "<<nb4<<endl;
+}
+
+void init_sph_ind(bool * TYPCO, int NBCONT, R Pi, R dens, R epsi, int vecsizex, int vecsizey, int vecsizez,vector< vector<int>  > & coul, R & PR_SPH, R H_TOT, R V_TOT, R Z_TOT, int NB_SPH, R R_SPH, int * LIST_B, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO,R * LIST_XA, R * LIST_YA, R * LIST_ZA, R * LIST_TX, R * LIST_TY, R * LIST_TZ, R * LIST_TXA, R * LIST_TYA, R * LIST_TZA, R * LIST_VX, R * LIST_VY, R * LIST_VZ, R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * LIST_AX, R * LIST_AY, R * LIST_AZ, R * LIST_AWX, R * LIST_AWY, R * LIST_AWZ, int * LIST_C, R * LIST_M, R * LIST_I, R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, bool * EDGE, bool * EDGE1, bool * EDGE2, bool * EDGE3, bool * EDGE4,  bool * EDGE5, bool * EDGE6, int * NBCONTCO)
+{
+
+    // CONTACTS COHESIFS INITIALEMENT
+    for(int it=0;it<NBCONT;it++){
+		TYPCO[it]=1;		
+	}
+	
+//cout<<"Nombre de spheres:"<<NB_SPH<<endl;
+
+PR_SPH=0.;
+int nb1=0;
+int nb2=0;
+int nb3=0;
+int nb4=0;
+int nb5=0;
+int nb6=0;
+
+	// DISTRIBUTION INITIALE DE SPHERES
+	for(int it=0;it<NB_SPH;it++){
+      
+      PR_SPH+=(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it];
+   
+      LIST_B[it]=0.;   
+      EDGE[it]=0;      
+      EDGE1[it]=0;
+      EDGE2[it]=0;
+      EDGE3[it]=0;
+      EDGE4[it]=0;
+      EDGE5[it]=0;
+      EDGE6[it]=0;     
+         
+      NBCONTCO[it]= 0;
+            
+      if(fabs(LIST_X[it])<epsi) { EDGE1[it]=1; nb1++; EDGE[it]=1;  }
+      if(fabs(LIST_Y[it])<epsi) { EDGE2[it]=1; nb2++; EDGE[it]=1;}
+      if(fabs(LIST_Z[it])<epsi) { EDGE3[it]=1; nb3++;EDGE[it]=1; }
+      if(fabs(LIST_X[it]-H_TOT)<epsi) { EDGE4[it]=1; nb4++; EDGE[it]=1;	 }
+      if(fabs(LIST_Y[it]-V_TOT)<epsi) { EDGE5[it]=1;  nb5++;EDGE[it]=1; }
+      if(fabs(LIST_Z[it]-Z_TOT)<epsi) { EDGE6[it]=1;  nb6++; EDGE[it]=1; }          	
+  
+    		
+		int NX= ((int) (LIST_X[it]*vecsizex/H_TOT));
+		int NY= ((int) (LIST_Y[it]*vecsizey/V_TOT));
+		int NZ= ((int) (LIST_Z[it]*vecsizez/Z_TOT));		
+		
+		if(NX<0) NX=0;
+		if(NX>=vecsizex) NX=vecsizex-1;		
+		if(NY<0) NY=0;
+		if(NY>=vecsizey) NY=vecsizey-1;		
+		if(NZ<0) NZ=0;
+		if(NZ>=vecsizez) NZ=vecsizez-1;		
+		
+                if(it!=NB_SPH-1){
+		coul[NX+NY*vecsizex+NZ*vecsizex*vecsizey].push_back(it);
+		LIST_C[it] = NX+NY*vecsizex+NZ*vecsizex*vecsizey;   
+                }
+
+		LIST_XO[it] = LIST_X[it];
+		LIST_YO[it] = LIST_Y[it];
+		LIST_ZO[it] = LIST_Z[it];
+
+		LIST_XA[it] = LIST_X[it];
+		LIST_YA[it] = LIST_Y[it];
+		LIST_ZA[it] = LIST_Z[it];
+
+		LIST_TX[it] = 0.;
+		LIST_TY[it] = 0.;
+		LIST_TZ[it] = 0.;
+
+		LIST_TXA[it] = 0.;
+		LIST_TYA[it] = 0.;
+		LIST_TZA[it] = 0.;
+		
+		LIST_VX[it] = 0.;
+		LIST_VY[it] = 0.; 
+		LIST_VZ[it] = 0.;
+					
+		LIST_WX[it] = 0.;        
+		LIST_WY[it] = 0.;    
+		LIST_WZ[it] = 0.;		
+		
+		LIST_AX[it] = 0.;
+		LIST_AY[it] = 0.;
+		LIST_AZ[it] = 0.;	
+			
+		LIST_AWX[it] = 0.;  
+		LIST_AWY[it] = 0.;  		 
+		LIST_AWZ[it] = 0.;  
+			    		
+		FX[it] = 0.;
+		FY[it] = 0.;	
+		FZ[it] = 0.;	
+				
+		MTX[it] = 0.;		
+		MTY[it] = 0.;					
+		MTZ[it] = 0.;		
+
+		LIST_M[it]  = dens*(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it]*1.;		
+		LIST_I[it]  = LIST_M[it]*(2./5.)*LIST_R[it]*LIST_R[it];	
+                 if(it==NB_SPH-1) {
+
+		LIST_M[it]  = dens*(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it]*1.3;		
+		LIST_I[it]  = LIST_M[it]*(2./5.)*LIST_R[it]*LIST_R[it];	
+                 }
+
+
+	}
+	
+cout<<"nb1 :"<<nb1<<endl;
+cout<<"nb2 :"<<nb2<<endl;
+cout<<"nb3 :"<<nb3<<endl;
+cout<<"nb4 :"<<nb4<<endl;
+cout<<"nb5 :"<<nb5<<endl;
+cout<<"nb6 :"<<nb6<<endl;
+
+	PR_SPH=PR_SPH/(H_TOT*V_TOT*Z_TOT);
+
+}
+
+void init_sphp_ind(bool * TYPCO, int NBCONT, R Pi, R dens, R epsi, int vecsizex, int vecsizey, int vecsizez,vector< vector<int>  > & coul, R & PR_SPH, R H_TOT, R V_TOT, R Z_TOT, int NB_SPH, R R_SPH, int * LIST_B, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO,R * LIST_XA, R * LIST_YA, R * LIST_ZA, R * LIST_TX, R * LIST_TY, R * LIST_TZ, R * LIST_TXA, R * LIST_TYA, R * LIST_TZA, R * LIST_VX, R * LIST_VY, R * LIST_VZ, R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * LIST_AX, R * LIST_AY, R * LIST_AZ, R * LIST_AWX, R * LIST_AWY, R * LIST_AWZ, int * LIST_C, R * LIST_M, R * LIST_I, R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, bool * EDGE, bool * EDGE1, bool * EDGE2, bool * EDGE3, bool * EDGE4,  bool * EDGE5, bool * EDGE6, int * NBCONTCO)
+{
+
+    // CONTACTS COHESIFS INITIALEMENT
+    for(int it=0;it<NBCONT;it++){
+		TYPCO[it]=1;		
+	}
+	
+//cout<<"Nombre de spheres:"<<NB_SPH<<endl;
+
+PR_SPH=0.;
+int nb1=0;
+int nb2=0;
+int nb3=0;
+int nb4=0;
+int nb5=0;
+int nb6=0;
+
+	// DISTRIBUTION INITIALE DE SPHERES
+	for(int it=0;it<NB_SPH;it++){
+      
+      PR_SPH+=(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it];
+   
+         LIST_B[it]=0.;   
+      EDGE[it]=0;      
+      EDGE1[it]=0;
+      EDGE2[it]=0;
+      EDGE3[it]=0;
+      EDGE4[it]=0;
+      EDGE5[it]=0;
+      EDGE6[it]=0;     
+         
+      NBCONTCO[it]= 0;
+            
+      if(fabs(LIST_X[it]-LIST_R[it])<epsi) { EDGE1[it]=1; nb1++;   }
+      if(fabs(LIST_Y[it]-LIST_R[it])<epsi) { EDGE2[it]=1; nb2++;}
+      if(fabs(LIST_Z[it]-LIST_R[it])<epsi) { EDGE3[it]=1; nb3++; }
+      if(fabs(LIST_X[it]+LIST_R[it]-H_TOT)<epsi) { EDGE4[it]=1; nb4++; 	 }
+      if(fabs(LIST_Y[it]+LIST_R[it]-V_TOT)<epsi) { EDGE5[it]=1;  nb5++; }
+      if(fabs(LIST_Z[it]+LIST_R[it]-Z_TOT)<epsi) { EDGE6[it]=1;  nb6++;  }          	
+  
+    		
+		int NX= ((int) (LIST_X[it]*vecsizex/H_TOT));
+		int NY= ((int) (LIST_Y[it]*vecsizey/V_TOT));
+		int NZ= ((int) (LIST_Z[it]*vecsizez/Z_TOT));		
+		
+		if(NX<0) NX=0;
+		if(NX>=vecsizex) NX=vecsizex-1;		
+		if(NY<0) NY=0;
+		if(NY>=vecsizey) NY=vecsizey-1;		
+		if(NZ<0) NZ=0;
+		if(NZ>=vecsizez) NZ=vecsizez-1;		
+		
+                if(it!=NB_SPH-1){
+		coul[NX+NY*vecsizex+NZ*vecsizex*vecsizey].push_back(it);
+		LIST_C[it] = NX+NY*vecsizex+NZ*vecsizex*vecsizey;   
+                }
+
+		LIST_XO[it] = LIST_X[it];
+		LIST_YO[it] = LIST_Y[it];
+		LIST_ZO[it] = LIST_Z[it];
+
+		LIST_XA[it] = LIST_X[it];
+		LIST_YA[it] = LIST_Y[it];
+		LIST_ZA[it] = LIST_Z[it];
+
+		LIST_TX[it] = 0.;
+		LIST_TY[it] = 0.;
+		LIST_TZ[it] = 0.;
+
+		LIST_TXA[it] = 0.;
+		LIST_TYA[it] = 0.;
+		LIST_TZA[it] = 0.;
+		
+		LIST_VX[it] = 0.;
+		LIST_VY[it] = 0.; 
+		LIST_VZ[it] = 0.;
+					
+		LIST_WX[it] = 0.;        
+		LIST_WY[it] = 0.;    
+		LIST_WZ[it] = 0.;		
+		
+		LIST_AX[it] = 0.;
+		LIST_AY[it] = 0.;
+		LIST_AZ[it] = 0.;	
+			
+		LIST_AWX[it] = 0.;  
+		LIST_AWY[it] = 0.;  		 
+		LIST_AWZ[it] = 0.;  
+			    		
+		FX[it] = 0.;
+		FY[it] = 0.;	
+		FZ[it] = 0.;	
+				
+		MTX[it] = 0.;		
+		MTY[it] = 0.;					
+		MTZ[it] = 0.;		
+
+		LIST_M[it]  = dens*(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it]*1.;		
+		LIST_I[it]  = LIST_M[it]*(2./5.)*LIST_R[it]*LIST_R[it];	
+                 if(it==NB_SPH-1) {
+
+		LIST_M[it]  = dens*(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it]*1.3;		
+		LIST_I[it]  = LIST_M[it]*(2./5.)*LIST_R[it]*LIST_R[it];	
+                 }
+
+
+	}
+	
+cout<<"nb1 :"<<nb1<<endl;
+cout<<"nb2 :"<<nb2<<endl;
+cout<<"nb3 :"<<nb3<<endl;
+cout<<"nb4 :"<<nb4<<endl;
+cout<<"nb5 :"<<nb5<<endl;
+cout<<"nb6 :"<<nb6<<endl;
+
+	PR_SPH=PR_SPH/(H_TOT*V_TOT*Z_TOT);
+
+}
+
+void init_sph_halo(bool * TYPCO, int NBCONT, R Pi, R dens, R epsi, int vecsizex, int vecsizey, int vecsizez,vector< vector<int>  > & coul,int vecsizexh, int vecsizeyh, int vecsizezh,vector< vector<int>  > & coulh, R & PR_SPH, R H_TOT, R V_TOT, R Z_TOT, int NB_SPH, R R_SPH, int * LIST_B, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO,R * LIST_XA, R * LIST_YA, R * LIST_ZA, R * LIST_TX, R * LIST_TY, R * LIST_TZ,R * LIST_TXA, R * LIST_TYA, R * LIST_TZA, R * LIST_VX, R * LIST_VY, R * LIST_VZ, R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * LIST_AX, R * LIST_AY, R * LIST_AZ, R * LIST_AWX, R * LIST_AWY, R * LIST_AWZ, int * LIST_C, int * LIST_H, R * LIST_M, R * LIST_I, R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, bool * EDGE, bool * EDGE1, bool * EDGE2, bool * EDGE3, bool * EDGE4,  bool * EDGE5, bool * EDGE6, int * NBCONTCO)
+{
+
+    // CONTACTS COHESIFS INITIALEMENT
+    for(int it=0;it<NBCONT;it++){
+		TYPCO[it]=1;		
+	}
+	
+//cout<<"Nombre de spheres:"<<NB_SPH<<endl;
+
+PR_SPH=0.;
+R coef;
+
+int nb1=0;
+int nb4=0;
+
+	// DISTRIBUTION INITIALE DE SPHERES
+	for(int it=0;it<NB_SPH;it++){
+      
+      PR_SPH+=(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it];
+   
+      LIST_B[it]=0.;   
+      EDGE[it]=0;      
+      EDGE1[it]=0;
+      EDGE2[it]=0;
+      EDGE3[it]=0;
+      EDGE4[it]=0;
+      EDGE5[it]=0;
+      EDGE6[it]=0;     
+         
+      NBCONTCO[it]= 0;
+            
+      if(fabs(LIST_X[it])<epsi) { EDGE1[it]=1;    EDGE[it]=1; coef/=2.; }
+      if(fabs(LIST_Y[it])<epsi) { EDGE2[it]=1;   EDGE[it]=1; coef/=2.; }
+      if(fabs(LIST_Z[it])<epsi) { EDGE3[it]=1;   EDGE[it]=1; coef/=2.;}
+      if(fabs(LIST_X[it]-H_TOT)<epsi) { EDGE4[it]=1;   EDGE[it]=1; coef/=2.;}	
+      if(fabs(LIST_Y[it]-V_TOT)<epsi) { EDGE5[it]=1;   EDGE[it]=1; coef/=2.;} 
+      if(fabs(LIST_Z[it]-Z_TOT)<epsi) { EDGE6[it]=1;    EDGE[it]=1;coef/=2.; }    	
+  
+    		
+       // grille détection		
+		int NX= ((int) (LIST_X[it]*vecsizex/H_TOT));
+		int NY= ((int) (LIST_Y[it]*vecsizey/V_TOT));
+		int NZ= ((int) (LIST_Z[it]*vecsizez/Z_TOT));		
+		
+		if(NX<0) NX=0;
+		if(NX>=vecsizex) NX=vecsizex-1;		
+		if(NY<0) NY=0;
+		if(NY>=vecsizey) NY=vecsizey-1;		
+		if(NZ<0) NZ=0;
+		if(NZ>=vecsizez) NZ=vecsizez-1;		
+		
+		coul[NX+NY*vecsizex+NZ*vecsizex*vecsizey].push_back(it);
+		LIST_C[it] = NX+NY*vecsizex+NZ*vecsizex*vecsizey;   
+
+       // grille halo	
+		NX= ((int) (LIST_X[it]*vecsizexh/H_TOT));
+		NY= ((int) (LIST_Y[it]*vecsizeyh/V_TOT));
+		NZ= ((int) (LIST_Z[it]*vecsizezh/Z_TOT));		
+		
+		if(NX<0) NX=0;
+		if(NX>=vecsizexh) NX=vecsizexh-1;		
+		if(NY<0) NY=0;
+		if(NY>=vecsizeyh) NY=vecsizeyh-1;		
+		if(NZ<0) NZ=0;
+		if(NZ>=vecsizezh) NZ=vecsizezh-1;		
+		
+		coulh[NX+NY*vecsizexh+NZ*vecsizexh*vecsizeyh].push_back(it);
+		LIST_H[it] = NX+NY*vecsizexh+NZ*vecsizexh*vecsizeyh;   
+
+		LIST_XO[it] = LIST_X[it];
+		LIST_YO[it] = LIST_Y[it];
+		LIST_ZO[it] = LIST_Z[it];
+
+		LIST_TX[it] = 0.;
+		LIST_TY[it] = 0.;
+		LIST_TZ[it] = 0.;
+		
+		LIST_VX[it] = 0.;
+		LIST_VY[it] = 0.; 
+		LIST_VZ[it] = 0.;
+					
+		LIST_WX[it] = 0.;        
+		LIST_WY[it] = 0.;    
+		LIST_WZ[it] = 0.;		
+		
+		LIST_AX[it] = 0.;
+		LIST_AY[it] = 0.;
+		LIST_AZ[it] = 0.;	
+			
+		LIST_AWX[it] = 0.;  
+		LIST_AWY[it] = 0.;  		 
+		LIST_AWZ[it] = 0.;  
+			    		
+		FX[it] = 0.;
+		FY[it] = 0.;	
+		FZ[it] = 0.;	
+				
+		MTX[it] = 0.;		
+		MTY[it] = 0.;					
+		MTZ[it] = 0.;		
+
+		LIST_M[it]  = dens*(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it]*coef;		
+		LIST_I[it]  = LIST_M[it]*(2./5.)*LIST_R[it]*LIST_R[it];	
+
+	}
+	
+	PR_SPH=PR_SPH/(H_TOT*V_TOT*Z_TOT);
+
+      cout<<"nb14:"<<nb1<<", "<<nb4<<endl;
+}
+
+void init_sphp_halo(bool * TYPCO, int NBCONT, R Pi, R dens, R epsi, int vecsizex, int vecsizey, int vecsizez,vector< vector<int>  > & coul,int vecsizexh, int vecsizeyh, int vecsizezh,vector< vector<int>  > & coulh, R & PR_SPH, R H_TOT, R V_TOT, R Z_TOT, int NB_SPH, R R_SPH, int * LIST_B, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO, R * LIST_XA, R * LIST_YA, R * LIST_ZA, R * LIST_TX, R * LIST_TY, R * LIST_TZ,R * LIST_TXA, R * LIST_TYA,R * LIST_TZA, R * LIST_VX, R * LIST_VY, R * LIST_VZ, R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * LIST_AX, R * LIST_AY, R * LIST_AZ, R * LIST_AWX, R * LIST_AWY, R * LIST_AWZ, int * LIST_C, int * LIST_H, R * LIST_M, R * LIST_I, R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, bool * EDGE, bool * EDGE1, bool * EDGE2, bool * EDGE3, bool * EDGE4,  bool * EDGE5, bool * EDGE6, int * NBCONTCO)
+{
+
+    // CONTACTS COHESIFS INITIALEMENT
+    for(int it=0;it<NBCONT;it++){
+		TYPCO[it]=1;		
+	}
+	
+//cout<<"Nombre de spheres:"<<NB_SPH<<endl;
+
+PR_SPH=0.;
+
+int nb1=0;
+int nb4=0;
+
+	// DISTRIBUTION INITIALE DE SPHERES
+	for(int it=0;it<NB_SPH;it++){
+      
+      PR_SPH+=(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it];
+   
+      LIST_B[it]=0.;   
+      EDGE[it]=0;      
+      EDGE1[it]=0;
+      EDGE2[it]=0;
+      EDGE3[it]=0;
+      EDGE4[it]=0;
+      EDGE5[it]=0;
+      EDGE6[it]=0;     
+         
+      NBCONTCO[it]= 0;
+            
+      if(fabs(LIST_X[it]-LIST_R[it])<epsi) { EDGE1[it]=1;   nb1++; }
+      if(fabs(LIST_Y[it]-LIST_R[it])<epsi) { EDGE2[it]=1; }
+      if(fabs(LIST_Z[it]-LIST_R[it])<epsi) { EDGE3[it]=1;  }
+      if(fabs(LIST_X[it]+LIST_R[it]-H_TOT)<epsi) { EDGE4[it]=1;  nb4++; }
+      if(fabs(LIST_Y[it]+LIST_R[it]-V_TOT)<epsi) { EDGE5[it]=1;   }
+      if(fabs(LIST_Z[it]+LIST_R[it]-Z_TOT)<epsi) { EDGE6[it]=1;   }          	
+  
+    		
+       // grille détection		
+		int NX= ((int) (LIST_X[it]*vecsizex/H_TOT));
+		int NY= ((int) (LIST_Y[it]*vecsizey/V_TOT));
+		int NZ= ((int) (LIST_Z[it]*vecsizez/Z_TOT));		
+		
+		if(NX<0) NX=0;
+		if(NX>=vecsizex) NX=vecsizex-1;		
+		if(NY<0) NY=0;
+		if(NY>=vecsizey) NY=vecsizey-1;		
+		if(NZ<0) NZ=0;
+		if(NZ>=vecsizez) NZ=vecsizez-1;		
+		
+		coul[NX+NY*vecsizex+NZ*vecsizex*vecsizey].push_back(it);
+		LIST_C[it] = NX+NY*vecsizex+NZ*vecsizex*vecsizey;   
+
+       // grille halo	
+		NX= ((int) (LIST_X[it]*vecsizexh/H_TOT));
+		NY= ((int) (LIST_Y[it]*vecsizeyh/V_TOT));
+		NZ= ((int) (LIST_Z[it]*vecsizezh/Z_TOT));		
+		
+		if(NX<0) NX=0;
+		if(NX>=vecsizexh) NX=vecsizexh-1;		
+		if(NY<0) NY=0;
+		if(NY>=vecsizeyh) NY=vecsizeyh-1;		
+		if(NZ<0) NZ=0;
+		if(NZ>=vecsizezh) NZ=vecsizezh-1;		
+		
+		coulh[NX+NY*vecsizexh+NZ*vecsizexh*vecsizeyh].push_back(it);
+		LIST_H[it] = NX+NY*vecsizexh+NZ*vecsizexh*vecsizeyh;   
+
+		LIST_XO[it] = LIST_X[it];
+		LIST_YO[it] = LIST_Y[it];
+		LIST_ZO[it] = LIST_Z[it];
+
+		LIST_TX[it] = 0.;
+		LIST_TY[it] = 0.;
+		LIST_TZ[it] = 0.;
+		
+		LIST_VX[it] = 0.;
+		LIST_VY[it] = 0.; 
+		LIST_VZ[it] = 0.;
+					
+		LIST_WX[it] = 0.;        
+		LIST_WY[it] = 0.;    
+		LIST_WZ[it] = 0.;		
+		
+		LIST_AX[it] = 0.;
+		LIST_AY[it] = 0.;
+		LIST_AZ[it] = 0.;	
+			
+		LIST_AWX[it] = 0.;  
+		LIST_AWY[it] = 0.;  		 
+		LIST_AWZ[it] = 0.;  
+			    		
+		FX[it] = 0.;
+		FY[it] = 0.;	
+		FZ[it] = 0.;	
+				
+		MTX[it] = 0.;		
+		MTY[it] = 0.;					
+		MTZ[it] = 0.;		
+
+		LIST_M[it]  = dens*(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it]*1.;		
+		LIST_I[it]  = LIST_M[it]*(2./5.)*LIST_R[it]*LIST_R[it];	
+
+	}
+	
+	PR_SPH=PR_SPH/(H_TOT*V_TOT*Z_TOT);
+
+      cout<<"nb14:"<<nb1<<", "<<nb4<<endl;
+}
+
+void init_sphp_halo_car(R EE, bool * TYPCO, int NBCONT, R Pi, R dens, R epsi, int vecsizex, int vecsizey, int vecsizez,vector< vector<int>  > & coul,int vecsizexh, int vecsizeyh, int vecsizezh,vector< vector<int>  > & coulh, R & PR_SPH, R H_TOT, R V_TOT, R Z_TOT, int NB_SPH, R R_SPH, int * LIST_B, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO, R * LIST_XA, R * LIST_YA, R * LIST_ZA, R * LIST_TX, R * LIST_TY, R * LIST_TZ,R * LIST_TXA, R * LIST_TYA,R * LIST_TZA, R * LIST_VX, R * LIST_VY, R * LIST_VZ, R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * LIST_AX, R * LIST_AY, R * LIST_AZ, R * LIST_AWX, R * LIST_AWY, R * LIST_AWZ, int * LIST_C, int * LIST_H, R * LIST_M, R * LIST_I, R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, bool * EDGE, bool * EDGE1, bool * EDGE2, bool * EDGE3, bool * EDGE4,  bool * EDGE5, bool * EDGE6, int * NBCONTCO)
+{
+
+    // CONTACTS COHESIFS INITIALEMENT
+    for(int it=0;it<NBCONT;it++){
+		TYPCO[it]=1;		
+	}
+	
+//cout<<"Nombre de spheres:"<<NB_SPH<<endl;
+
+PR_SPH=0.;
+
+int nb1=0;
+int nb4=0;
+
+	// DISTRIBUTION INITIALE DE SPHERES
+	for(int it=0;it<NB_SPH;it++){
+      
+      PR_SPH+=(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it];
+   
+         LIST_B[it]=0.;   
+      EDGE[it]=0;      
+      EDGE1[it]=0;
+      EDGE2[it]=0;
+      EDGE3[it]=0;
+      EDGE4[it]=0;
+      EDGE5[it]=0;
+      EDGE6[it]=0;     
+               
+      NBCONTCO[it]= 0;
+            
+      if(fabs(LIST_X[it]-EE-LIST_R[it])<epsi) { EDGE1[it]=1;   nb1++; }
+      if(fabs(LIST_Y[it]-LIST_R[it])<epsi) { EDGE2[it]=1; }
+      if(fabs(LIST_Z[it]-LIST_R[it])<epsi) { EDGE3[it]=1;  }
+      if(fabs(LIST_X[it]+LIST_R[it]-H_TOT+EE)<epsi) { EDGE4[it]=1;  nb4++; }
+      if(fabs(LIST_Y[it]+LIST_R[it]-V_TOT)<epsi) { EDGE5[it]=1;   }
+      if(fabs(LIST_Z[it]+LIST_R[it]-Z_TOT)<epsi) { EDGE6[it]=1;   }          	
+  
+    		
+       // grille détection		
+		int NX= ((int) (LIST_X[it]*vecsizex/H_TOT));
+		int NY= ((int) (LIST_Y[it]*vecsizey/V_TOT));
+		int NZ= ((int) (LIST_Z[it]*vecsizez/Z_TOT));		
+		
+		if(NX<0) NX=0;
+		if(NX>=vecsizex) NX=vecsizex-1;		
+		if(NY<0) NY=0;
+		if(NY>=vecsizey) NY=vecsizey-1;		
+		if(NZ<0) NZ=0;
+		if(NZ>=vecsizez) NZ=vecsizez-1;		
+		
+		coul[NX+NY*vecsizex+NZ*vecsizex*vecsizey].push_back(it);
+		LIST_C[it] = NX+NY*vecsizex+NZ*vecsizex*vecsizey;   
+
+       // grille halo	
+		NX= ((int) (LIST_X[it]*vecsizexh/H_TOT));
+		NY= ((int) (LIST_Y[it]*vecsizeyh/V_TOT));
+		NZ= ((int) (LIST_Z[it]*vecsizezh/Z_TOT));		
+		
+		if(NX<0) NX=0;
+		if(NX>=vecsizexh) NX=vecsizexh-1;		
+		if(NY<0) NY=0;
+		if(NY>=vecsizeyh) NY=vecsizeyh-1;		
+		if(NZ<0) NZ=0;
+		if(NZ>=vecsizezh) NZ=vecsizezh-1;		
+		
+		coulh[NX+NY*vecsizexh+NZ*vecsizexh*vecsizeyh].push_back(it);
+		LIST_H[it] = NX+NY*vecsizexh+NZ*vecsizexh*vecsizeyh;   
+
+		LIST_XO[it] = LIST_X[it];
+		LIST_YO[it] = LIST_Y[it];
+		LIST_ZO[it] = LIST_Z[it];
+
+		LIST_TX[it] = 0.;
+		LIST_TY[it] = 0.;
+		LIST_TZ[it] = 0.;
+		
+		LIST_VX[it] = 0.;
+		LIST_VY[it] = 0.; 
+		LIST_VZ[it] = 0.;
+					
+		LIST_WX[it] = 0.;        
+		LIST_WY[it] = 0.;    
+		LIST_WZ[it] = 0.;		
+		
+		LIST_AX[it] = 0.;
+		LIST_AY[it] = 0.;
+		LIST_AZ[it] = 0.;	
+			
+		LIST_AWX[it] = 0.;  
+		LIST_AWY[it] = 0.;  		 
+		LIST_AWZ[it] = 0.;  
+			    		
+		FX[it] = 0.;
+		FY[it] = 0.;	
+		FZ[it] = 0.;	
+				
+		MTX[it] = 0.;		
+		MTY[it] = 0.;					
+		MTZ[it] = 0.;		
+
+		LIST_M[it]  = dens*(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it]*1.;		
+		LIST_I[it]  = LIST_M[it]*(2./5.)*LIST_R[it]*LIST_R[it];	
+
+	}
+	
+	PR_SPH=PR_SPH/(H_TOT*V_TOT*Z_TOT);
+
+      cout<<"nb14:"<<nb1<<", "<<nb4<<endl;
+}
+
+void reinit_sphp(R epsi, R H_TOT, R V_TOT, R Z_TOT, int NB_SPH, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO, R * LIST_TX, R * LIST_TY, R * LIST_TZ, R * LIST_VX, R * LIST_VY, R * LIST_VZ, R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * LIST_AX, R * LIST_AY, R * LIST_AZ, R * LIST_AWX, R * LIST_AWY, R * LIST_AWZ, bool * EDGE, bool * EDGE1, bool * EDGE2, bool * EDGE3, bool * EDGE4,  bool * EDGE5, bool * EDGE6, R posparoi)
+{
+	
+int nb1=0;
+int nb4=0;
+
+	// DISTRIBUTION INITIALE DE SPHERES
+	for(int it=0;it<NB_SPH;it++){
+   
+      EDGE[it]=0;      
+      EDGE1[it]=0;
+      EDGE2[it]=0;
+      EDGE3[it]=0;
+      EDGE4[it]=0;
+      EDGE5[it]=0;
+      EDGE6[it]=0;     
+            
+      if(fabs(LIST_X[it]-LIST_R[it])<epsi) { EDGE1[it]=1;   nb1++; }
+      if(fabs(LIST_Y[it]-LIST_R[it])<epsi) { EDGE2[it]=1; }
+      if(fabs(LIST_Z[it]-LIST_R[it])<epsi) { EDGE3[it]=1;  }
+      if(fabs(LIST_X[it]+LIST_R[it]-posparoi)<epsi) { EDGE4[it]=1;  nb4++;	 }
+      if(fabs(LIST_Y[it]+LIST_R[it]-V_TOT)<epsi) { EDGE5[it]=1;   }
+      if(fabs(LIST_Z[it]+LIST_R[it]-Z_TOT)<epsi) { EDGE6[it]=1;   }          	
+  
+		LIST_XO[it] = LIST_X[it];
+		LIST_YO[it] = LIST_Y[it];
+		LIST_ZO[it] = LIST_Z[it];
+
+		LIST_TX[it] = 0.;
+		LIST_TY[it] = 0.;
+		LIST_TZ[it] = 0.;
+		
+		LIST_VX[it] = 0.;
+		LIST_VY[it] = 0.; 
+		LIST_VZ[it] = 0.;
+					
+		LIST_WX[it] = 0.;        
+		LIST_WY[it] = 0.;    
+		LIST_WZ[it] = 0.;		
+		
+		LIST_AX[it] = 0.;
+		LIST_AY[it] = 0.;
+		LIST_AZ[it] = 0.;	
+			
+		LIST_AWX[it] = 0.;  
+		LIST_AWY[it] = 0.;  		 
+		LIST_AWZ[it] = 0.;  
+
+
+	}
+cout<<"Nb contacts parois :"<<nb1<<", "<<nb4<<", epsi:"<<epsi<<endl;
+}
+
+
+void init_sph2(bool * TYPCO, int NBCONT, R Pi, R dens1, R dens2, R epsi, int vecsizex, int vecsizey, int vecsizez,vector< vector<int>  > & coul, R & PR_SPH, R H_TOT, R V_TOT, R Z_TOT, int NB_SPH, R R_SPH, int * LIST_B, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO, R * LIST_XA, R * LIST_YA, R * LIST_ZA, R * LIST_TX, R * LIST_TY, R * LIST_TZ,R * LIST_TXA, R * LIST_TYA, R * LIST_TZA, R * LIST_VX, R * LIST_VY, R * LIST_VZ, R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * LIST_AX, R * LIST_AY, R * LIST_AZ, R * LIST_AWX, R * LIST_AWY, R * LIST_AWZ, int * LIST_C, R * LIST_M, R * LIST_I, R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, bool * EDGE, bool * EDGE1, bool * EDGE2, bool * EDGE3, bool * EDGE4,  bool * EDGE5, bool * EDGE6, int * NBCONTCO, bool * LIST_P)
+{
+//	cout<<"hello"<<endl;
+//	char quit;
+//	cin>>quit;
+
+    // CONTACTS COHESIFS INITIALEMENT
+    for(int it=0;it<NBCONT;it++){
+		TYPCO[it]=1;		
+	}
+	
+//cout<<"Nombre de spheres:"<<NB_SPH<<endl;
+
+PR_SPH=0.;
+
+	// DISTRIBUTION INITIALE DE SPHERES
+	for(int it=0;it<NB_SPH;it++){
+      
+      PR_SPH+=(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it];
+      
+      LIST_B[it]=0.;
+      EDGE[it]=0;      
+      EDGE1[it]=0;
+      EDGE2[it]=0;
+      EDGE3[it]=0;
+      EDGE4[it]=0;
+      EDGE5[it]=0;
+      EDGE6[it]=0;     
+         
+      NBCONTCO[it]= 0;
+            
+  //    if(abs(LIST_X[it]-LIST_R[it])<epsi)  EDGE1[it]=1;   
+  //    if(abs(LIST_Y[it]-LIST_R[it])<epsi)  EDGE2[it]=1;  
+  //    if(abs(LIST_Z[it]-LIST_R[it])<epsi)  EDGE3[it]=1;  
+  //    if(abs(LIST_X[it]+LIST_R[it]-H_TOT)<epsi)  EDGE4[it]=1;  	
+  //    if(abs(LIST_Y[it]+LIST_R[it]-V_TOT)<epsi)  EDGE5[it]=1;   
+  //    if(abs(LIST_Z[it]+LIST_R[it]-Z_TOT)<epsi)  EDGE6[it]=1;            	
+      		
+      if(abs(LIST_X[it])<epsi) { EDGE1[it]=1;    EDGE[it]=1; }
+      if(abs(LIST_Y[it])<epsi) { EDGE2[it]=1;   EDGE[it]=1; }
+      if(abs(LIST_Z[it])<epsi) { EDGE3[it]=1;   EDGE[it]=1; }
+      if(abs(LIST_X[it]-H_TOT)<epsi) { EDGE4[it]=1;   EDGE[it]=1; }	
+      if(abs(LIST_Y[it]-V_TOT)<epsi) { EDGE5[it]=1;   EDGE[it]=1; } 
+      if(abs(LIST_Z[it]-Z_TOT)<epsi) { EDGE6[it]=1;    EDGE[it]=1; }   
+    		
+		int NX= ((int) (LIST_X[it]*vecsizex/H_TOT));
+		int NY= ((int) (LIST_Y[it]*vecsizey/V_TOT));
+		int NZ= ((int) (LIST_Z[it]*vecsizez/Z_TOT));		
+		
+		if(NX<0) NX=0;
+		if(NX>=vecsizex) NX=vecsizex-1;		
+		if(NY<0) NY=0;
+		if(NY>=vecsizey) NY=vecsizey-1;		
+		if(NZ<0) NZ=0;
+		if(NZ>=vecsizez) NZ=vecsizez-1;		
+		
+		coul[NX+NY*vecsizex+NZ*vecsizex*vecsizey].push_back(it);
+		LIST_C[it] = NX+NY*vecsizex+NZ*vecsizex*vecsizey;   
+
+		LIST_XO[it] = LIST_X[it];
+		LIST_YO[it] = LIST_Y[it];
+		LIST_ZO[it] = LIST_Z[it];
+
+		LIST_XA[it] = LIST_X[it];
+		LIST_YA[it] = LIST_Y[it];
+		LIST_ZA[it] = LIST_Z[it];
+		
+		LIST_TX[it] = 0.;
+		LIST_TY[it] = 0.;
+		LIST_TZ[it] = 0.;
+
+		LIST_TXA[it] = 0.;
+		LIST_TYA[it] = 0.;
+		LIST_TZA[it] = 0.;
+		
+		LIST_VX[it] = 0.;
+		LIST_VY[it] = 0.; 
+		LIST_VZ[it] = 0.;
+					
+		LIST_WX[it] = 0.;        
+		LIST_WY[it] = 0.;    
+		LIST_WZ[it] = 0.;		
+		
+		LIST_AX[it] = 0.;
+		LIST_AY[it] = 0.;
+		LIST_AZ[it] = 0.;	
+			
+		LIST_AWX[it] = 0.;  
+		LIST_AWY[it] = 0.;  		 
+		LIST_AWZ[it] = 0.;  
+			    		
+		FX[it] = 0.;
+		FY[it] = 0.;	
+		FZ[it] = 0.;	
+				
+		MTX[it] = 0.;		
+		MTY[it] = 0.;					
+		MTZ[it] = 0.;		
+
+		if(LIST_P[it]==0){	
+		LIST_M[it]  = dens1*(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it]*1.;		
+	    }
+	    else{
+		LIST_M[it]  = dens2*(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it]*1.;			
+		}	
+	
+		LIST_I[it]  = LIST_M[it]*(2./5.)*LIST_R[it]*LIST_R[it];	
+
+	}
+	
+	PR_SPH=PR_SPH/(H_TOT*V_TOT*Z_TOT);
+
+}
+
+void scale_paroi(int NB_PAR, R ** LIST_PX, R ** LIST_PY, R ** LIST_PZ, R * LIST_PM, int NBCOP, R * DCONTP,  R & epaisp, R H_TOT2, R lmacro)
+{
+	
+R LG=H_TOT2;		
+	
+	for (int it=0;it<NB_PAR;it++){
+	    for (int jt=0;jt<4;jt++){		
+			
+			LIST_PX[it][jt]=(LIST_PX[it][jt]/LG)*lmacro;
+		    LIST_PY[it][jt]=(LIST_PY[it][jt]/LG)*lmacro;		
+		    LIST_PZ[it][jt]=(LIST_PZ[it][jt]/LG)*lmacro;	
+		
+	    }
+	    
+	  LIST_PM[it]= (lmacro*lmacro*lmacro)*LIST_PM[it]/(LG*LG*LG) ;
+	}
+	
+epaisp=(epaisp/LG)*lmacro;
+	
+	for (int it=0;it<NBCOP;it++){
+		DCONTP[it]=DCONTP[it]*lmacro/LG;
+	}	
+	
+}
+
+void scale_sph(R Pi, R & H_TOT, R & V_TOT, R & Z_TOT, int & NB_SPH, R & R_SPH, R & RMAX, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO,R * LIST_XA, R * LIST_YA, R * LIST_ZA, R * LIST_M, R * LIST_I, R & epsi, R lmacro, R dens)
+{
+R_SPH=0.;
+RMAX=0.;  
+
+R LG=H_TOT;	
+H_TOT=0.;
+V_TOT=0.;
+Z_TOT=0.;
+
+R coef;
+
+for (int it=0;it<NB_SPH;it++){
+
+coef=1.;
+
+if(fabs(LIST_X[it])<2.*epsi) {    coef/=2.; }
+if(fabs(LIST_Y[it])<2.*epsi) {    coef/=2.; }
+if(fabs(LIST_Z[it])<2.*epsi) {   coef/=2.;}
+if(fabs(LIST_X[it]-LG)<2.*epsi) {  coef/=2.;}	
+if(fabs(LIST_Y[it]-LG)<2.*epsi) {  coef/=2.;} 
+if(fabs(LIST_Z[it]-LG)<2.*epsi) { coef/=2.;} 
+
+LIST_X[it]=(LIST_X[it]/LG)*lmacro;
+LIST_Y[it]=(LIST_Y[it]/LG)*lmacro;
+LIST_Z[it]=(LIST_Z[it]/LG)*lmacro;
+
+LIST_XO[it] = LIST_X[it];
+LIST_YO[it] = LIST_Y[it];
+LIST_ZO[it] = LIST_Z[it];
+	
+LIST_XA[it] = LIST_X[it];
+LIST_YA[it] = LIST_Y[it];
+LIST_ZA[it] = LIST_Z[it];
+		
+LIST_R[it]=(LIST_R[it]/LG)*lmacro;
+
+LIST_M[it]  = dens*(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it]*coef;		
+LIST_I[it]  = LIST_M[it]*(2./5.)*LIST_R[it]*LIST_R[it];	
+
+R_SPH+=LIST_R[it];
+RMAX=(RMAX>LIST_R[it])?RMAX:LIST_R[it];
+
+H_TOT=((LIST_X[it])>H_TOT)?(LIST_X[it]):H_TOT;
+V_TOT=((LIST_Y[it])>V_TOT)?(LIST_Y[it]):V_TOT;
+Z_TOT=((LIST_Z[it])>Z_TOT)?(LIST_Z[it]):Z_TOT;
+}
+R_SPH/=(NB_SPH);
+epsi=(epsi/LG)*lmacro;
+}
+
+void scale_sphp(R Pi, R & H_TOT, R & V_TOT, R & Z_TOT, int & NB_SPH, R & R_SPH, R & RMAX, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO,R * LIST_XA, R * LIST_YA, R * LIST_ZA, R * LIST_M, R * LIST_I, R & epsi, R lmacro, R dens)
+{
+R_SPH=0.;
+RMAX=0.;  
+
+R LG=H_TOT;	
+H_TOT=0.;
+V_TOT=0.;
+Z_TOT=0.;
+
+for (int it=0;it<NB_SPH;it++){
+
+LIST_X[it]=(LIST_X[it]/LG)*lmacro;
+LIST_Y[it]=(LIST_Y[it]/LG)*lmacro;
+LIST_Z[it]=(LIST_Z[it]/LG)*lmacro;
+
+LIST_XO[it] = LIST_X[it];
+LIST_YO[it] = LIST_Y[it];
+LIST_ZO[it] = LIST_Z[it];
+
+LIST_XA[it] = LIST_X[it];
+LIST_YA[it] = LIST_Y[it];
+LIST_ZA[it] = LIST_Z[it];
+		
+LIST_R[it]=(LIST_R[it]/LG)*lmacro;
+
+LIST_M[it]  = dens*(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it]*1.;		
+LIST_I[it]  = LIST_M[it]*(2./5.)*LIST_R[it]*LIST_R[it];	
+
+R_SPH+=LIST_R[it];
+RMAX=(RMAX>LIST_R[it])?RMAX:LIST_R[it];
+
+H_TOT=((LIST_X[it]+LIST_R[it])>H_TOT)?(LIST_X[it]+LIST_R[it]):H_TOT;
+V_TOT=((LIST_Y[it]+LIST_R[it])>V_TOT)?(LIST_Y[it]+LIST_R[it]):V_TOT;
+Z_TOT=((LIST_Z[it]+LIST_R[it])>Z_TOT)?(LIST_Z[it]+LIST_R[it]):Z_TOT;
+}
+R_SPH/=(NB_SPH);
+epsi=(epsi/LG)*lmacro;
+}
+
+void scale_sph_ind(R Pi, R & H_TOT, R & V_TOT, R & Z_TOT, int & NB_SPH, R & R_SPH, R & RMAX, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO,R * LIST_XA, R * LIST_YA, R * LIST_ZA, R * LIST_M, R * LIST_I, R & epsi, R lmacro, R dens, R rind)
+{
+R_SPH=0.;
+RMAX=0.;  
+
+R LG=H_TOT;	
+H_TOT=0.;
+V_TOT=0.;
+Z_TOT=0.;
+
+for (int it=0;it<NB_SPH;it++){
+
+LIST_X[it]=(LIST_X[it]/LG)*lmacro;
+LIST_Y[it]=(LIST_Y[it]/LG)*lmacro;
+LIST_Z[it]=(LIST_Z[it]/LG)*lmacro;
+
+LIST_XO[it] = LIST_X[it];
+LIST_YO[it] = LIST_Y[it];
+LIST_ZO[it] = LIST_Z[it];
+
+LIST_XA[it] = LIST_X[it];
+LIST_YA[it] = LIST_Y[it];
+LIST_ZA[it] = LIST_Z[it];
+		
+LIST_R[it]=(LIST_R[it]/LG)*lmacro;
+
+LIST_M[it]  = dens*(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it]*1.;		
+LIST_I[it]  = LIST_M[it]*(2./5.)*LIST_R[it]*LIST_R[it];	
+
+R_SPH+=LIST_R[it];
+RMAX=(RMAX>LIST_R[it])?RMAX:LIST_R[it];
+
+H_TOT=((LIST_X[it])>H_TOT)?(LIST_X[it]):H_TOT;
+V_TOT=((LIST_Y[it])>V_TOT)?(LIST_Y[it]):V_TOT;
+Z_TOT=((LIST_Z[it])>Z_TOT)?(LIST_Z[it]):Z_TOT;
+}
+R_SPH/=(NB_SPH);
+
+LIST_X[NB_SPH-1]=R(H_TOT)/2.;
+LIST_Y[NB_SPH-1]=R(V_TOT)/2.;
+LIST_Z[NB_SPH-1]=R(Z_TOT)+rind+R_SPH;
+LIST_R[NB_SPH-1]=rind;
+
+LIST_M[NB_SPH-1]  = 1.3*dens*(4./3)*Pi*LIST_R[NB_SPH-1]*LIST_R[NB_SPH-1]*LIST_R[NB_SPH-1];
+LIST_I[NB_SPH-1]  = LIST_M[NB_SPH-1]*(2./5.)*LIST_R[NB_SPH-1]*LIST_R[NB_SPH-1];	
+
+epsi=(epsi/LG)*lmacro;
+}
+
+void scale_sphp_ind(R Pi, R & H_TOT, R & V_TOT, R & Z_TOT, int & NB_SPH, R & R_SPH, R & RMAX, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO,R * LIST_XA, R * LIST_YA, R * LIST_ZA, R * LIST_M, R * LIST_I, R & epsi, R lmacro, R dens, R rind)
+{
+R_SPH=0.;
+RMAX=0.;  
+
+R LG=H_TOT;	
+H_TOT=0.;
+V_TOT=0.;
+Z_TOT=0.;
+
+for (int it=0;it<NB_SPH;it++){
+
+LIST_X[it]=(LIST_X[it]/LG)*lmacro;
+LIST_Y[it]=(LIST_Y[it]/LG)*lmacro;
+LIST_Z[it]=(LIST_Z[it]/LG)*lmacro;
+
+LIST_XO[it] = LIST_X[it];
+LIST_YO[it] = LIST_Y[it];
+LIST_ZO[it] = LIST_Z[it];
+
+LIST_XA[it] = LIST_X[it];
+LIST_YA[it] = LIST_Y[it];
+LIST_ZA[it] = LIST_Z[it];
+		
+LIST_R[it]=(LIST_R[it]/LG)*lmacro;
+
+LIST_M[it]  = dens*(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it]*1.;		
+LIST_I[it]  = LIST_M[it]*(2./5.)*LIST_R[it]*LIST_R[it];	
+
+R_SPH+=LIST_R[it];
+RMAX=(RMAX>LIST_R[it])?RMAX:LIST_R[it];
+
+H_TOT=((LIST_X[it]+LIST_R[it])>H_TOT)?(LIST_X[it]+LIST_R[it]):H_TOT;
+V_TOT=((LIST_Y[it]+LIST_R[it])>V_TOT)?(LIST_Y[it]+LIST_R[it]):V_TOT;
+Z_TOT=((LIST_Z[it]+LIST_R[it])>Z_TOT)?(LIST_Z[it]+LIST_R[it]):Z_TOT;
+}
+R_SPH/=(NB_SPH);
+
+LIST_X[NB_SPH-1]=R(H_TOT)/2.;
+LIST_Y[NB_SPH-1]=R(V_TOT)/2.;
+LIST_Z[NB_SPH-1]=R(Z_TOT)+rind;
+LIST_R[NB_SPH-1]=rind;
+
+LIST_M[NB_SPH-1]  = 1.3*dens*(4./3)*Pi*LIST_R[NB_SPH-1]*LIST_R[NB_SPH-1]*LIST_R[NB_SPH-1];
+LIST_I[NB_SPH-1]  = LIST_M[NB_SPH-1]*(2./5.)*LIST_R[NB_SPH-1]*LIST_R[NB_SPH-1];	
+
+epsi=(epsi/LG)*lmacro;
+}
+
+void scale_sph2(R Pi, R & H_TOT, R & V_TOT, R & Z_TOT, int & NB_SPH, R & R_SPH, R & RMAX, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_XO, R * LIST_YO, R * LIST_ZO, R * LIST_XA, R * LIST_YA, R * LIST_ZA, R * LIST_M, R * LIST_I, R & epsi, R lmacro, R dens1, R dens2, bool * LIST_P)
+{
+R_SPH=0.;
+RMAX=0.;  
+
+R LG=H_TOT;	
+H_TOT=0.;
+V_TOT=0.;
+Z_TOT=0.;
+
+R coef;
+
+for (int it=0;it<NB_SPH;it++){
+
+coef=1.;
+
+if(fabs(LIST_X[it])<2.*epsi) {    coef/=2.; }
+if(fabs(LIST_Y[it])<2.*epsi) {    coef/=2.; }
+if(fabs(LIST_Z[it])<2.*epsi) {   coef/=2.;}
+if(fabs(LIST_X[it]-LG)<2.*epsi) {  coef/=2.;}	
+if(fabs(LIST_Y[it]-LG)<2.*epsi) {  coef/=2.;} 
+if(fabs(LIST_Z[it]-LG)<2.*epsi) { coef/=2.;} 
+
+LIST_X[it]=(LIST_X[it]/LG)*lmacro;
+LIST_Y[it]=(LIST_Y[it]/LG)*lmacro;
+LIST_Z[it]=(LIST_Z[it]/LG)*lmacro;
+
+LIST_XO[it] = LIST_X[it];
+LIST_YO[it] = LIST_Y[it];
+LIST_ZO[it] = LIST_Z[it];
+
+LIST_XA[it] = LIST_X[it];
+LIST_YA[it] = LIST_Y[it];
+LIST_ZA[it] = LIST_Z[it];
+
+LIST_R[it]=(LIST_R[it]/LG)*lmacro;
+
+if(LIST_P[it]==0){	
+LIST_M[it]  = dens1*(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it]*coef;		
+}
+else{
+LIST_M[it]  = dens2*(4./3)*Pi*LIST_R[it]*LIST_R[it]*LIST_R[it]*coef;			
+}	
+		
+LIST_I[it]  = LIST_M[it]*(2./5.)*LIST_R[it]*LIST_R[it];	
+
+R_SPH+=LIST_R[it];
+RMAX=(RMAX>LIST_R[it])?RMAX:LIST_R[it];
+
+H_TOT=(LIST_X[it]>H_TOT)?LIST_X[it]:H_TOT;
+V_TOT=(LIST_Y[it]>V_TOT)?LIST_Y[it]:V_TOT;
+Z_TOT=(LIST_Z[it]>Z_TOT)?LIST_Z[it]:Z_TOT;
+}
+R_SPH/=(NB_SPH);
+epsi=(epsi/LG)*lmacro;
+}
+
+void init_verv(int NB_VER,int NX,int NY,int NZ,int NB_SPH,int H_TOT,int V_TOT,int Z_TOT,R * LIST_X,R *LIST_Y,R *LIST_Z,int ** NOSPHV,int * NSPHV, int * INDVER)
+{
+
+int ix,iy,iz,it,jt;
+
+	for (jt=0;jt<NB_VER;jt++){
+        NSPHV[jt]=0;
+	}	
+
+	for (it=0;it<NB_SPH;it++){
+          
+          ix=(int) ((LIST_X[it]/R(H_TOT))*NX);
+          if(ix>=NX) ix=NX-1;
+          else if(ix<0) ix=0;
+          
+          iy=(int) ((LIST_Y[it]/R(V_TOT))*NY);
+          if(iy>=NY) iy=NY-1;
+          else if(iy<0) iy=0;
+          
+          iz=(int) ((LIST_Z[it]/R(Z_TOT))*NZ);
+          if(iz>=NZ) iz=NZ-1;
+          else if(iz<0) iz=0;
+          
+          
+          jt=ix+NX*iy+(NX*NY)*iz;    
+          
+          NOSPHV[jt][NSPHV[jt]]=it;
+          NSPHV[jt]++;   
+          INDVER[it]=jt;   
+                    
+    }		
+	
+}
+
+void init_ver_tet4(int NB_NOVER, int NB_VER, int NB_SPH, R ** NOEUD, int ** TET4, R * VOLT, R * LIST_X, R * LIST_Y, R * LIST_Z, int ** NOSPHV, int * NSPHV, int * INDVER)
+{
+
+R x1,y1,z1,x2,y2,z2,x3,y3,z3,x4,y4,z4,xc,yc,zc;
+R voltot=0.;
+
+cout<<"Traitement des VER ... "<<endl;
+
+	for (int jt=0;jt<NB_VER;jt++){
+	
+	//if(jt%1000==0){cout<<"it:"<<(jt+1)<<"/"<<NB_VER<<endl;}
+		
+	x1=	NOEUD[TET4[jt][0]][0];
+	x2=	NOEUD[TET4[jt][1]][0];
+	x3=	NOEUD[TET4[jt][2]][0];	
+	x4=	NOEUD[TET4[jt][3]][0];		
+	
+	y1=	NOEUD[TET4[jt][0]][1];
+	y2=	NOEUD[TET4[jt][1]][1];
+	y3=	NOEUD[TET4[jt][2]][1];	
+	y4=	NOEUD[TET4[jt][3]][1];	
+	
+	z1=	NOEUD[TET4[jt][0]][2];
+	z2=	NOEUD[TET4[jt][1]][2];
+	z3=	NOEUD[TET4[jt][2]][2];	
+	z4=	NOEUD[TET4[jt][3]][2];	
+		
+	VOLT[jt]=(x4-x1)*((y2-y1)*(z3-z1)-(z2-z1)*(y3-y1));
+	VOLT[jt]+=(y4-y1)*((z2-z1)*(x3-x1)-(x2-x1)*(z3-z1));
+	VOLT[jt]+=(z4-z1)*((x2-x1)*(y3-y1)-(y2-y1)*(x3-x1));
+	VOLT[jt]=abs(VOLT[jt])/6.;
+    voltot+=VOLT[jt];
+
+    NSPHV[jt]=0;
+	}	
+	
+	//cout<<"voltot:"<<voltot<<endl;
+
+
+
+	for (int it=0;it<NB_SPH;it++){
+          
+    INDVER[it]=-1;
+          
+  //  if(it%1000==0){cout<<"it:"<<(it+1)<<"/"<<NB_SPH<<endl;}
+          
+          xc=LIST_X[it];
+          yc=LIST_Y[it];
+          zc=LIST_Z[it];
+
+          int jt=0;
+          bool bout=0; 
+         
+          while((jt<NB_VER)&&(!bout)){
+			  
+			x1=	NOEUD[TET4[jt][0]][0];
+			x2=	NOEUD[TET4[jt][1]][0];
+			x3=	NOEUD[TET4[jt][2]][0];	
+			x4=	NOEUD[TET4[jt][3]][0];		
+			
+			y1=	NOEUD[TET4[jt][0]][1];
+			y2=	NOEUD[TET4[jt][1]][1];
+			y3=	NOEUD[TET4[jt][2]][1];	
+			y4=	NOEUD[TET4[jt][3]][1];	
+			
+			z1=	NOEUD[TET4[jt][0]][2];
+			z2=	NOEUD[TET4[jt][1]][2];
+			z3=	NOEUD[TET4[jt][2]][2];	
+			z4=	NOEUD[TET4[jt][3]][2];	
+		  
+		  
+		  R vol1,vol2,vol3,vol4;
+		  
+		  	vol1=(x4-xc)*((y2-yc)*(z3-zc)-(z2-zc)*(y3-yc));
+			vol1+=(y4-yc)*((z2-zc)*(x3-xc)-(x2-xc)*(z3-zc));
+			vol1+=(z4-zc)*((x2-xc)*(y3-yc)-(y2-yc)*(x3-xc));
+			vol1=abs(vol1)/6.;
+     
+			vol2=(x4-x1)*((yc-y1)*(z3-z1)-(zc-z1)*(y3-y1));
+			vol2+=(y4-y1)*((zc-z1)*(x3-x1)-(xc-x1)*(z3-z1));
+			vol2+=(z4-z1)*((xc-x1)*(y3-y1)-(yc-y1)*(x3-x1));    
+			vol2=abs(vol2)/6.;
+
+			vol3=(x4-x1)*((y2-y1)*(zc-z1)-(z2-z1)*(yc-y1));
+			vol3+=(y4-y1)*((z2-z1)*(xc-x1)-(x2-x1)*(zc-z1));
+			vol3+=(z4-z1)*((x2-x1)*(yc-y1)-(y2-y1)*(xc-x1));    
+			vol3=abs(vol3)/6.;
+			
+			vol4=(xc-x1)*((y2-y1)*(z3-z1)-(z2-z1)*(y3-y1));
+			vol4+=(yc-y1)*((z2-z1)*(x3-x1)-(x2-x1)*(z3-z1));
+			vol4+=(zc-z1)*((x2-x1)*(y3-y1)-(y2-y1)*(x3-x1));    
+			vol4=abs(vol4)/6.;						
+     
+          R som_vol=vol1+vol2+vol3+vol4;
+
+		  if(abs(som_vol-VOLT[jt])<1e-4){	
+		  INDVER[it]=jt;	  
+		  NOSPHV[jt][NSPHV[jt]]=it;
+		  NSPHV[jt]++;
+		  bout=1; 
+		  } 
+
+          jt++;
+          }
+
+          if(INDVER[it]==-1) {cout<<"Oups"<<endl;}
+
+        }
+}
+
+
+void init_ver_pri6(int NB_NOVER, int NB_VER, int NB_SPH, R ** NOEUD, int ** PRI6, R * VOLT, R * LIST_X, R * LIST_Y, R * LIST_Z, int ** NOSPHV, int * NSPHV, int * INDVER)
+{
+
+R x1,y1,z1,x2,z2,x3,z3,y4,xc,yc,zc;
+R voltot=0.;
+
+cout<<"Traitement des VER ... "<<endl;
+
+	for (int jt=0;jt<NB_VER;jt++){
+	
+	//if(jt%1000==0){cout<<"it:"<<(jt+1)<<"/"<<NB_VER<<endl;}
+		
+	x1=	NOEUD[PRI6[jt][0]][0];
+	x2=	NOEUD[PRI6[jt][1]][0];
+	x3=	NOEUD[PRI6[jt][2]][0];		
+	
+	y1=	NOEUD[PRI6[jt][0]][1];
+//	y2=	NOEUD[PRI6[jt][1]][1];
+//	y3=	NOEUD[PRI6[jt][2]][1];	
+	y4=	NOEUD[PRI6[jt][3]][1];	
+		
+	z1=	NOEUD[PRI6[jt][0]][2];
+	z2=	NOEUD[PRI6[jt][1]][2];
+	z3=	NOEUD[PRI6[jt][2]][2];	
+		
+	VOLT[jt]=abs((x2-x1)*(z3-z1)-(z2-z1)*(x3-x1))*abs(y4-y1)/2.;
+    voltot+=VOLT[jt];
+
+    NSPHV[jt]=0;
+	}	
+	
+	//cout<<"voltot:"<<voltot<<endl;
+
+
+
+	for (int it=0;it<NB_SPH;it++){
+          
+    INDVER[it]=-1;
+          
+    if(it%1000==0){cout<<"it:"<<(it+1)<<"/"<<NB_SPH<<endl;}
+          
+          xc=LIST_X[it];
+          yc=LIST_Y[it];
+          zc=LIST_Z[it];
+
+          int jt=0;
+          bool bout=0; 
+         
+          while((jt<NB_VER)&&(!bout)){
+			  
+			x1=	NOEUD[PRI6[jt][0]][0];
+			x2=	NOEUD[PRI6[jt][1]][0];
+			x3=	NOEUD[PRI6[jt][2]][0];			
+			
+			y1=	NOEUD[PRI6[jt][0]][1];
+		//	y2=	NOEUD[PRI6[jt][1]][1];
+	//		y3=	NOEUD[PRI6[jt][2]][1];	
+			y4=	NOEUD[PRI6[jt][3]][1];	
+						
+			z1=	NOEUD[PRI6[jt][0]][2];
+			z2=	NOEUD[PRI6[jt][1]][2];
+			z3=	NOEUD[PRI6[jt][2]][2];	
+
+
+          R som_air=0.;
+          som_air+=abs((x2-x1)*(zc-z1)-(z2-z1)*(xc-x1))/2.;
+          som_air+=abs((x3-x1)*(zc-z1)-(z3-z1)*(xc-x1))/2.;
+          som_air+=abs((x3-x2)*(zc-z2)-(z3-z2)*(xc-x2))/2.;
+          R som_vol=som_air*abs(y4-y1)	  ;
+
+
+		  if((abs(som_vol-VOLT[jt])<1e-4)&&(yc>=y1)&&(yc<=y4)){	
+		  INDVER[it]=jt;	  
+		  NOSPHV[jt][NSPHV[jt]]=it;
+		  NSPHV[jt]++;
+		  bout=1; 
+		  } 
+
+          jt++;
+          }
+
+          if(INDVER[it]==-1) {cout<<"Oups"<<endl;}
+
+        }
+}

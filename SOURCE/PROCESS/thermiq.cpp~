@@ -1,0 +1,772 @@
+#include <cstdlib>
+#include <cstdio>
+#include <iomanip>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <cmath>
+#include <time.h> 
+#include <sys/time.h> 
+#include <sys/resource.h> 
+#include <string.h>
+#include <map>
+#include <cassert>
+#include <vector>
+#include <limits>
+#include "omp.h"
+
+using namespace std;
+
+#define PI 3.14159265
+
+#include "thermiq.h"
+
+void ther_load(int ite, int nitd,bool * TYPCO, int NBCO, int ** CONT, R * DCONT, R * DCONTX,R * DCONTY,R * DCONTZ, R * DCONTO, R * DCONTXO,R * DCONTYO,R * DCONTZO, bool * LIST_P,R alpha1, R alpha2){
+
+R pr,alpham;
+if(ite<=nitd){
+pr=R(ite)/nitd;
+}else{
+pr=1.;
+}
+
+int it1,it2;
+int i,num_threads;
+
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+
+# pragma omp parallel for schedule(dynamic,int(NBCO/num_threads)) private(i,it1,it2,alpham) 
+	for (i=0;i<NBCO;i++){
+
+		if(TYPCO[i]){
+	
+			it1=CONT[i][0];
+			it2=CONT[i][0];
+
+			if((!LIST_P[it1])&&(!LIST_P[it2])){
+                        alpham=alpha1*pr;    
+			}
+			else if((LIST_P[it1])&&(LIST_P[it2])){
+                        alpham=alpha2*pr;
+			}
+                        else{
+                        alpham=sqrt(alpha1*alpha2)*pr;
+                        }
+             
+			DCONT[i]=DCONTO[i]*(1.+alpham);
+			DCONTX[i]=DCONTXO[i]*(1.+alpham);
+			DCONTY[i]=DCONTYO[i]*(1.+alpham);
+			DCONTZ[i]=DCONTZO[i]*(1.+alpham);
+
+		}
+
+	}
+
+
+}
+
+
+
+void temp(R coef2,int NB_SPH, int NBCO, R dt, R Flimp, R Lambda_c, R Cp, R coef1, int ** CONT, R *LIST_M, R * LIST_R, R * LIST_TEMP,bool * EDGE, bool * EDGE1, bool * EDGE2, bool * EDGE3, bool * EDGE4,  bool * EDGE5, bool * EDGE6, R & mint, R & maxt, R * DCONT, R * LIST_IND, R N1, R N2, R N3, R N4, R N5, R N6, R * DeltaT, int dir, bool btype)  
+{
+
+int i,j;
+R Sij;
+
+R MoyR;
+R coefpi=PI*coef2;
+int it,num_threads;
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+
+mint=01.E+20;
+maxt=-1.E+20;
+
+if(dir==1 && btype==0){
+// cas dir 1 & temp
+
+# pragma omp parallel for schedule(dynamic,int(NBCO/num_threads)) private(it,i,j,MoyR,Sij) reduction(+:DeltaT[0:NB_SPH]) 
+	for(it=0;it<NBCO;it++)
+	   {
+
+	    // Numeros des candidats 
+	    i=CONT[it][0];
+	    j=CONT[it][1]; 
+
+	    MoyR=(LIST_R[i]+LIST_R[j])/2.;
+	    Sij=MoyR*MoyR*coefpi;	    
+ 
+	    if((not EDGE4[i]) and (not EDGE1[i])) DeltaT[i]+= (LIST_TEMP[j]-LIST_TEMP[i])*Lambda_c*dt*Sij/(Cp*LIST_M[i]*coef1*DCONT[it]); 
+	    if((not EDGE4[j]) and (not EDGE1[j])) DeltaT[j]+= (LIST_TEMP[i]-LIST_TEMP[j])*Lambda_c*dt*Sij/(Cp*LIST_M[j]*coef1*DCONT[it]);
+	   }
+
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it) reduction(min:mint) reduction(max:maxt)
+	for(it=0;it<NB_SPH;it++)
+	   {
+		LIST_TEMP[it]+=DeltaT[it];
+		DeltaT[it]=0.;
+		if(EDGE[it]==0){
+		maxt=max(maxt,LIST_TEMP[it]);
+		mint=min(mint,LIST_TEMP[it]);	
+		}
+	   }
+
+
+}else if(dir==2 && btype==0){
+// cas dir 2 & temp
+
+# pragma omp parallel for schedule(dynamic,int(NBCO/num_threads)) private(it,i,j,MoyR,Sij) reduction(+:DeltaT[0:NB_SPH]) 
+	for(it=0;it<NBCO;it++)
+	   {
+
+	    // Numeros des candidats 
+	    i=CONT[it][0];
+	    j=CONT[it][1]; 
+
+	    MoyR=(LIST_R[i]+LIST_R[j])/2.;
+	    Sij=MoyR*MoyR*coefpi;
+	    
+	    if((not EDGE5[i]) and (not EDGE2[i])) DeltaT[i]+= (LIST_TEMP[j]-LIST_TEMP[i])*Lambda_c*dt*Sij/(Cp*LIST_M[i]*coef1*DCONT[it]); 
+	    if((not EDGE5[j]) and (not EDGE2[j])) DeltaT[j]+= (LIST_TEMP[i]-LIST_TEMP[j])*Lambda_c*dt*Sij/(Cp*LIST_M[j]*coef1*DCONT[it]);
+	   }
+
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it) reduction(min:mint) reduction(max:maxt)
+	for(it=0;it<NB_SPH;it++)
+	   {
+		LIST_TEMP[it]+=DeltaT[it];
+		DeltaT[it]=0.;
+		if(EDGE[it]==0){
+		maxt=max(maxt,LIST_TEMP[it]);
+		mint=min(mint,LIST_TEMP[it]);	
+		}
+	   }
+
+
+}else if(dir==3 && btype==0){
+// cas dir 3 & temp
+
+# pragma omp parallel for schedule(dynamic,int(NBCO/num_threads)) private(it,i,j,MoyR,Sij) reduction(+:DeltaT[0:NB_SPH]) 
+	for(it=0;it<NBCO;it++)
+	   {
+
+	    // Numeros des candidats 
+	    i=CONT[it][0];
+	    j=CONT[it][1]; 
+
+	    MoyR=(LIST_R[i]+LIST_R[j])/2.;
+	    Sij=MoyR*MoyR*coefpi;
+
+	    if((not EDGE6[i]) and (not EDGE3[i])) DeltaT[i]+= (LIST_TEMP[j]-LIST_TEMP[i])*Lambda_c*dt*Sij/(Cp*LIST_M[i]*coef1*DCONT[it]); 
+	    if((not EDGE6[j]) and (not EDGE3[j])) DeltaT[j]+= (LIST_TEMP[i]-LIST_TEMP[j])*Lambda_c*dt*Sij/(Cp*LIST_M[j]*coef1*DCONT[it]);
+	   }
+
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it) reduction(min:mint) reduction(max:maxt)
+	for(it=0;it<NB_SPH;it++)
+	   {
+		LIST_TEMP[it]+=DeltaT[it];
+		DeltaT[it]=0.;
+		if(EDGE[it]==0){
+		maxt=max(maxt,LIST_TEMP[it]);
+		mint=min(mint,LIST_TEMP[it]);	
+		}
+	   }
+
+}else if(dir==1 && btype==1){
+// cas dir 1 & flu
+
+# pragma omp parallel for schedule(dynamic,int(NBCO/num_threads)) private(it,i,j,MoyR,Sij) reduction(+:DeltaT[0:NB_SPH]) 
+	for(it=0;it<NBCO;it++)
+	   {
+
+	    // Numeros des candidats 
+	    i=CONT[it][0];
+	    j=CONT[it][1]; 
+
+	    MoyR=(LIST_R[i]+LIST_R[j])/2.;
+	    Sij=MoyR*MoyR*coefpi;
+  
+	     if(not EDGE1[i]) DeltaT[i]+= (LIST_TEMP[j]-LIST_TEMP[i])*Lambda_c*dt*Sij/(Cp*LIST_M[i]*coef1*DCONT[it]); 
+	     if(not EDGE1[j]) DeltaT[j]+= (LIST_TEMP[i]-LIST_TEMP[j])*Lambda_c*dt*Sij/(Cp*LIST_M[j]*coef1*DCONT[it]);  
+	   }
+
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it) reduction(min:mint) reduction(max:maxt)
+	for(it=0;it<NB_SPH;it++)
+	   {
+		LIST_TEMP[it]+=DeltaT[it];
+		DeltaT[it]=0.;
+	   if(EDGE4[it]) LIST_TEMP[it]+=dt*Flimp*LIST_IND[it]/(N4*Cp*LIST_M[it]*coef1);
+		if(EDGE[it]==0){
+		maxt=max(maxt,LIST_TEMP[it]);
+		mint=min(mint,LIST_TEMP[it]);	
+		}
+	   }
+
+}else if(dir==2 && btype==1){
+// cas dir 2 & flu
+
+# pragma omp parallel for schedule(dynamic,int(NBCO/num_threads)) private(it,i,j,MoyR,Sij,Lambda_c) reduction(+:DeltaT[0:NB_SPH]) 
+	for(it=0;it<NBCO;it++)
+	   {
+
+	    // Numeros des candidats 
+	    i=CONT[it][0];
+	    j=CONT[it][1]; 
+
+	    MoyR=(LIST_R[i]+LIST_R[j])/2.;
+	    Sij=MoyR*MoyR*coefpi;
+	     
+	     if(not EDGE2[i]) DeltaT[i]+= (LIST_TEMP[j]-LIST_TEMP[i])*Lambda_c*dt*Sij/(Cp*LIST_M[i]*coef1*DCONT[it]); 
+	     if(not EDGE2[j]) DeltaT[j]+= (LIST_TEMP[i]-LIST_TEMP[j])*Lambda_c*dt*Sij/(Cp*LIST_M[j]*coef1*DCONT[it]);  
+	   }
+
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it) reduction(min:mint) reduction(max:maxt)
+	for(it=0;it<NB_SPH;it++)
+	   {
+		LIST_TEMP[it]+=DeltaT[it];
+		DeltaT[it]=0.;
+	   if(EDGE5[it]) LIST_TEMP[it]+=dt*Flimp*LIST_IND[it]/(N5*Cp*LIST_M[it]*coef1);
+		if(EDGE[it]==0){
+		maxt=max(maxt,LIST_TEMP[it]);
+		mint=min(mint,LIST_TEMP[it]);	
+		}
+	   }
+
+}else if(dir==3 && btype==1){
+// cas dir 3 & flu
+
+# pragma omp parallel for schedule(dynamic,int(NBCO/num_threads)) private(it,i,j,MoyR,Sij) reduction(+:DeltaT[0:NB_SPH]) 
+	for(it=0;it<NBCO;it++)
+	   {
+
+	    // Numeros des candidats 
+	    i=CONT[it][0];
+	    j=CONT[it][1]; 
+
+	    MoyR=(LIST_R[i]+LIST_R[j])/2.;
+	    Sij=MoyR*MoyR*coefpi;
+  
+	     if(not EDGE3[i]) DeltaT[i]+= (LIST_TEMP[j]-LIST_TEMP[i])*Lambda_c*dt*Sij/(Cp*LIST_M[i]*coef1*DCONT[it]); 
+	     if(not EDGE3[j]) DeltaT[j]+= (LIST_TEMP[i]-LIST_TEMP[j])*Lambda_c*dt*Sij/(Cp*LIST_M[j]*coef1*DCONT[it]);  
+	   }
+
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it) reduction(min:mint) reduction(max:maxt)
+	for(it=0;it<NB_SPH;it++)
+	   {
+		LIST_TEMP[it]+=DeltaT[it];
+		DeltaT[it]=0.;
+	   if(EDGE6[it]) LIST_TEMP[it]+=dt*Flimp*LIST_IND[it]/(N6*Cp*LIST_M[it]*coef1);
+		if(EDGE[it]==0){
+		maxt=max(maxt,LIST_TEMP[it]);
+		mint=min(mint,LIST_TEMP[it]);	
+		}
+	   }
+
+}
+
+
+
+
+}
+
+
+
+
+void temp2(R coef2,int NB_SPH, int NBCO, R dt, R Flimp, R lambda1, R lambda2, R cp1, R cp2, R coef1, int ** CONT, R *LIST_M, R * LIST_R, R * LIST_TEMP,bool * EDGE, bool * EDGE1, bool * EDGE2, bool * EDGE3, bool * EDGE4,  bool * EDGE5, bool * EDGE6, R & mint, R & maxt, R * DCONT, R * LIST_IND, bool * LIST_P, R N1, R N2, R N3, R N4, R N5, R N6, R * DeltaT, int dir, bool btype)  
+{
+
+int i,j;
+R Sij;
+R Lambda_c,Cp;
+
+R MoyR;
+R coefpi=PI*coef2;
+int it,num_threads;
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+
+mint=01.E+20;
+maxt=-1.E+20;
+
+if(dir==1 && btype==0){
+// cas dir 1 & temp
+
+# pragma omp parallel for schedule(dynamic,int(NBCO/num_threads)) private(it,i,j,MoyR,Sij,Lambda_c,Cp) reduction(+:DeltaT[0:NB_SPH]) 
+	for(it=0;it<NBCO;it++)
+	   {
+
+	    // Numeros des candidats 
+	    i=CONT[it][0];
+	    j=CONT[it][1]; 
+
+	    MoyR=(LIST_R[i]+LIST_R[j])/2.;
+	    Sij=MoyR*MoyR*coefpi;
+	    
+	    if (LIST_P[i]==1 && LIST_P[j]==1) {Lambda_c=lambda2; Cp=cp2; }
+	    else if (LIST_P[i]==0 && LIST_P[j]==0) {Lambda_c=lambda1;  Cp=cp1;}
+	    else {Lambda_c=2.*(lambda2*lambda1)/(lambda2+lambda1); Cp=2.*(cp1*cp2)/(cp1+cp2); }
+  
+	    if((not EDGE4[i]) and (not EDGE1[i])) DeltaT[i]+= (LIST_TEMP[j]-LIST_TEMP[i])*Lambda_c*dt*Sij/(Cp*LIST_M[i]*coef1*DCONT[it]); 
+	    if((not EDGE4[j]) and (not EDGE1[j])) DeltaT[j]+= (LIST_TEMP[i]-LIST_TEMP[j])*Lambda_c*dt*Sij/(Cp*LIST_M[j]*coef1*DCONT[it]);
+	   }
+
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it,Cp) reduction(min:mint) reduction(max:maxt)
+	for(it=0;it<NB_SPH;it++)
+	   {
+		LIST_TEMP[it]+=DeltaT[it];
+		DeltaT[it]=0.;
+		if(EDGE[it]==0){
+		maxt=max(maxt,LIST_TEMP[it]);
+		mint=min(mint,LIST_TEMP[it]);	
+		}	
+	   }
+
+
+}else if(dir==2 && btype==0){
+// cas dir 2 & temp
+
+# pragma omp parallel for schedule(dynamic,int(NBCO/num_threads)) private(it,i,j,MoyR,Sij,Lambda_c,Cp) reduction(+:DeltaT[0:NB_SPH]) 
+	for(it=0;it<NBCO;it++)
+	   {
+
+	    // Numeros des candidats 
+	    i=CONT[it][0];
+	    j=CONT[it][1]; 
+
+	    MoyR=(LIST_R[i]+LIST_R[j])/2.;
+	    Sij=MoyR*MoyR*coefpi;
+	    
+	    if (LIST_P[i]==1 && LIST_P[j]==1) {Lambda_c=lambda2; Cp=cp2; }
+	    else if (LIST_P[i]==0 && LIST_P[j]==0) {Lambda_c=lambda1;  Cp=cp1;}
+	    else {Lambda_c=2.*(lambda2*lambda1)/(lambda2+lambda1); Cp=2.*(cp1*cp2)/(cp1+cp2); }
+  
+	    if((not EDGE5[i]) and (not EDGE2[i])) DeltaT[i]+= (LIST_TEMP[j]-LIST_TEMP[i])*Lambda_c*dt*Sij/(Cp*LIST_M[i]*coef1*DCONT[it]); 
+	    if((not EDGE5[j]) and (not EDGE2[j])) DeltaT[j]+= (LIST_TEMP[i]-LIST_TEMP[j])*Lambda_c*dt*Sij/(Cp*LIST_M[j]*coef1*DCONT[it]);
+	   }
+
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it,Cp) reduction(min:mint) reduction(max:maxt)
+	for(it=0;it<NB_SPH;it++)
+	   {
+		LIST_TEMP[it]+=DeltaT[it];
+		DeltaT[it]=0.;
+		if(EDGE[it]==0){
+		maxt=max(maxt,LIST_TEMP[it]);
+		mint=min(mint,LIST_TEMP[it]);	
+		}
+	   }
+
+
+}else if(dir==3 && btype==0){
+// cas dir 3 & temp
+
+# pragma omp parallel for schedule(dynamic,int(NBCO/num_threads)) private(it,i,j,MoyR,Sij,Lambda_c,Cp) reduction(+:DeltaT[0:NB_SPH]) 
+	for(it=0;it<NBCO;it++)
+	   {
+
+	    // Numeros des candidats 
+	    i=CONT[it][0];
+	    j=CONT[it][1]; 
+
+	    MoyR=(LIST_R[i]+LIST_R[j])/2.;
+	    Sij=MoyR*MoyR*coefpi;
+	    
+	    if (LIST_P[i]==1 && LIST_P[j]==1) {Lambda_c=lambda2; Cp=cp2; }
+	    else if (LIST_P[i]==0 && LIST_P[j]==0) {Lambda_c=lambda1;  Cp=cp1;}
+	    else {Lambda_c=2.*(lambda2*lambda1)/(lambda2+lambda1); Cp=2.*(cp1*cp2)/(cp1+cp2); }
+  
+	    if((not EDGE6[i]) and (not EDGE3[i])) DeltaT[i]+= (LIST_TEMP[j]-LIST_TEMP[i])*Lambda_c*dt*Sij/(Cp*LIST_M[i]*coef1*DCONT[it]); 
+	    if((not EDGE6[j]) and (not EDGE3[j])) DeltaT[j]+= (LIST_TEMP[i]-LIST_TEMP[j])*Lambda_c*dt*Sij/(Cp*LIST_M[j]*coef1*DCONT[it]);
+	   }
+
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it,Cp) reduction(min:mint) reduction(max:maxt)
+	for(it=0;it<NB_SPH;it++)
+	   {
+		LIST_TEMP[it]+=DeltaT[it];
+		DeltaT[it]=0.;
+		if(EDGE[it]==0){
+		maxt=max(maxt,LIST_TEMP[it]);
+		mint=min(mint,LIST_TEMP[it]);	
+		}
+	   }
+
+}else if(dir==1 && btype==1){
+// cas dir 1 & flu
+
+# pragma omp parallel for schedule(dynamic,int(NBCO/num_threads)) private(it,i,j,MoyR,Sij,Lambda_c,Cp) reduction(+:DeltaT[0:NB_SPH]) 
+	for(it=0;it<NBCO;it++)
+	   {
+
+	    // Numeros des candidats 
+	    i=CONT[it][0];
+	    j=CONT[it][1]; 
+
+	    MoyR=(LIST_R[i]+LIST_R[j])/2.;
+	    Sij=MoyR*MoyR*coefpi;
+	    
+	    if (LIST_P[i]==1 && LIST_P[j]==1) {Lambda_c=lambda2; Cp=cp2; }
+	    else if (LIST_P[i]==0 && LIST_P[j]==0) {Lambda_c=lambda1;  Cp=cp1;}
+	    else {Lambda_c=2.*(lambda2*lambda1)/(lambda2+lambda1); Cp=2.*(cp1*cp2)/(cp1+cp2); }
+  
+	     if(not EDGE1[i]) DeltaT[i]+= (LIST_TEMP[j]-LIST_TEMP[i])*Lambda_c*dt*Sij/(Cp*LIST_M[i]*coef1*DCONT[it]); 
+	     if(not EDGE1[j]) DeltaT[j]+= (LIST_TEMP[i]-LIST_TEMP[j])*Lambda_c*dt*Sij/(Cp*LIST_M[j]*coef1*DCONT[it]);  
+	   }
+
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it,Cp) reduction(min:mint) reduction(max:maxt)
+	for(it=0;it<NB_SPH;it++)
+	   {
+	   if (LIST_P[it]==1) { Cp=cp2; }
+	    else { Cp=cp1; }
+		LIST_TEMP[it]+=DeltaT[it];
+		DeltaT[it]=0.;
+	   if(EDGE4[it]) LIST_TEMP[it]+=dt*Flimp*LIST_IND[it]/(N4*Cp*LIST_M[it]*coef1);
+		if(EDGE[it]==0){
+		maxt=max(maxt,LIST_TEMP[it]);
+		mint=min(mint,LIST_TEMP[it]);	
+		}
+	   }
+
+}else if(dir==2 && btype==1){
+// cas dir 2 & flu
+
+# pragma omp parallel for schedule(dynamic,int(NBCO/num_threads)) private(it,i,j,MoyR,Sij,Lambda_c,Cp) reduction(+:DeltaT[0:NB_SPH]) 
+	for(it=0;it<NBCO;it++)
+	   {
+
+	    // Numeros des candidats 
+	    i=CONT[it][0];
+	    j=CONT[it][1]; 
+
+	    MoyR=(LIST_R[i]+LIST_R[j])/2.;
+	    Sij=MoyR*MoyR*coefpi;
+	    
+	    if (LIST_P[i]==1 && LIST_P[j]==1) {Lambda_c=lambda2; Cp=cp2; }
+	    else if (LIST_P[i]==0 && LIST_P[j]==0) {Lambda_c=lambda1;  Cp=cp1;}
+	    else {Lambda_c=2.*(lambda2*lambda1)/(lambda2+lambda1); Cp=2.*(cp1*cp2)/(cp1+cp2); }
+  
+	     if(not EDGE2[i]) DeltaT[i]+= (LIST_TEMP[j]-LIST_TEMP[i])*Lambda_c*dt*Sij/(Cp*LIST_M[i]*coef1*DCONT[it]); 
+	     if(not EDGE2[j]) DeltaT[j]+= (LIST_TEMP[i]-LIST_TEMP[j])*Lambda_c*dt*Sij/(Cp*LIST_M[j]*coef1*DCONT[it]);  
+	   }
+
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it,Cp) reduction(min:mint) reduction(max:maxt)
+	for(it=0;it<NB_SPH;it++)
+	   {
+	   if (LIST_P[it]==1) { Cp=cp2; }
+	    else { Cp=cp1; }
+		LIST_TEMP[it]+=DeltaT[it];
+		DeltaT[it]=0.;
+	   if(EDGE5[it]) LIST_TEMP[it]+=dt*Flimp*LIST_IND[it]/(N5*Cp*LIST_M[it]*coef1);
+		if(EDGE[it]==0){
+		maxt=max(maxt,LIST_TEMP[it]);
+		mint=min(mint,LIST_TEMP[it]);	
+		}
+	   }
+
+}else if(dir==3 && btype==1){
+// cas dir 3 & flu
+
+# pragma omp parallel for schedule(dynamic,int(NBCO/num_threads)) private(it,i,j,MoyR,Sij,Lambda_c,Cp) reduction(+:DeltaT[0:NB_SPH]) 
+	for(it=0;it<NBCO;it++)
+	   {
+
+	    // Numeros des candidats 
+	    i=CONT[it][0];
+	    j=CONT[it][1]; 
+
+	    MoyR=(LIST_R[i]+LIST_R[j])/2.;
+	    Sij=MoyR*MoyR*coefpi;
+	    
+	    if (LIST_P[i]==1 && LIST_P[j]==1) {Lambda_c=lambda2; Cp=cp2; }
+	    else if (LIST_P[i]==0 && LIST_P[j]==0) {Lambda_c=lambda1;  Cp=cp1;}
+	    else {Lambda_c=2.*(lambda2*lambda1)/(lambda2+lambda1); Cp=2.*(cp1*cp2)/(cp1+cp2); }
+  
+	     if(not EDGE3[i]) DeltaT[i]+= (LIST_TEMP[j]-LIST_TEMP[i])*Lambda_c*dt*Sij/(Cp*LIST_M[i]*coef1*DCONT[it]); 
+	     if(not EDGE3[j]) DeltaT[j]+= (LIST_TEMP[i]-LIST_TEMP[j])*Lambda_c*dt*Sij/(Cp*LIST_M[j]*coef1*DCONT[it]);  
+	   }
+
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it,Cp) reduction(min:mint) reduction(max:maxt)
+	for(it=0;it<NB_SPH;it++)
+	   {
+	   if (LIST_P[it]==1) { Cp=cp2; }
+	    else { Cp=cp1; }
+		LIST_TEMP[it]+=DeltaT[it];
+		DeltaT[it]=0.;
+	   if(EDGE6[it]) LIST_TEMP[it]+=dt*Flimp*LIST_IND[it]/(N6*Cp*LIST_M[it]*coef1);
+		if(EDGE[it]==0){
+		maxt=max(maxt,LIST_TEMP[it]);
+		mint=min(mint,LIST_TEMP[it]);	
+		}
+	   }
+
+}
+
+
+}
+
+
+
+
+
+
+void flux(R coef2,int NB_SPH, int NBCO, R dt, R Lambda_c, R Cp, R coef1, int ** CONT, R ** NCONT, R *LIST_M, R * LIST_R, R * LIST_TEMP,bool * EDGE, R & minfx, R & maxfx, R & minfy, R & maxfy, R & minfz, R & maxfz, R * DCONT, R H_TOT, R V_TOT, R Z_TOT, R * LIST_FLX,R * LIST_FLY,R * LIST_FLZ,int * NBHALO, unsigned int **NOHALO, int * NBCONTCO, int ** NOCONT, R * VOLHALO, R * LIST_V)  
+{
+
+R DeltaF;
+int jt,kt,numc;
+unsigned int numcor;
+
+int i,j;
+R Sij;
+
+R MoyR;
+R coefpi=PI*coef2;
+int it,num_threads;
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it) 
+	for(it=0;it<NB_SPH;it++)
+	   {
+	       LIST_FLX[it]=0.;
+	       LIST_FLY[it]=0.;
+	       LIST_FLZ[it]=0.;
+	   }
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it,jt,kt,numc,numcor,i,j,MoyR,Sij,DeltaF) reduction(+:LIST_FLX[0:NB_SPH],LIST_FLY[0:NB_SPH],LIST_FLZ[0:NB_SPH])  
+	for(jt=0;jt<NB_SPH;jt++)
+	   {
+
+		    for(it=0;it<NBHALO[jt];it++){
+			numcor=NOHALO[jt][it];
+
+				for(kt=0;kt<NBCONTCO[numcor];kt++){ 
+
+					numc=NOCONT[numcor][kt];
+					i=CONT[numc][0];
+					j=CONT[numc][1];
+
+					MoyR=(LIST_R[i]+LIST_R[j])/2.;
+					Sij=MoyR*MoyR*coefpi;
+
+					DeltaF=(LIST_TEMP[j]-LIST_TEMP[i])*Lambda_c/DCONT[numc];
+
+					LIST_FLX[jt]+=DeltaF*NCONT[numc][0]*Sij*DCONT[numc]/2;
+					LIST_FLY[jt]+=DeltaF*NCONT[numc][1]*Sij*DCONT[numc]/2;
+					LIST_FLZ[jt]+=DeltaF*NCONT[numc][2]*Sij*DCONT[numc]/2;
+
+				}
+		    }
+	      
+	     LIST_FLX[jt]/=VOLHALO[jt];      
+	     LIST_FLY[jt]/=VOLHALO[jt];     
+	     LIST_FLZ[jt]/=VOLHALO[jt];   
+      		    
+	   }
+
+
+minfx=01.E+20;
+maxfx=-1.E+20;
+
+minfy=01.E+20;
+maxfy=-1.E+20;
+
+minfz=01.E+20;
+maxfz=-1.E+20;
+
+
+
+R FluTotx=0.;
+R FluToty=0.;
+R FluTotz=0.;
+
+R volel;
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it,volel) reduction(max:maxfx,maxfy,maxfz) reduction(min:minfx,minfy,minfz) reduction (+:FluTotx,FluToty,FluTotz)
+	for(it=0;it<NB_SPH;it++)
+	   {
+
+		if(EDGE[it]==0){
+		maxfx=(LIST_FLX[it]>maxfx)?LIST_FLX[it]:maxfx; 
+		minfx=(LIST_FLX[it]<minfx)?LIST_FLX[it]:minfx; 
+
+		maxfy=(LIST_FLY[it]>maxfy)?LIST_FLY[it]:maxfy; 
+		minfy=(LIST_FLY[it]<minfy)?LIST_FLY[it]:minfy; 
+
+		maxfz=(LIST_FLZ[it]>maxfz)?LIST_FLZ[it]:maxfz; 
+		minfz=(LIST_FLZ[it]<minfz)?LIST_FLZ[it]:minfz; 
+		}
+
+		volel=coef1*LIST_V[it];
+
+		FluTotx+=LIST_FLX[it]*volel;
+		FluToty+=LIST_FLY[it]*volel;
+		FluTotz+=LIST_FLZ[it]*volel;
+	    
+	      
+	   }
+
+cout<<"FLX "<<FluTotx/(H_TOT*V_TOT*Z_TOT)<<endl;
+cout<<"FLY "<<FluToty/(H_TOT*V_TOT*Z_TOT)<<endl;
+cout<<"FLZ "<<FluTotz/(H_TOT*V_TOT*Z_TOT)<<endl;
+
+}
+
+
+
+
+
+
+
+void flux2(R coef2,int NB_SPH, int NBCO, R dt, R lambda1, R lambda2, R cp1, R cp2, R coef1, int ** CONT, R ** NCONT, R *LIST_M, R * LIST_R, R * LIST_TEMP,bool * EDGE, R & minfx, R & maxfx, R & minfy, R & maxfy, R & minfz, R & maxfz, R * DCONT,  bool * LIST_P, R H_TOT, R V_TOT, R Z_TOT, R * LIST_FLX,R * LIST_FLY,R * LIST_FLZ,int * NBHALO, unsigned int **NOHALO, int * NBCONTCO, int ** NOCONT, R * VOLHALO, R * LIST_V)  
+{
+
+R DeltaF;
+int jt,kt,numc;
+unsigned int numcor;
+
+int i,j;
+R Sij;
+R Lambda_c,Cp;
+
+R MoyR;
+R coefpi=PI*coef2;
+int it,num_threads;
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it) 
+	for(it=0;it<NB_SPH;it++)
+	   {
+	       LIST_FLX[it]=0.;
+	       LIST_FLY[it]=0.;
+	       LIST_FLZ[it]=0.;
+	   }
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it,jt,kt,numc,numcor,i,j,MoyR,Sij,DeltaF,Lambda_c) reduction(+:LIST_FLX[0:NB_SPH],LIST_FLY[0:NB_SPH],LIST_FLZ[0:NB_SPH])  
+	for(jt=0;jt<NB_SPH;jt++)
+	   {
+
+		    for(it=0;it<NBHALO[jt];it++){
+			numcor=NOHALO[jt][it];
+
+				for(kt=0;kt<NBCONTCO[numcor];kt++){ 
+
+					numc=NOCONT[numcor][kt];
+					i=CONT[numc][0];
+					j=CONT[numc][1];
+
+					if (LIST_P[i]==1 && LIST_P[j]==1) Lambda_c=lambda2;
+					else if (LIST_P[i]==0 && LIST_P[j]==0) Lambda_c=lambda1;
+					else Lambda_c=2.*(lambda2*lambda1)/(lambda2+lambda1);
+
+					MoyR=(LIST_R[i]+LIST_R[j])/2.;
+					Sij=MoyR*MoyR*coefpi;
+
+					DeltaF=(LIST_TEMP[j]-LIST_TEMP[i])*Lambda_c/DCONT[numc];
+
+					LIST_FLX[jt]+=DeltaF*NCONT[numc][0]*Sij*DCONT[numc]/2;
+					LIST_FLY[jt]+=DeltaF*NCONT[numc][1]*Sij*DCONT[numc]/2;
+					LIST_FLZ[jt]+=DeltaF*NCONT[numc][2]*Sij*DCONT[numc]/2;
+
+				}
+		    }
+	      
+	     LIST_FLX[jt]/=VOLHALO[jt];      
+	     LIST_FLY[jt]/=VOLHALO[jt];     
+	     LIST_FLZ[jt]/=VOLHALO[jt];   
+      		    
+	   }
+
+
+minfx=01.E+20;
+maxfx=-1.E+20;
+
+minfy=01.E+20;
+maxfy=-1.E+20;
+
+minfz=01.E+20;
+maxfz=-1.E+20;
+
+
+
+R FluTotx=0.;
+R FluToty=0.;
+R FluTotz=0.;
+
+R volel;
+
+# pragma omp parallel for schedule(dynamic,int(NB_SPH/num_threads)) private(it,volel) reduction(max:maxfx,maxfy,maxfz) reduction(min:minfx,minfy,minfz) reduction (+:FluTotx,FluToty,FluTotz)
+	for(it=0;it<NB_SPH;it++)
+	   {
+
+		if(EDGE[it]==0){
+		maxfx=(LIST_FLX[it]>maxfx)?LIST_FLX[it]:maxfx; 
+		minfx=(LIST_FLX[it]<minfx)?LIST_FLX[it]:minfx; 
+
+		maxfy=(LIST_FLY[it]>maxfy)?LIST_FLY[it]:maxfy; 
+		minfy=(LIST_FLY[it]<minfy)?LIST_FLY[it]:minfy; 
+
+		maxfz=(LIST_FLZ[it]>maxfz)?LIST_FLZ[it]:maxfz; 
+		minfz=(LIST_FLZ[it]<minfz)?LIST_FLZ[it]:minfz; 
+		}
+
+		volel=coef1*LIST_V[it];
+
+		FluTotx+=LIST_FLX[it]*volel;
+		FluToty+=LIST_FLY[it]*volel;
+		FluTotz+=LIST_FLZ[it]*volel;
+	    
+	      
+	   }
+
+cout<<"FLX "<<FluTotx/(H_TOT*V_TOT*Z_TOT)<<endl;
+cout<<"FLY "<<FluToty/(H_TOT*V_TOT*Z_TOT)<<endl;
+cout<<"FLZ "<<FluTotz/(H_TOT*V_TOT*Z_TOT)<<endl;
+
+}
+
+R crit_time(R coord, R NBCO, R lambda, R cp, R dens, R * DCONT, R Cs){
+  R Length=1.E+09;
+  for (int it=0; it<NBCO; it++) if(DCONT[it]<Length) Length=DCONT[it];
+  return Cs*(Length*Length/coord)*(dens*cp/lambda);
+}
+
+R crit_time2(R coord, R NBCO, R lambda1, R lambda2, R cp1, R cp2, R dens1, R dens2, R * DCONT, R Cs){
+  R Length=1.E+09;
+  for (int it=0; it<NBCO; it++) if(DCONT[it]<Length) Length=DCONT[it];
+
+  if((dens2*cp2/lambda2)>=(dens1*cp1/lambda1)) 
+    return Cs*(Length*Length/coord)*(dens1*cp1/lambda1);
+  else
+    return Cs*(Length*Length/coord)*(dens2*cp2/lambda2);
+
+  
+}
+
+
+

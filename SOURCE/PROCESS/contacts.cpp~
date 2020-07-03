@@ -1,0 +1,1781 @@
+#include <cstdlib>
+#include <cstdio>
+#include <iomanip>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <cmath>
+#include <time.h> 
+#include <sys/time.h> 
+#include <sys/resource.h> 
+#include <string.h>
+#include <map>
+#include <cassert>
+#include <vector>
+#include <limits>
+
+using namespace std;
+
+#include "contacts.h"
+#include "omp.h"
+
+void forcecoh_ind(R & Epe, R & Epa,R dt, bool * TYPCO,int NBCO,  int ** CONT,  R * LIST_M, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_TX, R * LIST_TY, R * LIST_TZ, R * LIST_VX, R * LIST_VY, R * LIST_VZ,R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * DCONT, R * DCONTO, R * DCONTX, R * DCONTY, R * DCONTZ, R ** NCONT,  R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, R ** VALCOH, R ** VALAMO, R ** FCJI, R ** FOJI,R ** MTJI,R ** MTIJ, R E1, R nu1,R E2, R nu2, R fric, int NB_SPH){
+
+int numc1,numc2;
+R n1,n2,n3,s1,s2,s3,t1,t2,t3,fnji,ftji,fbji,mxij,mxji,myij,myji,mzij,mzji,un_ij,ut_ij,ub_ij,thetaxi,thetaxj,thetayi,thetayj,thetazi,thetazj;
+R thetani,thetanj,thetati,thetatj,thetabi,thetabj;
+R vn_ij,vt_ij,vb_ij;
+R dxoij,dyoij,dzoij; 
+R fxx,fyy,fzz;
+R mtij,mbij,abspred2;
+R mnji,mtji,mbji;
+R rij,hij;
+R dist,rn,rnv,crn,crnv,drn,drnv,mas1,pred1,pred2,pred3,u1,u2,u3,Kn,Kt;
+R Eij,iEij;
+Epe=0.;
+Epa=0.;
+
+	for(int it=0;it<NBCO;it++){ 
+		
+		 // Numeros des candidats 
+	     numc1=CONT[it][0];
+	     numc2=CONT[it][1];     
+		
+	     // normal ext 1->2
+	     n1=NCONT[it][0];
+	     n2=NCONT[it][1];
+	     n3=NCONT[it][2];
+	     s1=NCONT[it][3];
+	     s2=NCONT[it][4];
+	     s3=NCONT[it][5];
+	     t1=NCONT[it][6];
+	     t2=NCONT[it][7];
+	     t3=NCONT[it][8];  	  
+	     
+	  	 dist=DCONT[it];     
+	     mas1=LIST_M[numc1]*LIST_M[numc2]/(LIST_M[numc1]+LIST_M[numc2]);      
+ 
+         if(TYPCO[it]==1){      
+            
+         // Déplacements relatifs dans le repère global
+             dxoij=(LIST_X[numc1]-LIST_X[numc2])-DCONTX[it];        	           
+             dyoij=(LIST_Y[numc1]-LIST_Y[numc2])-DCONTY[it];
+             dzoij=(LIST_Z[numc1]-LIST_Z[numc2])-DCONTZ[it];
+
+         // Déplacements relatifs dans le repère local
+             un_ij=n1*dxoij+n2*dyoij+n3*dzoij;
+             ut_ij=s1*dxoij+s2*dyoij+s3*dzoij;
+             ub_ij=t1*dxoij+t2*dyoij+t3*dzoij; 
+             
+          // Rotations      
+             thetaxi=LIST_TX[numc1];
+             thetaxj=LIST_TX[numc2];
+             thetayi=LIST_TY[numc1];
+             thetayj=LIST_TY[numc2];
+             thetazi=LIST_TZ[numc1];
+             thetazj=LIST_TZ[numc2];
+             
+         
+             thetani=n1*thetaxi+n2*thetayi+n3*thetazi;   
+             thetati=s1*thetaxi+s2*thetayi+s3*thetazi;                       
+             thetabi=t1*thetaxi+t2*thetayi+t3*thetazi;            
+
+             thetanj=n1*thetaxj+n2*thetayj+n3*thetazj;   
+             thetatj=s1*thetaxj+s2*thetayj+s3*thetazj;                       
+             thetabj=t1*thetaxj+t2*thetayj+t3*thetazj;  
+            
+        
+          // Vitesses relatives dans le repère local
+			/* vn_ij=n1*(LIST_VX[numc1]-LIST_VX[numc2])+n2*(LIST_VY[numc1]-LIST_VY[numc2])+n3*(LIST_VZ[numc1]-LIST_VZ[numc2]);
+			 vt_ij=s1*(LIST_VX[numc1]-LIST_VX[numc2])+s2*(LIST_VY[numc1]-LIST_VY[numc2])+s3*(LIST_VZ[numc1]-LIST_VZ[numc2]);
+			 vb_ij=t1*(LIST_VX[numc1]-LIST_VX[numc2])+t2*(LIST_VY[numc1]-LIST_VY[numc2])+t3*(LIST_VZ[numc1]-LIST_VZ[numc2]);	
+             */        
+             
+             
+// Modèle Poutre 3D
+//	ES/L	 VALCOH[nbco][0]=kn;
+//  12EI/L3	 VALCOH[nbco][1]=kt;
+//	6EI/L2	 VALCOH[nbco][2]=nd2*kt/2.;	
+//	4EI/L2	 VALCOH[nbco][3]=nd2*nd2*kt/3.;	
+//	2EI/L2	 VALCOH[nbco][4]=nd2*nd2*kt/6.;
+//	2GI/L	 VALCOH[nbco][5]		 
+
+			  fnji=-VALCOH[it][0]*un_ij;
+			  ftji=-VALCOH[it][1]*ut_ij-VALCOH[it][2]*(thetabi+thetabj);
+			  fbji=-VALCOH[it][1]*ub_ij+VALCOH[it][2]*(thetati+thetatj);  
+			  
+			  mnji=-VALCOH[it][5]*(thetani-thetanj);
+			  mtji=VALCOH[it][2]*ub_ij-VALCOH[it][3]*thetati-VALCOH[it][4]*thetatj;
+			  mbji=-VALCOH[it][2]*ut_ij-VALCOH[it][3]*thetabi-VALCOH[it][4]*thetabj;
+			 			 
+			  mtij=VALCOH[it][2]*ub_ij-VALCOH[it][3]*thetatj-VALCOH[it][4]*thetati;  
+                          mbij=-VALCOH[it][2]*ut_ij-VALCOH[it][3]*thetabj-VALCOH[it][4]*thetabi;
+
+				Epe+=2.*(0.5*VALCOH[it][0]*un_ij*un_ij);
+		    	Epe+=2.*(0.5*VALCOH[it][1]*ut_ij*ut_ij);
+				Epe+=2.*(0.5*VALCOH[it][1]*ub_ij*ub_ij);								
+	
+				Epe+=(0.5*VALCOH[it][3]*thetati*thetati+0.5*VALCOH[it][3]*thetabi*thetabi);
+				Epe+=(0.5*VALCOH[it][3]*thetatj*thetatj+0.5*VALCOH[it][3]*thetabj*thetabj);
+				Epe+=(0.5*VALCOH[it][5]*thetani*thetani+0.5*VALCOH[it][5]*thetanj*thetanj);						
+			
+				Epe-= 2.*(VALCOH[it][2]*thetati+VALCOH[it][2]*thetatj)*ub_ij;          //2?
+				Epe-= 2.*(VALCOH[it][2]*thetabi+VALCOH[it][2]*thetabj)*ut_ij;          //2?
+				Epe+= (VALCOH[it][4]*thetatj*thetati+VALCOH[it][4]*thetabj*thetabi);//2?
+				
+// Modèle André
+/*
+			  fnji=-VALCOH[it][0]*un_ij;
+			  ftji=-VALCOH[it][1]*ut_ij+VALCOH[it][2]*(thetabi+thetabj);
+			  fbji=-VALCOH[it][1]*ub_ij+VALCOH[it][2]*(thetati+thetatj);  
+			  
+			  mnji=-VALCOH[it][5]*(thetani-thetanj);
+			  mtji=-VALCOH[it][3]*thetati-VALCOH[it][4]*thetatj;
+			  mbji=-VALCOH[it][3]*thetabi-VALCOH[it][4]*thetabj;
+			 			 
+			  mtij=-VALCOH[it][3]*thetatj-VALCOH[it][4]*thetati;  
+              mbij=-VALCOH[it][3]*thetabj-VALCOH[it][4]*thetabi;
+*/
+// Modèle Kn/Kt
+/*
+			  fnji=-VALCOH[it][0]*un_ij;
+			  ftji=-VALCOH[it][1]*ut_ij;
+			  fbji=-VALCOH[it][1]*ub_ij;  
+			  
+			  mnji=0.;
+			  mtji=0.;
+			  mbji=0.;
+			 			 
+			  mtij=0.;  
+              mbij=0.;
+
+				Epe+=2.*0.5*VALCOH[it][0]*un_ij*un_ij;
+		    	Epe+=2.*0.5*VALCOH[it][1]*ut_ij*ut_ij;
+				Epe+=2.*0.5*VALCOH[it][1]*ub_ij*ub_ij;	*/
+
+// Amortissement 
+/*
+			  fnji=fnji-(VALAMO[it][0]*vn_ij);
+			  ftji=ftji-(VALAMO[it][1]*vt_ij);
+			  fbji=fbji-(VALAMO[it][1]*vb_ij);		  
+			  
+			  mnji=mnji-(VALAMO[it][5]*(LIST_WX[numc2]-LIST_WX[numc1]));
+			  mtji=mtji-(VALAMO[it][3]*LIST_WY[numc1]+VALAMO[it][4]*LIST_WY[numc2]);
+			  mbji=mbji-(VALAMO[it][3]*LIST_WZ[numc1]+VALAMO[it][4]*LIST_WZ[numc2]);
+			  
+			  mtij=mtij-(VALAMO[it][3]*LIST_WY[numc2]+VALAMO[it][4]*LIST_WY[numc1]);
+			  mbij=mbij-(VALAMO[it][3]*LIST_WZ[numc2]+VALAMO[it][4]*LIST_WZ[numc1]);*/
+
+/*
+				Epa+=2.*(0.5*VALAMO[it][0]*vn_ij*un_ij);
+				Epa+=2.*(0.5*VALAMO[it][1]*ut_ij*vt_ij); 
+				Epa+=2.*(0.5*VALAMO[it][1]*ub_ij*vb_ij); 
+				Epa+=2.*(0.5*VALAMO[it][3]*thetati*LIST_WY[numc1]+0.5*VALAMO[it][3]*thetabi*LIST_WZ[numc1]);
+				Epa+=2.*(0.5*VALAMO[it][3]*thetatj*LIST_WY[numc2]+0.5*VALAMO[it][3]*thetabj*LIST_WZ[numc2]);
+				Epa+=2.*(0.5*VALAMO[it][5]*thetani*LIST_WX[numc1]+0.5*VALAMO[it][5]*thetanj*LIST_WX[numc2]);	
+				Epa+=2.*VALAMO[it][4]*(thetatj*LIST_WY[numc1]+thetabj*LIST_WZ[numc1]) //2? 
+				Epa+=2.*VALAMO[it][4]*(thetati*LIST_WY[numc2]+thetabi*LIST_WZ[numc2]) //2? 	
+	
+		*/
+		
+              FOJI[it][0]=fnji;
+              FOJI[it][1]=ftji;
+              FOJI[it][2]=fbji;
+              
+              MTJI[it][0]=mnji;
+              MTJI[it][1]=mtji;
+              MTJI[it][2]=mbji;                                      
+	
+              MTIJ[it][0]=-mnji;
+              MTIJ[it][1]=mtij;
+              MTIJ[it][2]=mbij;  		
+		
+			  fxx=n1*fnji+s1*ftji+t1*fbji;
+			  fyy=n2*fnji+s2*ftji+t2*fbji;
+			  fzz=n3*fnji+s3*ftji+t3*fbji;
+	
+	          mxji=n1*mnji+s1*mtji+t1*mbji; 
+	          myji=n2*mnji+s2*mtji+t2*mbji; 
+	          mzji=n3*mnji+s3*mtji+t3*mbji; 
+
+	          mxij=-n1*mnji+s1*mtij+t1*mbij; 
+	          myij=-n2*mnji+s2*mtij+t2*mbij; 
+	          mzij=-n3*mnji+s3*mtij+t3*mbij; 
+		 	  
+
+	
+	      }
+          else{
+			  
+        // Contact sph-sph (Non-cohésif)                   
+	    fxx=0.;
+		fyy=0.;
+		fzz=0.;
+
+		mxji=0.;
+		myji=0.;
+		mzji=0.;
+
+		mxij=0.;
+		myij=0.;
+		mzij=0.;
+		
+         u1=0.;
+	     u2=-LIST_R[numc1]*t1*LIST_WX[numc1]-LIST_R[numc1]*t2*LIST_WY[numc1]-LIST_R[numc1]*t3*LIST_WZ[numc1];
+	     u2=u2-LIST_R[numc2]*t1*LIST_WX[numc2]-LIST_R[numc2]*t2*LIST_WY[numc2]-LIST_R[numc2]*t3*LIST_WZ[numc2];
+	     u3=LIST_R[numc1]*s1*LIST_WX[numc1]+LIST_R[numc1]*s2*LIST_WY[numc1]+LIST_R[numc1]*s3*LIST_WZ[numc1];
+	     u3=u3+LIST_R[numc2]*s1*LIST_WX[numc2]+LIST_R[numc2]*s2*LIST_WY[numc2]+LIST_R[numc2]*s3*LIST_WZ[numc2];	  
+	     
+	     u1=u1+n1*(LIST_VX[numc1]-LIST_VX[numc2])+n2*(LIST_VY[numc1]-LIST_VY[numc2])+n3*(LIST_VZ[numc1]-LIST_VZ[numc2]);
+	     u2=u2+s1*(LIST_VX[numc1]-LIST_VX[numc2])+s2*(LIST_VY[numc1]-LIST_VY[numc2])+s3*(LIST_VZ[numc1]-LIST_VZ[numc2]);
+	     u3=u3+t1*(LIST_VX[numc1]-LIST_VX[numc2])+t2*(LIST_VY[numc1]-LIST_VY[numc2])+t3*(LIST_VZ[numc1]-LIST_VZ[numc2]);	 
+
+	     rij=(LIST_R[numc1]*LIST_R[numc2])/(LIST_R[numc1]+LIST_R[numc2]);
+	     hij=fabs(dist-DCONTO[it]);
+
+             if((numc1==NB_SPH-1)||(numc2==NB_SPH-1)){
+             //contacts indenteur
+	     iEij=(1.-nu1*nu1)/E1+(1.-nu2*nu2)/E2;
+	     Eij=1./iEij;	
+	     Kn=10.*4.*Eij*sqrt(rij*hij)/3.;
+	     
+             }else 
+             {
+             //contacts dans l'échantillon
+             //  cout<<"contacts dans l'échantillon"<<endl;
+
+	     iEij=2.*(1.-nu2*nu2)/E2;
+	     Eij=1./iEij;	
+	     Kn=4.*Eij*sqrt(rij*hij)/3.; 
+             Kn=0.;
+             }	
+             Kt=Kn;
+	     	     	 	     
+	     rn=Kn*(dist-DCONTO[it]);
+	     crn=Kt*u2*dt;
+	     drn=Kt*u3*dt;
+		  
+	     rnv=sqrt(Kn*mas1)*u1;   
+	     crnv=sqrt(Kn*mas1)*u2;  
+	     drnv=sqrt(Kn*mas1)*u3;  
+
+	     pred1=-rn-rnv;
+	     pred2=-crn-crnv;    
+	     pred3=-drn-drnv;    
+
+	     abspred2=sqrt(pred2*pred2+pred3*pred3);
+
+	     if(fric==0){pred2=0.;pred3=0.;}
+
+	     if(pred1<0){ //relachement
+		 pred1=0.;
+		 pred2=0.;	 
+		 pred3=0.;	 
+		 }
+		 else if(abspred2<=fric*pred1){ //adherence
+		 pred1=pred1;
+		 pred2=pred2;	 
+		 pred3=pred3;	 
+		 }
+		 else if(fric>0){ // Glissement avec frottement
+		 pred1=pred1;
+		 pred2=-abs(fric*pred1)*u2/abs(u2); 
+		 pred3=-abs(fric*pred1)*u3/abs(u3); 
+		 }	 
+		 else // Glissement sans frottement
+		 {
+		 pred1=pred1;
+		 pred2=0.;
+		 pred3=0.;
+	     }
+		          
+          fxx=n1*pred1+s1*pred2+t1*pred3;
+          fyy=n2*pred1+s2*pred2+t2*pred3;
+          fzz=n3*pred1+s3*pred2+t3*pred3;
+		  
+		  mxji = -LIST_R[numc1]*t1*pred2+LIST_R[numc1]*s1*pred3;
+		  mxij = -LIST_R[numc2]*t1*pred2+LIST_R[numc2]*s1*pred3;
+		  myji = -LIST_R[numc1]*t2*pred2+LIST_R[numc1]*s2*pred3;
+		  myij = -LIST_R[numc2]*t2*pred2+LIST_R[numc2]*s2*pred3;
+		  mzji = -LIST_R[numc1]*t3*pred2+LIST_R[numc1]*s3*pred3; 
+		  mzij = -LIST_R[numc2]*t3*pred2+LIST_R[numc2]*s3*pred3;
+			 
+	      }   
+
+			  FX[numc1]=FX[numc1]+fxx;			 
+			  FY[numc1]=FY[numc1]+fyy;			  
+			  FZ[numc1]=FZ[numc1]+fzz;
+
+			  FCJI[it][0]=fxx;
+			  FCJI[it][1]=fyy;
+			  FCJI[it][2]=fzz; 
+
+			  FX[numc2]=FX[numc2]-fxx;
+			  FY[numc2]=FY[numc2]-fyy;
+			  FZ[numc2]=FZ[numc2]-fzz;			    
+					 
+			  MTX[numc1]=MTX[numc1]+mxji;
+			  MTX[numc2]=MTX[numc2]+mxij;
+
+			  MTY[numc1]=MTY[numc1]+myji;
+			  MTY[numc2]=MTY[numc2]+myij;			  
+
+			  MTZ[numc1]=MTZ[numc1]+mzji;
+			  MTZ[numc2]=MTZ[numc2]+mzij;	
+			           
+        }	
+       
+
+}
+
+void forcecoh_qs(int ite, R & Epe, R & Epa,int NBCO, int NB_SPH,  int ** CONT,  R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_TX, R * LIST_TY, R * LIST_TZ, R * LIST_VX, R * LIST_VY, R * LIST_VZ,R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * DCONTX, R * DCONTY, R * DCONTZ, R ** NCONT,  R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, R ** VALCOH, R ** VALAMO, R ** FCJI, R ** FOJI, R ** MTJI, R ** MTIJ){
+
+int numc1,numc2;
+R n1,n2,n3,s1,s2,s3,t1,t2,t3,fnji,ftji,fbji,mxij,mxji,myij,myji,mzij,mzji,un_ij,ut_ij,ub_ij,thetaxi,thetaxj,thetayi,thetayj,thetazi,thetazj;
+R thetani,thetanj,thetati,thetatj,thetabi,thetabj;
+R vn_ij,vt_ij,vb_ij;
+R dxoij,dyoij,dzoij; 
+R fxx,fyy,fzz;
+R mtij,mbij;
+R mnji,mtji,mbji;
+R Epe1=0.;
+R Epa1=0.;
+int it,num_threads;
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+
+# pragma omp parallel for schedule(dynamic,int(NBCO/num_threads)) private(it,numc1,numc2,n1,n2,n3,s1,s2,s3,t1,t2,t3,fnji,ftji,fbji,mxij,mxji,myij,myji,mzij,mzji,un_ij,ut_ij,ub_ij,thetaxi,thetaxj,thetayi,thetayj,thetazi,thetazj,thetani,thetanj,thetati,thetatj,thetabi,thetabj,vn_ij,vt_ij,vb_ij,dxoij,dyoij,dzoij,fxx,fyy,fzz,mtij,mbij,mnji,mtji,mbji) reduction(+:Epe1,Epa1,FX[0:NB_SPH],FY[0:NB_SPH],FZ[0:NB_SPH],MTX[0:NB_SPH],MTY[0:NB_SPH],MTZ[0:NB_SPH])
+
+	for(it=0;it<NBCO;it++){ 
+		
+	  // Numeros des candidats 
+	     numc1=CONT[it][0];
+	     numc2=CONT[it][1];   
+		
+	  // normal ext 1->2
+	     n1=NCONT[it][0];
+	     n2=NCONT[it][1];
+	     n3=NCONT[it][2];
+	     s1=NCONT[it][3];
+	     s2=NCONT[it][4];
+	     s3=NCONT[it][5];
+	     t1=NCONT[it][6];
+	     t2=NCONT[it][7];
+	     t3=NCONT[it][8];  	  
+            
+         // Déplacements relatifs dans le repère global
+             dxoij=(LIST_X[numc1]-LIST_X[numc2])-DCONTX[it];        	           
+             dyoij=(LIST_Y[numc1]-LIST_Y[numc2])-DCONTY[it];
+             dzoij=(LIST_Z[numc1]-LIST_Z[numc2])-DCONTZ[it];
+
+         // Déplacements relatifs dans le repère local
+             un_ij=n1*dxoij+n2*dyoij+n3*dzoij;
+             ut_ij=s1*dxoij+s2*dyoij+s3*dzoij;
+             ub_ij=t1*dxoij+t2*dyoij+t3*dzoij; 
+             
+          // Rotations      
+             thetaxi=LIST_TX[numc1];
+             thetaxj=LIST_TX[numc2];
+             thetayi=LIST_TY[numc1];
+             thetayj=LIST_TY[numc2];
+             thetazi=LIST_TZ[numc1];
+             thetazj=LIST_TZ[numc2];
+                      
+             thetani=n1*thetaxi+n2*thetayi+n3*thetazi;   
+             thetati=s1*thetaxi+s2*thetayi+s3*thetazi;                       
+             thetabi=t1*thetaxi+t2*thetayi+t3*thetazi;            
+
+             thetanj=n1*thetaxj+n2*thetayj+n3*thetazj;   
+             thetatj=s1*thetaxj+s2*thetayj+s3*thetazj;                       
+             thetabj=t1*thetaxj+t2*thetayj+t3*thetazj;  
+            
+        
+          // Vitesses relatives dans le repère local
+			/* vn_ij=n1*(LIST_VX[numc1]-LIST_VX[numc2])+n2*(LIST_VY[numc1]-LIST_VY[numc2])+n3*(LIST_VZ[numc1]-LIST_VZ[numc2]);
+			 vt_ij=s1*(LIST_VX[numc1]-LIST_VX[numc2])+s2*(LIST_VY[numc1]-LIST_VY[numc2])+s3*(LIST_VZ[numc1]-LIST_VZ[numc2]);
+			 vb_ij=t1*(LIST_VX[numc1]-LIST_VX[numc2])+t2*(LIST_VY[numc1]-LIST_VY[numc2])+t3*(LIST_VZ[numc1]-LIST_VZ[numc2]);	
+             */        
+             
+             
+// Modèle Poutre 3D
+//	ES/L	 VALCOH[nbco][0]=kn;
+//  12EI/L3	 VALCOH[nbco][1]=kt;
+//	6EI/L2	 VALCOH[nbco][2]=nd2*kt/2.;	
+//	4EI/L2	 VALCOH[nbco][3]=nd2*nd2*kt/3.;	
+//	2EI/L2	 VALCOH[nbco][4]=nd2*nd2*kt/6.;
+//	2GI/L	 VALCOH[nbco][5]		 
+
+			  fnji=-VALCOH[it][0]*un_ij;
+			  ftji=-VALCOH[it][1]*ut_ij-VALCOH[it][2]*(thetabi+thetabj);
+			  fbji=-VALCOH[it][1]*ub_ij+VALCOH[it][2]*(thetati+thetatj);  
+			  
+			  mnji=-VALCOH[it][5]*(thetani-thetanj);
+			  mtji=VALCOH[it][2]*ub_ij-VALCOH[it][3]*thetati-VALCOH[it][4]*thetatj;
+			  mbji=-VALCOH[it][2]*ut_ij-VALCOH[it][3]*thetabi-VALCOH[it][4]*thetabj;
+			 			 
+			  mtij=VALCOH[it][2]*ub_ij-VALCOH[it][3]*thetatj-VALCOH[it][4]*thetati;  
+                          mbij=-VALCOH[it][2]*ut_ij-VALCOH[it][3]*thetabj-VALCOH[it][4]*thetabi;
+
+				Epe1+=2.*(0.5*VALCOH[it][0]*un_ij*un_ij);
+		        	Epe1+=2.*(0.5*VALCOH[it][1]*ut_ij*ut_ij);
+				Epe1+=2.*(0.5*VALCOH[it][1]*ub_ij*ub_ij);								
+	
+				Epe1+=2.*(0.5*VALCOH[it][3]*thetati*thetati+0.5*VALCOH[it][3]*thetabi*thetabi);
+				Epe1+=2.*(0.5*VALCOH[it][3]*thetatj*thetatj+0.5*VALCOH[it][3]*thetabj*thetabj);
+				Epe1+=2.*(0.5*VALCOH[it][5]*thetani*thetani+0.5*VALCOH[it][5]*thetanj*thetanj);						
+			
+				Epe1+= -2.*(VALCOH[it][2]*thetati+VALCOH[it][2]*thetatj)*ub_ij;          //2?
+				Epe1+= -2.*(VALCOH[it][2]*thetabi+VALCOH[it][2]*thetabj)*ut_ij;          //2?
+				Epe1+= 2.*(VALCOH[it][4]*thetatj*thetati+VALCOH[it][4]*thetabj*thetabi);//2?
+
+
+
+// Modèle André
+/*
+			  fnji=-VALCOH[it][0]*un_ij;
+			  ftji=-VALCOH[it][1]*ut_ij+VALCOH[it][2]*(thetabi+thetabj);
+			  fbji=-VALCOH[it][1]*ub_ij+VALCOH[it][2]*(thetati+thetatj);  
+			  
+			  mnji=-VALCOH[it][5]*(thetani-thetanj);
+			  mtji=-VALCOH[it][3]*thetati-VALCOH[it][4]*thetatj;
+			  mbji=-VALCOH[it][3]*thetabi-VALCOH[it][4]*thetabj;
+			 			 
+			  mtij=-VALCOH[it][3]*thetatj-VALCOH[it][4]*thetati;  
+              mbij=-VALCOH[it][3]*thetabj-VALCOH[it][4]*thetabi;
+*/
+// Modèle Kn/Kt
+/*
+			  fnji=-VALCOH[it][0]*un_ij;
+			  ftji=-VALCOH[it][1]*ut_ij;
+			  fbji=-VALCOH[it][1]*ub_ij;  
+			  
+			  mnji=0.;
+			  mtji=0.;
+			  mbji=0.;
+			 			 
+			  mtij=0.;  
+              mbij=0.;	
+              * 
+              * Epe1+=2.*0.5*VALCOH[it][0]*un_ij*un_ij;
+		    	Epe1+=2.*0.5*VALCOH[it][1]*ut_ij*ut_ij;
+				Epe1+=2.*0.5*VALCOH[it][1]*ub_ij*ub_ij;	*/
+
+
+// Amortissement 
+/*
+			  fnji=fnji-(VALAMO[it][0]*vn_ij);
+			  ftji=ftji-(VALAMO[it][1]*vt_ij);
+			  fbji=fbji-(VALAMO[it][1]*vb_ij);		  
+			  
+			  mnji=mnji-(VALAMO[it][5]*(LIST_WX[numc2]-LIST_WX[numc1]));
+			  mtji=mtji-(VALAMO[it][3]*LIST_WY[numc1]+VALAMO[it][4]*LIST_WY[numc2]);
+			  mbji=mbji-(VALAMO[it][3]*LIST_WZ[numc1]+VALAMO[it][4]*LIST_WZ[numc2]);
+			  
+			  mtij=mtij-(VALAMO[it][3]*LIST_WY[numc2]+VALAMO[it][4]*LIST_WY[numc1]);
+			  mbij=mbij-(VALAMO[it][3]*LIST_WZ[numc2]+VALAMO[it][4]*LIST_WZ[numc1]);*/
+/*
+				Epa1+=2.*(0.5*VALAMO[it][0]*vn_ij*un_ij);
+				Epa1+=2.*(0.5*VALAMO[it][1]*ut_ij*vt_ij); 
+				Epa1+=2.*(0.5*VALAMO[it][1]*ub_ij*vb_ij); 
+				Epa1+=2.*(0.5*VALAMO[it][3]*thetati*LIST_WY[numc1]+0.5*VALAMO[it][3]*thetabi*LIST_WZ[numc1]);
+				Epa1+=2.*(0.5*VALAMO[it][3]*thetatj*LIST_WY[numc2]+0.5*VALAMO[it][3]*thetabj*LIST_WZ[numc2]);
+				Epa1+=2.*(0.5*VALAMO[it][5]*thetani*LIST_WX[numc1]+0.5*VALAMO[it][5]*thetanj*LIST_WX[numc2]);	
+				Epa1+=2.*VALAMO[it][4]*(thetatj*LIST_WY[numc1]+thetabj*LIST_WZ[numc1]) //2? 
+				Epa1+=2.*VALAMO[it][4]*(thetati*LIST_WY[numc2]+thetabi*LIST_WZ[numc2]) //2? 	
+	
+		*/				
+
+			FOJI[it][0]=fnji;
+			FOJI[it][1]=ftji;
+			FOJI[it][2]=fbji;
+
+			MTJI[it][0]=mnji;
+			MTJI[it][1]=mtji;
+			MTJI[it][2]=mbji;                                      
+
+			MTIJ[it][0]=-mnji;
+			MTIJ[it][1]=mtij;
+			MTIJ[it][2]=mbij;  
+
+			fxx=n1*fnji+s1*ftji+t1*fbji;
+			fyy=n2*fnji+s2*ftji+t2*fbji;
+			fzz=n3*fnji+s3*ftji+t3*fbji;
+
+			FCJI[it][0]=fxx;
+			FCJI[it][1]=fyy;
+			FCJI[it][2]=fzz;  
+
+			mxji=n1*mnji+s1*mtji+t1*mbji; 
+			myji=n2*mnji+s2*mtji+t2*mbji; 
+			mzji=n3*mnji+s3*mtji+t3*mbji; 
+
+			mxij=-n1*mnji+s1*mtij+t1*mbij; 
+			myij=-n2*mnji+s2*mtij+t2*mbij; 
+			mzij=-n3*mnji+s3*mtij+t3*mbij; 
+
+		//	  # pragma omp atomic
+			  FX[numc1]+=fxx;
+		//	  # pragma omp atomic
+			  FY[numc1]+=fyy;
+		//	  # pragma omp atomic
+			  FZ[numc1]+=fzz;
+		//	  # pragma omp atomic
+			  FX[numc2]+=(-fxx);
+		//	  # pragma omp atomic
+			  FY[numc2]+=(-fyy);
+		//	  # pragma omp atomic
+			  FZ[numc2]+=(-fzz);
+		//	  # pragma omp atomic
+			  MTX[numc1]+=mxji;
+		//	  # pragma omp atomic
+			  MTX[numc2]+=mxij;
+		//	  # pragma omp atomic
+			  MTY[numc1]+=myji;
+		//	  # pragma omp atomic
+			  MTY[numc2]+=myij;	
+		//	  # pragma omp atomic
+			  MTZ[numc1]+=mzji;
+		//	  # pragma omp atomic
+			  MTZ[numc2]+=mzij;
+    
+        }	
+  
+
+Epe=Epe1;
+Epa=Epa1;
+
+}
+
+
+void forcecoh_qs_nrj(R & Epe, R & Epa,int NBCO, int NB_SPH,  int ** CONT,  R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z,R * LIST_XA, R * LIST_YA, R * LIST_ZA, R * LIST_TX, R * LIST_TY, R * LIST_TZ, R * LIST_TXA, R * LIST_TYA, R * LIST_TZA, R * LIST_VX, R * LIST_VY, R * LIST_VZ,R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * DCONTX, R * DCONTY, R * DCONTZ, R ** NCONT,  R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, R ** VALCOH, R ** VALAMO, R ** FCJI, R ** FOJI, R ** MTJI, R ** MTIJ){
+
+int numc1,numc2;
+R n1,n2,n3,s1,s2,s3,t1,t2,t3,fnji,ftji,fbji,mxij,mxji,myij,myji,mzij,mzji,un_ij,ut_ij,ub_ij,un_ij_t,ut_ij_t,ub_ij_t,thetaxi,thetaxj,thetayi,thetayj,thetazi,thetazj;
+R thetaxi_t,thetaxj_t,thetayi_t,thetayj_t,thetazi_t,thetazj_t;
+R thetani,thetanj,thetati,thetatj,thetabi,thetabj;
+R thetani_t,thetanj_t,thetati_t,thetatj_t,thetabi_t,thetabj_t;
+R vn_ij,vt_ij,vb_ij;
+R dxoij,dyoij,dzoij,dxij,dyij,dzij; 
+R fxx,fyy,fzz;
+R mtij,mbij;
+R mnji,mtji,mbji;
+
+int it,num_threads;
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+
+# pragma omp parallel for schedule(dynamic,int(NBCO/num_threads)) private(it,numc1,numc2,n1,n2,n3,s1,s2,s3,t1,t2,t3,fnji,ftji,fbji,mxij,mxji,myij,myji,mzij,mzji,un_ij,ut_ij,ub_ij,thetaxi,thetaxj,thetayi,thetayj,thetazi,thetazj,thetani,thetanj,thetati,thetatj,thetabi,thetabj,vn_ij,vt_ij,vb_ij,dxoij,dyoij,dzoij,fxx,fyy,fzz,mtij,mbij,mnji,mtji,mbji,thetaxi_t,thetaxj_t,thetayi_t,thetayj_t,thetazi_t,thetazj_t,thetani_t,thetanj_t,thetati_t,thetatj_t,thetabi_t,thetabj_t,dxij,dyij,dzij) reduction(+:Epa,FX[0:NB_SPH],FY[0:NB_SPH],FZ[0:NB_SPH],MTX[0:NB_SPH],MTY[0:NB_SPH],MTZ[0:NB_SPH]) reduction(-:Epe)
+	for(it=0;it<NBCO;it++){ 
+		
+		 // Numeros des candidats 
+	     numc1=CONT[it][0];
+	     numc2=CONT[it][1];   
+		
+	     // normal ext 1->2
+	     n1=NCONT[it][0];
+	     n2=NCONT[it][1];
+	     n3=NCONT[it][2];
+	     s1=NCONT[it][3];
+	     s2=NCONT[it][4];
+	     s3=NCONT[it][5];
+	     t1=NCONT[it][6];
+	     t2=NCONT[it][7];
+	     t3=NCONT[it][8];  	  
+            
+         // Déplacements relatifs dans le repère global
+             dxoij=(LIST_X[numc1]-LIST_X[numc2])-DCONTX[it];        	           
+             dyoij=(LIST_Y[numc1]-LIST_Y[numc2])-DCONTY[it];
+             dzoij=(LIST_Z[numc1]-LIST_Z[numc2])-DCONTZ[it];
+
+             dxij=(LIST_X[numc1]-LIST_X[numc2])-(LIST_XA[numc1]-LIST_XA[numc2]);        	           
+             dyij=(LIST_Y[numc1]-LIST_Y[numc2])-(LIST_YA[numc1]-LIST_YA[numc2]);
+             dzij=(LIST_Z[numc1]-LIST_Z[numc2])-(LIST_ZA[numc1]-LIST_ZA[numc2]);
+
+
+         // Déplacements relatifs dans le repère local
+             un_ij=n1*dxoij+n2*dyoij+n3*dzoij;
+             ut_ij=s1*dxoij+s2*dyoij+s3*dzoij;
+             ub_ij=t1*dxoij+t2*dyoij+t3*dzoij; 
+             
+             un_ij_t=n1*dxij+n2*dyij+n3*dzij;
+             ut_ij_t=s1*dxij+s2*dyij+s3*dzij;
+             ub_ij_t=t1*dxij+t2*dyij+t3*dzij;           
+             
+          // Rotations      
+             thetaxi=LIST_TX[numc1];
+             thetaxj=LIST_TX[numc2];
+             thetayi=LIST_TY[numc1];             
+             thetayj=LIST_TY[numc2];
+             thetazi=LIST_TZ[numc1];
+             thetazj=LIST_TZ[numc2];
+             
+             thetaxi_t=LIST_TXA[numc1];
+             thetaxj_t=LIST_TXA[numc2];
+             thetayi_t=LIST_TYA[numc1];             
+             thetayj_t=LIST_TYA[numc2];
+             thetazi_t=LIST_TZA[numc1];
+             thetazj_t=LIST_TZA[numc2];           
+                      
+             thetani=n1*thetaxi+n2*thetayi+n3*thetazi;   
+             thetati=s1*thetaxi+s2*thetayi+s3*thetazi;                       
+             thetabi=t1*thetaxi+t2*thetayi+t3*thetazi;            
+
+             thetanj=n1*thetaxj+n2*thetayj+n3*thetazj;   
+             thetatj=s1*thetaxj+s2*thetayj+s3*thetazj;                       
+             thetabj=t1*thetaxj+t2*thetayj+t3*thetazj;  
+            
+             thetani_t=n1*thetaxi_t+n2*thetayi_t+n3*thetazi_t;   
+             thetati_t=s1*thetaxi_t+s2*thetayi_t+s3*thetazi_t;                       
+             thetabi_t=t1*thetaxi_t+t2*thetayi_t+t3*thetazi_t;            
+
+             thetanj_t=n1*thetaxj_t+n2*thetayj_t+n3*thetazj_t;   
+             thetatj_t=s1*thetaxj_t+s2*thetayj_t+s3*thetazj_t;                       
+             thetabj_t=t1*thetaxj_t+t2*thetayj_t+t3*thetazj_t; 
+        
+          // Vitesses relatives dans le repère local
+			/* vn_ij=n1*(LIST_VX[numc1]-LIST_VX[numc2])+n2*(LIST_VY[numc1]-LIST_VY[numc2])+n3*(LIST_VZ[numc1]-LIST_VZ[numc2]);
+			 vt_ij=s1*(LIST_VX[numc1]-LIST_VX[numc2])+s2*(LIST_VY[numc1]-LIST_VY[numc2])+s3*(LIST_VZ[numc1]-LIST_VZ[numc2]);
+			 vb_ij=t1*(LIST_VX[numc1]-LIST_VX[numc2])+t2*(LIST_VY[numc1]-LIST_VY[numc2])+t3*(LIST_VZ[numc1]-LIST_VZ[numc2]);	
+             */        
+             
+             
+// Modèle Poutre 3D
+//	ES/L	 VALCOH[nbco][0]=kn;
+//  12EI/L3	 VALCOH[nbco][1]=kt;
+//	6EI/L2	 VALCOH[nbco][2]=nd2*kt/2.;	
+//	4EI/L2	 VALCOH[nbco][3]=nd2*nd2*kt/3.;	
+//	2EI/L2	 VALCOH[nbco][4]=nd2*nd2*kt/6.;
+//	2GI/L	 VALCOH[nbco][5]		 
+
+			  fnji=-VALCOH[it][0]*un_ij;
+			  ftji=-VALCOH[it][1]*ut_ij-VALCOH[it][2]*(thetabi+thetabj);
+			  fbji=-VALCOH[it][1]*ub_ij+VALCOH[it][2]*(thetati+thetatj);  
+			  
+			  mnji=-VALCOH[it][5]*(thetani-thetanj);
+			  mtji=VALCOH[it][2]*ub_ij-VALCOH[it][3]*thetati-VALCOH[it][4]*thetatj;
+			  mbji=-VALCOH[it][2]*ut_ij-VALCOH[it][3]*thetabi-VALCOH[it][4]*thetabj;
+			 			 
+			  mtij=VALCOH[it][2]*ub_ij-VALCOH[it][3]*thetatj-VALCOH[it][4]*thetati;  
+                          mbij=-VALCOH[it][2]*ut_ij-VALCOH[it][3]*thetabj-VALCOH[it][4]*thetabi;
+                          
+                Epe-=fnji*un_ij_t;
+                Epe-=ftji*ut_ij_t;                      
+                Epe-=fbji*ub_ij_t;      
+            
+                Epe-=mnji*(thetani-thetani_t);            
+                Epe-=mtji*(thetati-thetati_t);                   
+                Epe-=mbji*(thetabi-thetabi_t);                     
+                   
+                Epe-=(-mnji)*(thetanj-thetanj_t);                      
+                Epe-=mtij*(thetatj-thetatj_t);                   
+                Epe-=mbij*(thetabj-thetabj_t);      
+                
+                
+
+// Modèle André
+/*
+			  fnji=-VALCOH[it][0]*un_ij;
+			  ftji=-VALCOH[it][1]*ut_ij+VALCOH[it][2]*(thetabi+thetabj);
+			  fbji=-VALCOH[it][1]*ub_ij+VALCOH[it][2]*(thetati+thetatj);  
+			  
+			  mnji=-VALCOH[it][5]*(thetani-thetanj);
+			  mtji=-VALCOH[it][3]*thetati-VALCOH[it][4]*thetatj;
+			  mbji=-VALCOH[it][3]*thetabi-VALCOH[it][4]*thetabj;
+			 			 
+			  mtij=-VALCOH[it][3]*thetatj-VALCOH[it][4]*thetati;  
+              mbij=-VALCOH[it][3]*thetabj-VALCOH[it][4]*thetabi;
+*/
+// Modèle Kn/Kt
+/*
+			  fnji=-VALCOH[it][0]*un_ij;
+			  ftji=-VALCOH[it][1]*ut_ij;
+			  fbji=-VALCOH[it][1]*ub_ij;  
+			  
+			  mnji=0.;
+			  mtji=0.;
+			  mbji=0.;
+			 			 
+			  mtij=0.;  
+              mbij=0.;	
+              * 
+              * Epe+=2.*0.5*VALCOH[it][0]*un_ij*un_ij;
+		    	Epe+=2.*0.5*VALCOH[it][1]*ut_ij*ut_ij;
+				Epe+=2.*0.5*VALCOH[it][1]*ub_ij*ub_ij;	*/
+
+
+// Amortissement 
+/*
+			  fnji=fnji-(VALAMO[it][0]*vn_ij);
+			  ftji=ftji-(VALAMO[it][1]*vt_ij);
+			  fbji=fbji-(VALAMO[it][1]*vb_ij);		  
+			  
+			  mnji=mnji-(VALAMO[it][5]*(LIST_WX[numc2]-LIST_WX[numc1]));
+			  mtji=mtji-(VALAMO[it][3]*LIST_WY[numc1]+VALAMO[it][4]*LIST_WY[numc2]);
+			  mbji=mbji-(VALAMO[it][3]*LIST_WZ[numc1]+VALAMO[it][4]*LIST_WZ[numc2]);
+			  
+			  mtij=mtij-(VALAMO[it][3]*LIST_WY[numc2]+VALAMO[it][4]*LIST_WY[numc1]);
+			  mbij=mbij-(VALAMO[it][3]*LIST_WZ[numc2]+VALAMO[it][4]*LIST_WZ[numc1]);*/
+/*
+				Epa+=2.*(0.5*VALAMO[it][0]*vn_ij*un_ij);
+				Epa+=2.*(0.5*VALAMO[it][1]*ut_ij*vt_ij); 
+				Epa+=2.*(0.5*VALAMO[it][1]*ub_ij*vb_ij); 
+				Epa+=2.*(0.5*VALAMO[it][3]*thetati*LIST_WY[numc1]+0.5*VALAMO[it][3]*thetabi*LIST_WZ[numc1]);
+				Epa+=2.*(0.5*VALAMO[it][3]*thetatj*LIST_WY[numc2]+0.5*VALAMO[it][3]*thetabj*LIST_WZ[numc2]);
+				Epa+=2.*(0.5*VALAMO[it][5]*thetani*LIST_WX[numc1]+0.5*VALAMO[it][5]*thetanj*LIST_WX[numc2]);	
+				Epa+=2.*VALAMO[it][4]*(thetatj*LIST_WY[numc1]+thetabj*LIST_WZ[numc1]) //2? 
+				Epa+=2.*VALAMO[it][4]*(thetati*LIST_WY[numc2]+thetabi*LIST_WZ[numc2]) //2? 	
+	
+		*/				
+              
+              FOJI[it][0]=fnji;
+              FOJI[it][1]=ftji;
+              FOJI[it][2]=fbji;
+              
+              MTJI[it][0]=mnji;
+              MTJI[it][1]=mtji;
+              MTJI[it][2]=mbji;                                      
+	
+              MTIJ[it][0]=-mnji;
+              MTIJ[it][1]=mtij;
+              MTIJ[it][2]=mbij;  
+              			
+			  fxx=n1*fnji+s1*ftji+t1*fbji;
+			  fyy=n2*fnji+s2*ftji+t2*fbji;
+			  fzz=n3*fnji+s3*ftji+t3*fbji;
+                     
+			  FX[numc1]=FX[numc1]+fxx;			 
+			  FY[numc1]=FY[numc1]+fyy;			  
+			  FZ[numc1]=FZ[numc1]+fzz;
+
+              FCJI[it][0]=fxx;
+              FCJI[it][1]=fyy;
+              FCJI[it][2]=fzz;  
+	
+	          mxji=n1*mnji+s1*mtji+t1*mbji; 
+	          myji=n2*mnji+s2*mtji+t2*mbji; 
+	          mzji=n3*mnji+s3*mtji+t3*mbji; 
+
+	          mxij=-n1*mnji+s1*mtij+t1*mbij; 
+	          myij=-n2*mnji+s2*mtij+t2*mbij; 
+	          mzij=-n3*mnji+s3*mtij+t3*mbij; 
+		 	  
+			  FX[numc2]=FX[numc2]-fxx;
+			  FY[numc2]=FY[numc2]-fyy;
+			  FZ[numc2]=FZ[numc2]-fzz;			    
+					 
+			  MTX[numc1]=MTX[numc1]+mxji;
+			  MTX[numc2]=MTX[numc2]+mxij;
+
+			  MTY[numc1]=MTY[numc1]+myji;
+			  MTY[numc2]=MTY[numc2]+myij;			  
+
+			  MTZ[numc1]=MTZ[numc1]+mzji;
+			  MTZ[numc2]=MTZ[numc2]+mzij;	
+	
+    
+        }	
+       
+
+}
+
+void forcep(R &fpar,R &fpar2,R dt, int NBCOP, int ** CONTP, R * DCONTP, R ** NCONTP, R * LIST_M,  R * LIST_PM, R ** LIST_PVX, R ** LIST_PVY, R ** LIST_PVZ, R * LIST_R, R * LIST_VX, R * LIST_VY, R * LIST_VZ,R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, R E, R nu, R fric)
+{
+int numc,nump;
+R n1,n2,n3,s1,s2,s3,t1,t2,t3,mxij,myij,mzij;
+R fxx,fyy,fzz;
+R abspred2,pred1t;
+R Eij,iEij,rij,hij;
+R dist,rn,rnv,crn,crnv,drn,drnv,mas1,pred1,pred2,pred3,u1,u2,u3,Kn,Kt;	
+R vpx,vpy,vpz;	
+fpar=0.;
+fpar2=0.;
+
+	for(int it=0;it<NBCOP;it++){ 
+		
+		 // Numeros des candidats 
+	     nump=CONTP[it][0];
+	     numc=CONTP[it][1];     
+	     
+	     // normal ext 1->2
+	     n1=NCONTP[it][0];
+	     n2=NCONTP[it][1];
+	     n3=NCONTP[it][2];
+	     s1=NCONTP[it][3];
+	     s2=NCONTP[it][4];
+	     s3=NCONTP[it][5];
+	     t1=NCONTP[it][6];
+	     t2=NCONTP[it][7];
+	     t3=NCONTP[it][8];  		     
+
+	  	 dist=DCONTP[it];     
+	     //mas1=LIST_M[numc]*LIST_M[numc]/(LIST_M[numc]+LIST_M[numc]);  
+	     mas1=LIST_PM[nump]*100.;
+	     
+	     vpx=(LIST_PVX[nump][0]+LIST_PVX[nump][1]+LIST_PVX[nump][2]+LIST_PVX[nump][3])/4.;
+	     vpy=(LIST_PVY[nump][0]+LIST_PVY[nump][1]+LIST_PVY[nump][2]+LIST_PVY[nump][3])/4.;
+	     vpz=(LIST_PVZ[nump][0]+LIST_PVZ[nump][1]+LIST_PVZ[nump][2]+LIST_PVZ[nump][3])/4.;	     	     
+	     
+        // Contact sph-par (Non-cohésif)                   
+	     
+         u1=0.;
+	     u2=u2-LIST_R[numc]*t1*LIST_WX[numc]-LIST_R[numc]*t2*LIST_WY[numc]-LIST_R[numc]*t3*LIST_WZ[numc];
+	     u3=u3+LIST_R[numc]*s1*LIST_WX[numc]+LIST_R[numc]*s2*LIST_WY[numc]+LIST_R[numc]*s3*LIST_WZ[numc];	  
+	     
+	     u1=u1+n1*(vpx-LIST_VX[numc])+n2*(vpy-LIST_VY[numc])+n3*(vpz-LIST_VZ[numc]);
+	     u2=u2+s1*(vpx-LIST_VX[numc])+s2*(vpy-LIST_VY[numc])+s3*(vpz-LIST_VZ[numc]);
+	     u3=u3+t1*(vpx-LIST_VX[numc])+t2*(vpy-LIST_VY[numc])+t3*(vpz-LIST_VZ[numc]);	 
+
+	     rij=LIST_R[numc];
+	     hij=fabs(dist-LIST_R[numc]);
+		 iEij=(1.-nu*nu)/E;		 
+		 Eij=1./iEij;	
+		 Kn=4.*Eij*sqrt(rij*hij)/3.;
+		 //Kn=4.*Eij*rij;   
+	//     Kn=3.35e7; 1 PAROI
+	//     Kn=1.155e7; 2 parois
+	      //   Kn=1e7;
+	   	     Kt=Kn;
+	     	     	 	     
+	     rn=Kn*(dist-LIST_R[numc]);
+	     crn=Kt*u2*dt;
+	     drn=Kt*u3*dt;
+		  
+	     rnv=sqrt(Kn*mas1)*u1;   
+	     crnv=sqrt(Kn*mas1)*u2;  
+	     drnv=sqrt(Kn*mas1)*u3;  
+
+	     pred1=-rn-rnv;
+	     pred1t=pred1;
+	     pred2=-crn-crnv;    
+	     pred3=-drn-drnv;    
+
+	     abspred2=sqrt(pred2*pred2+pred3*pred3);
+
+	     if(fric==0){pred2=0.;pred3=0.;}
+
+	     if(pred1<0){ //relachement
+		 pred1=0.;
+		 pred2=0.;	 
+		 pred3=0.;	 
+		 }
+		 else if(abspred2<=fric*pred1){ //adherence
+		 pred1=pred1;
+		 pred2=pred2;	 
+		 pred3=pred3;	 
+		 }
+		 else if(fric>0){ // Glissement avec frottement
+		 pred1=pred1;
+		 pred2=-abs(fric*pred1)*u2/abs(u2); 
+		 pred3=-abs(fric*pred1)*u3/abs(u3); 
+		 }	 
+		 else // Glissement sans frottement
+		 {
+		 pred1=pred1;
+		 pred2=0.;
+		 pred3=0.;
+	     }
+		          
+		fxx=n1*pred1+s1*pred2+t1*pred3;
+		fyy=n2*pred1+s2*pred2+t2*pred3;
+		fzz=n3*pred1+s3*pred2+t3*pred3;		  
+
+		mxij = -LIST_R[numc]*t1*pred2+LIST_R[numc]*s1*pred3;
+		myij = -LIST_R[numc]*t2*pred2+LIST_R[numc]*s2*pred3;
+		mzij = -LIST_R[numc]*t3*pred2+LIST_R[numc]*s3*pred3;	     
+
+		FX[numc]=FX[numc]-fxx;
+		FY[numc]=FY[numc]-fyy;
+		FZ[numc]=FZ[numc]-fzz;			    
+			 
+		if(nump==0){fpar=fpar+fxx;}	 
+		if(nump==1){fpar2=fpar2+fxx;}	 
+					 
+		MTX[numc]=MTX[numc]+mxij;
+		MTY[numc]=MTY[numc]+myij;	
+		MTZ[numc]=MTZ[numc]+mzij;	
+	     	
+    }
+    
+
+			  
+	
+}	
+
+	      
+void forcecoh(R & Epe, R & Epa,R dt, bool * TYPCO,int NBCO,  int ** CONT,  R * LIST_M, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_TX, R * LIST_TY, R * LIST_TZ, R * LIST_VX, R * LIST_VY, R * LIST_VZ,R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * DCONT,R * DCONTO, R * DCONTX, R * DCONTY, R * DCONTZ, R ** NCONT,  R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, R ** VALCOH, R ** VALAMO, R ** FCJI, R ** FOJI,R ** MTJI,R ** MTIJ, R E, R nu, R fric){
+
+int numc1,numc2;
+R n1,n2,n3,s1,s2,s3,t1,t2,t3,fnji,ftji,fbji,mxij,mxji,myij,myji,mzij,mzji,un_ij,ut_ij,ub_ij,thetaxi,thetaxj,thetayi,thetayj,thetazi,thetazj;
+R thetani,thetanj,thetati,thetatj,thetabi,thetabj;
+R vn_ij,vt_ij,vb_ij;
+R dxoij,dyoij,dzoij; 
+R fxx,fyy,fzz;
+R mtij,mbij,abspred2;
+R mnji,mtji,mbji;
+R rij,hij;
+R dist,rn,rnv,crn,crnv,drn,drnv,mas1,pred1,pred2,pred3,u1,u2,u3,Kn,Kt;
+R Eij,iEij;
+Epe=0.;
+Epa=0.;
+
+int it,num_threads;
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+
+# pragma omp parallel for schedule(dynamic,int(NBCO/num_threads)) private(it,n1,n2,n3,s1,s2,s3,t1,t2,t3,fnji,ftji,fbji,mxij,mxji,myij,myji,mzij,mzji,un_ij,ut_ij,ub_ij,thetaxi,thetaxj,thetayi,thetayj,thetazi,thetazj,numc1,numc2,vn_ij,vt_ij,vb_ij,dxoij,dyoij,dzoij,fxx,fyy,fzz,mtij,mbij,abspred2,mnji,mtji,mbji,rij,hij,dist,rn,rnv,crn,crnv,drn,drnv,mas1,pred1,pred2,pred3,u1,u2,u3,Kn,Kt,Eij,iEij) reduction(+:Epa,Epe,FX[0:NB_SPH],FY[0:NB_SPH],FZ[0:NB_SPH],MTX[0:NB_SPH],MTY[0:NB_SPH],MTZ[0:NB_SPH]) 
+	for(it=0;it<NBCO;it++){ 
+		
+		 // Numeros des candidats 
+	     numc1=CONT[it][0];
+	     numc2=CONT[it][1];     
+		
+	     // normal ext 1->2
+	     n1=NCONT[it][0];
+	     n2=NCONT[it][1];
+	     n3=NCONT[it][2];
+	     s1=NCONT[it][3];
+	     s2=NCONT[it][4];
+	     s3=NCONT[it][5];
+	     t1=NCONT[it][6];
+	     t2=NCONT[it][7];
+	     t3=NCONT[it][8];  	  
+	     
+	  	 dist=DCONT[it];     
+	     mas1=LIST_M[numc1]*LIST_M[numc2]/(LIST_M[numc1]+LIST_M[numc2]);      
+ 
+         if(TYPCO[it]==1){      
+            
+         // Déplacements relatifs dans le repère global
+             dxoij=(LIST_X[numc1]-LIST_X[numc2])-DCONTX[it];        	           
+             dyoij=(LIST_Y[numc1]-LIST_Y[numc2])-DCONTY[it];
+             dzoij=(LIST_Z[numc1]-LIST_Z[numc2])-DCONTZ[it];
+
+         // Déplacements relatifs dans le repère local
+             un_ij=n1*dxoij+n2*dyoij+n3*dzoij;
+             ut_ij=s1*dxoij+s2*dyoij+s3*dzoij;
+             ub_ij=t1*dxoij+t2*dyoij+t3*dzoij; 
+             
+          // Rotations      
+             thetaxi=LIST_TX[numc1];
+             thetaxj=LIST_TX[numc2];
+             thetayi=LIST_TY[numc1];
+             thetayj=LIST_TY[numc2];
+             thetazi=LIST_TZ[numc1];
+             thetazj=LIST_TZ[numc2];
+             
+         
+             thetani=n1*thetaxi+n2*thetayi+n3*thetazi;   
+             thetati=s1*thetaxi+s2*thetayi+s3*thetazi;                       
+             thetabi=t1*thetaxi+t2*thetayi+t3*thetazi;            
+
+             thetanj=n1*thetaxj+n2*thetayj+n3*thetazj;   
+             thetatj=s1*thetaxj+s2*thetayj+s3*thetazj;                       
+             thetabj=t1*thetaxj+t2*thetayj+t3*thetazj;  
+            
+        
+          // Vitesses relatives dans le repère local
+			/* vn_ij=n1*(LIST_VX[numc1]-LIST_VX[numc2])+n2*(LIST_VY[numc1]-LIST_VY[numc2])+n3*(LIST_VZ[numc1]-LIST_VZ[numc2]);
+			 vt_ij=s1*(LIST_VX[numc1]-LIST_VX[numc2])+s2*(LIST_VY[numc1]-LIST_VY[numc2])+s3*(LIST_VZ[numc1]-LIST_VZ[numc2]);
+			 vb_ij=t1*(LIST_VX[numc1]-LIST_VX[numc2])+t2*(LIST_VY[numc1]-LIST_VY[numc2])+t3*(LIST_VZ[numc1]-LIST_VZ[numc2]);	
+             */        
+             
+             
+// Modèle Poutre 3D
+//	ES/L	 VALCOH[nbco][0]=kn;
+//  12EI/L3	 VALCOH[nbco][1]=kt;
+//	6EI/L2	 VALCOH[nbco][2]=nd2*kt/2.;	
+//	4EI/L2	 VALCOH[nbco][3]=nd2*nd2*kt/3.;	
+//	2EI/L2	 VALCOH[nbco][4]=nd2*nd2*kt/6.;
+//	2GI/L	 VALCOH[nbco][5]		 
+
+			  fnji=-VALCOH[it][0]*un_ij;
+			  ftji=-VALCOH[it][1]*ut_ij-VALCOH[it][2]*(thetabi+thetabj);
+			  fbji=-VALCOH[it][1]*ub_ij+VALCOH[it][2]*(thetati+thetatj);  
+			  
+			  mnji=-VALCOH[it][5]*(thetani-thetanj);
+			  mtji=VALCOH[it][2]*ub_ij-VALCOH[it][3]*thetati-VALCOH[it][4]*thetatj;
+			  mbji=-VALCOH[it][2]*ut_ij-VALCOH[it][3]*thetabi-VALCOH[it][4]*thetabj;
+			 			 
+			  mtij=VALCOH[it][2]*ub_ij-VALCOH[it][3]*thetatj-VALCOH[it][4]*thetati;  
+                          mbij=-VALCOH[it][2]*ut_ij-VALCOH[it][3]*thetabj-VALCOH[it][4]*thetabi;
+
+				Epe+=2.*(0.5*VALCOH[it][0]*un_ij*un_ij);
+		        	Epe+=2.*(0.5*VALCOH[it][1]*ut_ij*ut_ij);
+				Epe+=2.*(0.5*VALCOH[it][1]*ub_ij*ub_ij);								
+	
+				Epe+=2.*(0.5*VALCOH[it][3]*thetati*thetati+0.5*VALCOH[it][3]*thetabi*thetabi);
+				Epe+=2.*(0.5*VALCOH[it][3]*thetatj*thetatj+0.5*VALCOH[it][3]*thetabj*thetabj);
+				Epe+=2.*(0.5*VALCOH[it][5]*thetani*thetani+0.5*VALCOH[it][5]*thetanj*thetanj);						
+			
+				Epe+= (-2.*(VALCOH[it][2]*thetati+VALCOH[it][2]*thetatj)*ub_ij);          //2
+				Epe+= (-2.*(VALCOH[it][2]*thetabi+VALCOH[it][2]*thetabj)*ut_ij);          //2
+				Epe+= 2.*(VALCOH[it][4]*thetatj*thetati+VALCOH[it][4]*thetabj*thetabi);//2
+				
+// Modèle André
+/*
+	    	  fnji=-VALCOH[it][0]*un_ij;
+			  ftji=-VALCOH[it][1]*ut_ij+VALCOH[it][2]*(thetabi+thetabj);
+			  fbji=-VALCOH[it][1]*ub_ij+VALCOH[it][2]*(thetati+thetatj);  
+			  
+			  mnji=-VALCOH[it][5]*(thetani-thetanj);
+			  mtji=-VALCOH[it][3]*thetati-VALCOH[it][4]*thetatj;
+			  mbji=-VALCOH[it][3]*thetabi-VALCOH[it][4]*thetabj;
+			 			 
+			  mtij=-VALCOH[it][3]*thetatj-VALCOH[it][4]*thetati;  
+              mbij=-VALCOH[it][3]*thetabj-VALCOH[it][4]*thetabi;
+              
+				Epe+=2.*0.5*VALCOH[it][0]*un_ij*un_ij;
+				Epe+=2.*0.5*VALCOH[it][1]*ut_ij*ut_ij;
+				Epe+=2.*0.5*VALCOH[it][1]*ub_ij*ub_ij;*/
+				
+// Modèle Kn/Kt
+/*
+			  fnji=-VALCOH[it][0]*un_ij;
+			  ftji=-VALCOH[it][1]*ut_ij;
+			  fbji=-VALCOH[it][1]*ub_ij;  
+			  
+			  mnji=0.;
+			  mtji=0.;
+			  mbji=0.;
+			 			 
+			  mtij=0.;  
+              mbij=0.;
+
+				Epe+=2.*0.5*VALCOH[it][0]*un_ij*un_ij;
+		    	Epe+=2.*0.5*VALCOH[it][1]*ut_ij*ut_ij;
+				Epe+=2.*0.5*VALCOH[it][1]*ub_ij*ub_ij;	
+				
+				*/
+				
+
+// Amortissement 
+/*
+			  fnji=fnji-(VALAMO[it][0]*vn_ij);
+			  ftji=ftji-(VALAMO[it][1]*vt_ij);
+			  fbji=fbji-(VALAMO[it][1]*vb_ij);		  
+			  
+			  mnji=mnji-(VALAMO[it][5]*(LIST_WX[numc2]-LIST_WX[numc1]));
+			  mtji=mtji-(VALAMO[it][3]*LIST_WY[numc1]+VALAMO[it][4]*LIST_WY[numc2]);
+			  mbji=mbji-(VALAMO[it][3]*LIST_WZ[numc1]+VALAMO[it][4]*LIST_WZ[numc2]);
+			  
+			  mtij=mtij-(VALAMO[it][3]*LIST_WY[numc2]+VALAMO[it][4]*LIST_WY[numc1]);
+			  mbij=mbij-(VALAMO[it][3]*LIST_WZ[numc2]+VALAMO[it][4]*LIST_WZ[numc1]);*/
+
+/*
+				Epa+=2.*(0.5*VALAMO[it][0]*vn_ij*un_ij);
+				Epa+=2.*(0.5*VALAMO[it][1]*ut_ij*vt_ij); 
+				Epa+=2.*(0.5*VALAMO[it][1]*ub_ij*vb_ij); 
+				Epa+=2.*(0.5*VALAMO[it][3]*thetati*LIST_WY[numc1]+0.5*VALAMO[it][3]*thetabi*LIST_WZ[numc1]);
+				Epa+=2.*(0.5*VALAMO[it][3]*thetatj*LIST_WY[numc2]+0.5*VALAMO[it][3]*thetabj*LIST_WZ[numc2]);
+				Epa+=2.*(0.5*VALAMO[it][5]*thetani*LIST_WX[numc1]+0.5*VALAMO[it][5]*thetanj*LIST_WX[numc2]);	
+				Epa+=2.*VALAMO[it][4]*(thetatj*LIST_WY[numc1]+thetabj*LIST_WZ[numc1]) //2? 
+				Epa+=2.*VALAMO[it][4]*(thetati*LIST_WY[numc2]+thetabi*LIST_WZ[numc2]) //2? 	
+	
+		*/
+		
+              FOJI[it][0]=fnji;
+              FOJI[it][1]=ftji;
+              FOJI[it][2]=fbji;
+              
+              MTJI[it][0]=mnji;
+              MTJI[it][1]=mtji;
+              MTJI[it][2]=mbji;                                      
+	
+              MTIJ[it][0]=-mnji;
+              MTIJ[it][1]=mtij;
+              MTIJ[it][2]=mbij;  		
+		
+			  fxx=n1*fnji+s1*ftji+t1*fbji;
+			  fyy=n2*fnji+s2*ftji+t2*fbji;
+			  fzz=n3*fnji+s3*ftji+t3*fbji;
+	
+	          mxji=n1*mnji+s1*mtji+t1*mbji; 
+	          myji=n2*mnji+s2*mtji+t2*mbji; 
+	          mzji=n3*mnji+s3*mtji+t3*mbji; 
+
+	          mxij=-n1*mnji+s1*mtij+t1*mbij; 
+	          myij=-n2*mnji+s2*mtij+t2*mbij; 
+	          mzij=-n3*mnji+s3*mtij+t3*mbij; 
+		 	  
+
+	
+	      }
+          else{
+
+		fxx=0.;
+		fyy=0.;
+		fzz=0.;
+
+		mxji=0.;
+		myji=0.;
+		mzji=0.;
+
+		mxij=0.;
+		myij=0.;
+		mzij=0.;
+
+
+        // Contact sph-sph (Non-cohésif)                   
+	    
+         u1=0.;
+	     u2=-LIST_R[numc1]*t1*LIST_WX[numc1]-LIST_R[numc1]*t2*LIST_WY[numc1]-LIST_R[numc1]*t3*LIST_WZ[numc1];
+	     u2=u2-LIST_R[numc2]*t1*LIST_WX[numc2]-LIST_R[numc2]*t2*LIST_WY[numc2]-LIST_R[numc2]*t3*LIST_WZ[numc2];
+	     u3=LIST_R[numc1]*s1*LIST_WX[numc1]+LIST_R[numc1]*s2*LIST_WY[numc1]+LIST_R[numc1]*s3*LIST_WZ[numc1];
+	     u3=u3+LIST_R[numc2]*s1*LIST_WX[numc2]+LIST_R[numc2]*s2*LIST_WY[numc2]+LIST_R[numc2]*s3*LIST_WZ[numc2];	  
+	     
+	     u1=u1+n1*(LIST_VX[numc1]-LIST_VX[numc2])+n2*(LIST_VY[numc1]-LIST_VY[numc2])+n3*(LIST_VZ[numc1]-LIST_VZ[numc2]);
+	     u2=u2+s1*(LIST_VX[numc1]-LIST_VX[numc2])+s2*(LIST_VY[numc1]-LIST_VY[numc2])+s3*(LIST_VZ[numc1]-LIST_VZ[numc2]);
+	     u3=u3+t1*(LIST_VX[numc1]-LIST_VX[numc2])+t2*(LIST_VY[numc1]-LIST_VY[numc2])+t3*(LIST_VZ[numc1]-LIST_VZ[numc2]);	 
+
+	     rij=(LIST_R[numc1]*LIST_R[numc2])/(LIST_R[numc1]+LIST_R[numc2]);
+	     hij=abs(dist-DCONTO[it]);
+
+		 iEij=2.*(1.-nu*nu)/E;		 
+		 Eij=1./iEij;	
+	     Kn=4.*Eij*sqrt(rij*hij)/3.;
+	     Kn=Kn/100.;
+	     Kn=2.5e8;
+	     Kt=Kn;
+	     	     	 	     
+	 //    rn=Kn*(dist-(LIST_R[numc1]+LIST_R[numc2]));
+	     rn=Kn*(dist-DCONTO[it]);	     
+	     crn=Kt*u2*dt;
+	     drn=Kt*u3*dt;
+		  
+	     rnv=sqrt(Kn*mas1)*u1;   
+	     crnv=sqrt(Kn*mas1)*u2;  
+	     drnv=sqrt(Kn*mas1)*u3;  
+
+	     pred1=-rn-rnv;
+	     pred2=-crn-crnv;    
+	     pred3=-drn-drnv;    
+
+	     abspred2=sqrt(pred2*pred2+pred3*pred3);
+	       
+	     if(fric==0){pred2=0.;pred3=0.;}
+
+	     if(pred1<0){ //relachement
+		 pred1=0.;
+		 pred2=0.;	 
+		 pred3=0.;	 
+		 }
+		 else if(abspred2<=fric*pred1){ //adherence
+		 pred1=pred1;
+		 pred2=pred2;	 
+		 pred3=pred3;	 
+		 }
+		 else if(fric>0){ // Glissement avec frottement
+		 pred1=pred1;
+		 pred2=-abs(fric*pred1)*u2/abs(u2); 
+		 pred3=-abs(fric*pred1)*u3/abs(u3); 
+		 }	 
+		 else // Glissement sans frottement
+		 {
+		 pred1=pred1;
+		 pred2=0.;
+		 pred3=0.;
+	         }
+ 
+	          
+          fxx=n1*pred1+s1*pred2+t1*pred3;
+          fyy=n2*pred1+s2*pred2+t2*pred3;
+          fzz=n3*pred1+s3*pred2+t3*pred3;
+		  
+		  mxji = -LIST_R[numc1]*t1*pred2+LIST_R[numc1]*s1*pred3;
+		  mxij = -LIST_R[numc2]*t1*pred2+LIST_R[numc2]*s1*pred3;
+		  myji = -LIST_R[numc1]*t2*pred2+LIST_R[numc1]*s2*pred3;
+		  myij = -LIST_R[numc2]*t2*pred2+LIST_R[numc2]*s2*pred3;
+		  mzji = -LIST_R[numc1]*t3*pred2+LIST_R[numc1]*s3*pred3; 
+		  mzij = -LIST_R[numc2]*t3*pred2+LIST_R[numc2]*s3*pred3;
+			 
+	      }   
+
+
+			FCJI[it][0]=fxx;
+			FCJI[it][1]=fyy;
+			FCJI[it][2]=fzz; 
+
+
+		//	  # pragma omp atomic
+			  FX[numc1]+=fxx;
+		//	  # pragma omp atomic
+			  FY[numc1]+=fyy;
+		//	  # pragma omp atomic
+			  FZ[numc1]+=fzz;
+		//	  # pragma omp atomic
+			  FX[numc2]+=(-fxx);
+		//	  # pragma omp atomic
+			  FY[numc2]+=(-fyy);
+		//	  # pragma omp atomic
+			  FZ[numc2]+=(-fzz);
+		//	  # pragma omp atomic
+			  MTX[numc1]+=mxji;
+		//	  # pragma omp atomic
+			  MTX[numc2]+=mxij;
+		//	  # pragma omp atomic
+			  MTY[numc1]+=myji;
+		//	  # pragma omp atomic
+			  MTY[numc2]+=myij;	
+		//	  # pragma omp atomic
+			  MTZ[numc1]+=mzji;
+		//	  # pragma omp atomic
+			  MTZ[numc2]+=mzij;	
+			           
+        }	
+       
+
+}
+
+
+void forcecoh2(R & Epe, R & Epa,R dt, bool * TYPCO,int NBCO, int NB_SPH,  int ** CONT,  R * LIST_M, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_TX, R * LIST_TY, R * LIST_TZ, R * LIST_VX, R * LIST_VY, R * LIST_VZ,R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * DCONT, R * DCONTO, R * DCONTX, R * DCONTY, R * DCONTZ, R ** NCONT,  R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, R ** VALCOH, R ** VALAMO, R ** FCJI,R ** FOJI,R ** MTJI,R ** MTIJ, R E1, R nu1, R E2, R nu2, R fric, bool * LIST_P){
+
+int numc1,numc2;
+R n1,n2,n3,s1,s2,s3,t1,t2,t3,fnji,ftji,fbji,mxij,mxji,myij,myji,mzij,mzji,un_ij,ut_ij,ub_ij,thetaxi,thetaxj,thetayi,thetayj,thetazi,thetazj;
+R thetani,thetanj,thetati,thetatj,thetabi,thetabj;
+R vn_ij,vt_ij,vb_ij;
+R dxoij,dyoij,dzoij; 
+R fxx,fyy,fzz;
+R mtij,mbij,abspred2;
+R mnji,mtji,mbji;
+R rij,hij;
+R dist,rn,rnv,crn,crnv,drn,drnv,mas1,pred1,pred2,pred3,u1,u2,u3,Kn,Kt;
+R Eij,iEij;
+
+Epe=0.;
+Epa=0.;
+
+
+int it,num_threads;
+
+# pragma omp parallel
+{
+num_threads=omp_get_num_threads();
+}
+
+# pragma omp parallel for schedule(dynamic,int(NBCO/num_threads)) private(it,numc1,numc2,n1,n2,n3,s1,s2,s3,t1,t2,t3,fnji,ftji,fbji,mxij,mxji,myij,myji,mzij,mzji,un_ij,ut_ij,ub_ij,thetaxi,thetaxj,thetayi,thetayj,thetazi,thetazj,thetani,thetanj,thetati,thetatj,thetabi,thetabj,vn_ij,vt_ij,vb_ij, dxoij,dyoij,dzoij,fxx,fyy,fzz,mtij,mbij,abspred2,mnji,mtji,mbji,rij,hij,dist,rn,rnv,crn,crnv,drn,drnv,mas1,pred1,pred2,pred3,u1,u2,u3,Kn,Kt,Eij,iEij) reduction(+:Epe,Epa,FX[0:NB_SPH],FY[0:NB_SPH],FZ[0:NB_SPH],MTX[0:NB_SPH],MTY[0:NB_SPH],MTZ[0:NB_SPH])
+	for(it=0;it<NBCO;it++){ 
+		
+		 // Numeros des candidats 
+	     numc1=CONT[it][0];
+	     numc2=CONT[it][1];     
+		
+	     // normal ext 1->2
+	     n1=NCONT[it][0];
+	     n2=NCONT[it][1];
+	     n3=NCONT[it][2];
+	     s1=NCONT[it][3];
+	     s2=NCONT[it][4];
+	     s3=NCONT[it][5];
+	     t1=NCONT[it][6];
+	     t2=NCONT[it][7];
+	     t3=NCONT[it][8];  	  
+	     
+	  	 dist=DCONT[it];     
+	     mas1=LIST_M[numc1]*LIST_M[numc2]/(LIST_M[numc1]+LIST_M[numc2]);      
+ 
+         if(TYPCO[it]==1){      
+            
+         // Déplacements relatifs dans le repère global
+             dxoij=(LIST_X[numc1]-LIST_X[numc2])-DCONTX[it];        	           
+             dyoij=(LIST_Y[numc1]-LIST_Y[numc2])-DCONTY[it];
+             dzoij=(LIST_Z[numc1]-LIST_Z[numc2])-DCONTZ[it];
+
+         // Déplacements relatifs dans le repère local
+             un_ij=n1*dxoij+n2*dyoij+n3*dzoij;
+             ut_ij=s1*dxoij+s2*dyoij+s3*dzoij;
+             ub_ij=t1*dxoij+t2*dyoij+t3*dzoij; 
+             
+          // Rotations      
+             thetaxi=LIST_TX[numc1];
+             thetaxj=LIST_TX[numc2];
+             thetayi=LIST_TY[numc1];
+             thetayj=LIST_TY[numc2];
+             thetazi=LIST_TZ[numc1];
+             thetazj=LIST_TZ[numc2];
+             
+         
+             thetani=n1*thetaxi+n2*thetayi+n3*thetazi;   
+             thetati=s1*thetaxi+s2*thetayi+s3*thetazi;                       
+             thetabi=t1*thetaxi+t2*thetayi+t3*thetazi;            
+
+             thetanj=n1*thetaxj+n2*thetayj+n3*thetazj;   
+             thetatj=s1*thetaxj+s2*thetayj+s3*thetazj;                       
+             thetabj=t1*thetaxj+t2*thetayj+t3*thetazj;  
+            
+        
+          // Vitesses relatives dans le repère local
+			/* vn_ij=n1*(LIST_VX[numc1]-LIST_VX[numc2])+n2*(LIST_VY[numc1]-LIST_VY[numc2])+n3*(LIST_VZ[numc1]-LIST_VZ[numc2]);
+			 vt_ij=s1*(LIST_VX[numc1]-LIST_VX[numc2])+s2*(LIST_VY[numc1]-LIST_VY[numc2])+s3*(LIST_VZ[numc1]-LIST_VZ[numc2]);
+			 vb_ij=t1*(LIST_VX[numc1]-LIST_VX[numc2])+t2*(LIST_VY[numc1]-LIST_VY[numc2])+t3*(LIST_VZ[numc1]-LIST_VZ[numc2]);	
+             */        
+             
+             
+// Modèle Poutre 3D
+//	ES/L	 VALCOH[nbco][0]=kn;
+//  12EI/L3	 VALCOH[nbco][1]=kt;
+//	6EI/L2	 VALCOH[nbco][2]=nd2*kt/2.;	
+//	4EI/L2	 VALCOH[nbco][3]=nd2*nd2*kt/3.;	
+//	2EI/L2	 VALCOH[nbco][4]=nd2*nd2*kt/6.;
+//	2GI/L	 VALCOH[nbco][5]		 
+
+			  fnji=-VALCOH[it][0]*un_ij;
+			  ftji=-VALCOH[it][1]*ut_ij-VALCOH[it][2]*(thetabi+thetabj);
+			  fbji=-VALCOH[it][1]*ub_ij+VALCOH[it][2]*(thetati+thetatj);  
+			  
+			  mnji=-VALCOH[it][5]*(thetani-thetanj);
+			  mtji=VALCOH[it][2]*ub_ij-VALCOH[it][3]*thetati-VALCOH[it][4]*thetatj;
+			  mbji=-VALCOH[it][2]*ut_ij-VALCOH[it][3]*thetabi-VALCOH[it][4]*thetabj;
+			 			 
+			  mtij=VALCOH[it][2]*ub_ij-VALCOH[it][3]*thetatj-VALCOH[it][4]*thetati;  
+                          mbij=-VALCOH[it][2]*ut_ij-VALCOH[it][3]*thetabj-VALCOH[it][4]*thetabi;
+
+				Epe+=2.*(0.5*VALCOH[it][0]*un_ij*un_ij);
+		    	Epe+=2.*(0.5*VALCOH[it][1]*ut_ij*ut_ij);
+				Epe+=2.*(0.5*VALCOH[it][1]*ub_ij*ub_ij);								
+	
+				Epe+=2.*(0.5*VALCOH[it][3]*thetati*thetati+0.5*VALCOH[it][3]*thetabi*thetabi);
+				Epe+=2.*(0.5*VALCOH[it][3]*thetatj*thetatj+0.5*VALCOH[it][3]*thetabj*thetabj);
+				Epe+=2.*(0.5*VALCOH[it][5]*thetani*thetani+0.5*VALCOH[it][5]*thetanj*thetanj);						
+			
+				Epe+= (-2.*(VALCOH[it][2]*thetati+VALCOH[it][2]*thetatj)*ub_ij);          //2?
+				Epe+= (-2.*(VALCOH[it][2]*thetabi+VALCOH[it][2]*thetabj)*ut_ij);          //2?
+				Epe+= 2.*(VALCOH[it][4]*thetatj*thetati+VALCOH[it][4]*thetabj*thetabi);//2?
+				
+				
+				
+// Modèle André
+/*
+			  fnji=-VALCOH[it][0]*un_ij;
+			  ftji=-VALCOH[it][1]*ut_ij+VALCOH[it][2]*(thetabi+thetabj);
+			  fbji=-VALCOH[it][1]*ub_ij+VALCOH[it][2]*(thetati+thetatj);  
+			  
+			  mnji=-VALCOH[it][5]*(thetani-thetanj);
+			  mtji=-VALCOH[it][3]*thetati-VALCOH[it][4]*thetatj;
+			  mbji=-VALCOH[it][3]*thetabi-VALCOH[it][4]*thetabj;
+			 			 
+			  mtij=-VALCOH[it][3]*thetatj-VALCOH[it][4]*thetati;  
+              mbij=-VALCOH[it][3]*thetabj-VALCOH[it][4]*thetabi;
+              *
+              * 
+*/
+// Modèle Kn/Kt
+/*
+			  fnji=-VALCOH[it][0]*un_ij;
+			  ftji=-VALCOH[it][1]*ut_ij;
+			  fbji=-VALCOH[it][1]*ub_ij;  
+			  
+			  mnji=0.;
+			  mtji=0.;
+			  mbji=0.;
+			 			 
+			  mtij=0.;  
+              mbij=0.;
+
+				Epe+=2.*0.5*VALCOH[it][0]*un_ij*un_ij;
+		    	Epe+=2.*0.5*VALCOH[it][1]*ut_ij*ut_ij;
+				Epe+=2.*0.5*VALCOH[it][1]*ub_ij*ub_ij;		
+			*/
+				
+// Amortissement 
+/*
+			  fnji=fnji-(VALAMO[it][0]*vn_ij);
+			  ftji=ftji-(VALAMO[it][1]*vt_ij);
+			  fbji=fbji-(VALAMO[it][1]*vb_ij);		  
+			  
+			  mnji=mnji-(VALAMO[it][5]*(LIST_WX[numc2]-LIST_WX[numc1]));
+			  mtji=mtji-(VALAMO[it][3]*LIST_WY[numc1]+VALAMO[it][4]*LIST_WY[numc2]);
+			  mbji=mbji-(VALAMO[it][3]*LIST_WZ[numc1]+VALAMO[it][4]*LIST_WZ[numc2]);
+			  
+			  mtij=mtij-(VALAMO[it][3]*LIST_WY[numc2]+VALAMO[it][4]*LIST_WY[numc1]);
+			  mbij=mbij-(VALAMO[it][3]*LIST_WZ[numc2]+VALAMO[it][4]*LIST_WZ[numc1]);*/
+
+/*
+				Epa+=2.*(0.5*VALAMO[it][0]*vn_ij*un_ij);
+				Epa+=2.*(0.5*VALAMO[it][1]*ut_ij*vt_ij); 
+				Epa+=2.*(0.5*VALAMO[it][1]*ub_ij*vb_ij); 
+				Epa+=2.*(0.5*VALAMO[it][3]*thetati*LIST_WY[numc1]+0.5*VALAMO[it][3]*thetabi*LIST_WZ[numc1]);
+				Epa+=2.*(0.5*VALAMO[it][3]*thetatj*LIST_WY[numc2]+0.5*VALAMO[it][3]*thetabj*LIST_WZ[numc2]);
+				Epa+=2.*(0.5*VALAMO[it][5]*thetani*LIST_WX[numc1]+0.5*VALAMO[it][5]*thetanj*LIST_WX[numc2]);	
+				Epa+=2.*VALAMO[it][4]*(thetatj*LIST_WY[numc1]+thetabj*LIST_WZ[numc1]) //2? 
+				Epa+=2.*VALAMO[it][4]*(thetati*LIST_WY[numc2]+thetabi*LIST_WZ[numc2]) //2? 	
+	
+		*/	
+
+              FOJI[it][0]=fnji;
+              FOJI[it][1]=ftji;
+              FOJI[it][2]=fbji;
+              
+              MTJI[it][0]=mnji;
+              MTJI[it][1]=mtji;
+              MTJI[it][2]=mbji;                                      
+	
+              MTIJ[it][0]=-mnji;
+              MTIJ[it][1]=mtij;
+              MTIJ[it][2]=mbij;  
+              
+			  fxx=n1*fnji+s1*ftji+t1*fbji;
+			  fyy=n2*fnji+s2*ftji+t2*fbji;
+			  fzz=n3*fnji+s3*ftji+t3*fbji;
+	
+	          mxji=n1*mnji+s1*mtji+t1*mbji; 
+	          myji=n2*mnji+s2*mtji+t2*mbji; 
+	          mzji=n3*mnji+s3*mtji+t3*mbji; 
+
+	          mxij=-n1*mnji+s1*mtij+t1*mbij; 
+	          myij=-n2*mnji+s2*mtij+t2*mbij; 
+	          mzij=-n3*mnji+s3*mtij+t3*mbij; 
+		 	  
+
+	
+	      }
+          else{
+			  
+			fxx=0.;
+			fyy=0.;
+			fzz=0.;
+
+			mxji=0.;
+			myji=0.;
+			mzji=0.;
+
+			mxij=0.;
+			myij=0.;
+			mzij=0.;
+			  
+        // Contact sph-sph (Non-cohésif)                   
+	     
+         u1=0.;
+	     u2=-LIST_R[numc1]*t1*LIST_WX[numc1]-LIST_R[numc1]*t2*LIST_WY[numc1]-LIST_R[numc1]*t3*LIST_WZ[numc1];
+	     u2=u2-LIST_R[numc2]*t1*LIST_WX[numc2]-LIST_R[numc2]*t2*LIST_WY[numc2]-LIST_R[numc2]*t3*LIST_WZ[numc2];
+	     u3=LIST_R[numc1]*s1*LIST_WX[numc1]+LIST_R[numc1]*s2*LIST_WY[numc1]+LIST_R[numc1]*s3*LIST_WZ[numc1];
+	     u3=u3+LIST_R[numc2]*s1*LIST_WX[numc2]+LIST_R[numc2]*s2*LIST_WY[numc2]+LIST_R[numc2]*s3*LIST_WZ[numc2];	  
+	     
+	     u1=u1+n1*(LIST_VX[numc1]-LIST_VX[numc2])+n2*(LIST_VY[numc1]-LIST_VY[numc2])+n3*(LIST_VZ[numc1]-LIST_VZ[numc2]);
+	     u2=u2+s1*(LIST_VX[numc1]-LIST_VX[numc2])+s2*(LIST_VY[numc1]-LIST_VY[numc2])+s3*(LIST_VZ[numc1]-LIST_VZ[numc2]);
+	     u3=u3+t1*(LIST_VX[numc1]-LIST_VX[numc2])+t2*(LIST_VY[numc1]-LIST_VY[numc2])+t3*(LIST_VZ[numc1]-LIST_VZ[numc2]);	 
+
+	     rij=(LIST_R[numc1]*LIST_R[numc2])/(LIST_R[numc1]+LIST_R[numc2]);
+	     hij=abs(dist-DCONTO[it]);
+	     
+		if((LIST_P[numc1]==0)&&(LIST_P[numc2]==0)){				  
+		iEij=(1.-nu1*nu1)/E1+(1.-nu1*nu1)/E1;		  
+		}
+		if(((LIST_P[numc1]==1)&&(LIST_P[numc2]==0))||((LIST_P[numc1]==0)&&(LIST_P[numc2]==1))) {	
+		iEij=(1.-nu1*nu1)/E1+(1.-nu2*nu2)/E2;	
+		}
+		if((LIST_P[numc1]==1)&&(LIST_P[numc2]==1)){				  
+		iEij=(1.-nu2*nu2)/E2+(1.-nu2*nu2)/E2;	     
+		}
+			 
+		 Eij=1./iEij;	
+		 
+	     Kn=4.*Eij*sqrt(rij*hij)/3.;
+	     Kn=Kn/100.;
+	     Kn=2.5e8;
+	     Kt=Kn;
+	     	     	 	     
+	 //    rn=Kn*(dist-(LIST_R[numc1]+LIST_R[numc2]));
+	     rn=Kn*(dist-DCONTO[it]);	 
+	     crn=Kt*u2*dt;
+	     drn=Kt*u3*dt;
+		  
+	     rnv=sqrt(Kn*mas1)*u1;   
+	     crnv=sqrt(Kn*mas1)*u2;  
+	     drnv=sqrt(Kn*mas1)*u3;  
+
+	     pred1=-rn-rnv;
+	     pred2=-crn-crnv;    
+	     pred3=-drn-drnv;    
+
+	     abspred2=sqrt(pred2*pred2+pred3*pred3);
+
+	     if(fric==0){pred2=0.;pred3=0.;}
+
+	     if(pred1<0){ //relachement
+		 pred1=0.;
+		 pred2=0.;	 
+		 pred3=0.;	 
+		 }
+		 else if(abspred2<=fric*pred1){ //adherence
+		 pred1=pred1;
+		 pred2=pred2;	 
+		 pred3=pred3;	 
+		 }
+		 else if(fric>0){ // Glissement avec frottement
+		 pred1=pred1;
+		 pred2=-abs(fric*pred1)*u2/abs(u2); 
+		 pred3=-abs(fric*pred1)*u3/abs(u3); 
+		 }	 
+		 else // Glissement sans frottement
+		 {
+		 pred1=pred1;
+		 pred2=0.;
+		 pred3=0.;
+	     }
+		          
+          fxx=n1*pred1+s1*pred2+t1*pred3;
+          fyy=n2*pred1+s2*pred2+t2*pred3;
+          fzz=n3*pred1+s3*pred2+t3*pred3;
+		  
+		  mxji = -LIST_R[numc1]*t1*pred2+LIST_R[numc1]*s1*pred3;
+		  mxij = -LIST_R[numc2]*t1*pred2+LIST_R[numc2]*s1*pred3;
+		  myji = -LIST_R[numc1]*t2*pred2+LIST_R[numc1]*s2*pred3;
+		  myij = -LIST_R[numc2]*t2*pred2+LIST_R[numc2]*s2*pred3;
+		  mzji = -LIST_R[numc1]*t3*pred2+LIST_R[numc1]*s3*pred3; 
+		  mzij = -LIST_R[numc2]*t3*pred2+LIST_R[numc2]*s3*pred3;
+			  
+	      }   
+
+
+
+              FCJI[it][0]=fxx;
+              FCJI[it][1]=fyy;
+              FCJI[it][2]=fzz; 
+
+		//	  # pragma omp atomic
+			  FX[numc1]+=fxx;
+		//	  # pragma omp atomic
+			  FY[numc1]+=fyy;
+		//	  # pragma omp atomic
+			  FZ[numc1]+=fzz;
+		//	  # pragma omp atomic
+			  FX[numc2]+=(-fxx);
+		//	  # pragma omp atomic
+			  FY[numc2]+=(-fyy);
+		//	  # pragma omp atomic
+			  FZ[numc2]+=(-fzz);
+		//	  # pragma omp atomic
+			  MTX[numc1]+=mxji;
+		//	  # pragma omp atomic
+			  MTX[numc2]+=mxij;
+		//	  # pragma omp atomic
+			  MTY[numc1]+=myji;
+		//	  # pragma omp atomic
+			  MTY[numc2]+=myij;	
+		//	  # pragma omp atomic
+			  MTZ[numc1]+=mzji;
+		//	  # pragma omp atomic
+			  MTZ[numc2]+=mzij;
+			           
+        }	
+       
+
+}
+
+
+void forcecoh0(R & Epe, R & Epa,bool * TYPCO,int NBCO,  int ** CONT,  R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R * LIST_TX, R * LIST_TY, R * LIST_TZ, R * LIST_VX, R * LIST_VY, R * LIST_VZ,R * LIST_WX, R * LIST_WY, R * LIST_WZ, R * DCONTX, R * DCONTY, R * DCONTZ, R ** NCONT,  R * FX, R * FY, R * FZ, R * MTX, R * MTY, R * MTZ, R ** VALCOH, R ** VALAMO, R ** FCJI, R ** FOJI, R ** MTJI, R ** MTIJ){
+
+int numc1,numc2;
+R n1,n2,n3,s1,s2,s3,t1,t2,t3,fnji,ftji,fbji,mxij,mxji,myij,myji,mzij,mzji,un_ij,ut_ij,ub_ij,thetaxi,thetaxj,thetayi,thetayj,thetazi,thetazj;
+R thetani,thetanj,thetati,thetatj,thetabi,thetabj;
+R vn_ij,vt_ij,vb_ij;
+R dxoij,dyoij,dzoij; 
+R fxx,fyy,fzz;
+R mtij,mbij;
+R mnji,mtji,mbji;
+Epe=0.;
+Epa=0.;
+
+	for(int it=0;it<NBCO;it++){ 
+		
+		 // Numeros des candidats 
+	     numc1=CONT[it][0];
+	     numc2=CONT[it][1];     
+		
+	     // normal ext 1->2
+	     n1=NCONT[it][0];
+	     n2=NCONT[it][1];
+	     n3=NCONT[it][2];
+	     s1=NCONT[it][3];
+	     s2=NCONT[it][4];
+	     s3=NCONT[it][5];
+	     t1=NCONT[it][6];
+	     t2=NCONT[it][7];
+	     t3=NCONT[it][8];  	  
+	      
+         if(TYPCO[it]==1){      
+            
+         // Déplacements relatifs dans le repère global
+             dxoij=(LIST_X[numc1]-LIST_X[numc2])-DCONTX[it];        	           
+             dyoij=(LIST_Y[numc1]-LIST_Y[numc2])-DCONTY[it];
+             dzoij=(LIST_Z[numc1]-LIST_Z[numc2])-DCONTZ[it];
+
+         // Déplacements relatifs dans le repère local
+             un_ij=n1*dxoij+n2*dyoij+n3*dzoij;
+             ut_ij=s1*dxoij+s2*dyoij+s3*dzoij;
+             ub_ij=t1*dxoij+t2*dyoij+t3*dzoij; 
+             
+          // Rotations      
+             thetaxi=LIST_TX[numc1];
+             thetaxj=LIST_TX[numc2];
+             thetayi=LIST_TY[numc1];
+             thetayj=LIST_TY[numc2];
+             thetazi=LIST_TZ[numc1];
+             thetazj=LIST_TZ[numc2];
+             
+         
+             thetani=n1*thetaxi+n2*thetayi+n3*thetazi;   
+             thetati=s1*thetaxi+s2*thetayi+s3*thetazi;                       
+             thetabi=t1*thetaxi+t2*thetayi+t3*thetazi;            
+
+             thetanj=n1*thetaxj+n2*thetayj+n3*thetazj;   
+             thetatj=s1*thetaxj+s2*thetayj+s3*thetazj;                       
+             thetabj=t1*thetaxj+t2*thetayj+t3*thetazj;  
+            
+        
+          // Vitesses relatives dans le repère local
+			/* vn_ij=n1*(LIST_VX[numc1]-LIST_VX[numc2])+n2*(LIST_VY[numc1]-LIST_VY[numc2])+n3*(LIST_VZ[numc1]-LIST_VZ[numc2]);
+			 vt_ij=s1*(LIST_VX[numc1]-LIST_VX[numc2])+s2*(LIST_VY[numc1]-LIST_VY[numc2])+s3*(LIST_VZ[numc1]-LIST_VZ[numc2]);
+			 vb_ij=t1*(LIST_VX[numc1]-LIST_VX[numc2])+t2*(LIST_VY[numc1]-LIST_VY[numc2])+t3*(LIST_VZ[numc1]-LIST_VZ[numc2]);	
+             */        
+             
+             
+// Modèle Poutre 3D
+//	ES/L	 VALCOH[nbco][0]=kn;
+//  12EI/L3	 VALCOH[nbco][1]=kt;
+//	6EI/L2	 VALCOH[nbco][2]=nd2*kt/2.;	
+//	4EI/L2	 VALCOH[nbco][3]=nd2*nd2*kt/3.;	
+//	2EI/L2	 VALCOH[nbco][4]=nd2*nd2*kt/6.;
+//	2GI/L	 VALCOH[nbco][5]		 
+
+			  fnji=-VALCOH[it][0]*un_ij;
+			  ftji=-VALCOH[it][1]*ut_ij-VALCOH[it][2]*(thetabi+thetabj);
+			  fbji=-VALCOH[it][1]*ub_ij+VALCOH[it][2]*(thetati+thetatj);  
+			  
+			  mnji=-VALCOH[it][5]*(thetani-thetanj);
+			  mtji=VALCOH[it][2]*ub_ij-VALCOH[it][3]*thetati-VALCOH[it][4]*thetatj;
+			  mbji=-VALCOH[it][2]*ut_ij-VALCOH[it][3]*thetabi-VALCOH[it][4]*thetabj;
+			 			 
+			  mtij=VALCOH[it][2]*ub_ij-VALCOH[it][3]*thetatj-VALCOH[it][4]*thetati;  
+              mbij=-VALCOH[it][2]*ut_ij-VALCOH[it][3]*thetabj-VALCOH[it][4]*thetabi;
+
+				Epe+=2.*(0.5*VALCOH[it][0]*un_ij*un_ij);
+		    	Epe+=2.*(0.5*VALCOH[it][1]*ut_ij*ut_ij);
+				Epe+=2.*(0.5*VALCOH[it][1]*ub_ij*ub_ij);								
+	
+				Epe+=2.*(0.5*VALCOH[it][3]*thetati*thetati+0.5*VALCOH[it][3]*thetabi*thetabi);
+				Epe+=2.*(0.5*VALCOH[it][3]*thetatj*thetatj+0.5*VALCOH[it][3]*thetabj*thetabj);
+				Epe+=2.*(0.5*VALCOH[it][5]*thetani*thetani+0.5*VALCOH[it][5]*thetanj*thetanj);						
+			
+				Epe-= 2.*(VALCOH[it][2]*thetati+VALCOH[it][2]*thetatj)*ub_ij;          //2?
+				Epe-= 2.*(VALCOH[it][2]*thetabi+VALCOH[it][2]*thetabj)*ut_ij;          //2?
+				Epe+= 2.*(VALCOH[it][4]*thetatj*thetati+VALCOH[it][4]*thetabj*thetabi);//2?
+			
+// Amortissement 
+/*
+			  fnji=fnji-(VALAMO[it][0]*vn_ij);
+			  ftji=ftji-(VALAMO[it][1]*vt_ij);
+			  fbji=fbji-(VALAMO[it][1]*vb_ij);		  
+			  
+			  mnji=mnji-(VALAMO[it][5]*(LIST_WX[numc2]-LIST_WX[numc1]));
+			  mtji=mtji-(VALAMO[it][3]*LIST_WY[numc1]+VALAMO[it][4]*LIST_WY[numc2]);
+			  mbji=mbji-(VALAMO[it][3]*LIST_WZ[numc1]+VALAMO[it][4]*LIST_WZ[numc2]);
+			  
+			  mtij=mtij-(VALAMO[it][3]*LIST_WY[numc2]+VALAMO[it][4]*LIST_WY[numc1]);
+			  mbij=mbij-(VALAMO[it][3]*LIST_WZ[numc2]+VALAMO[it][4]*LIST_WZ[numc1]);*/
+
+/*
+				Epa+=2.*(0.5*VALAMO[it][0]*vn_ij*un_ij);
+				Epa+=2.*(0.5*VALAMO[it][1]*ut_ij*vt_ij); 
+				Epa+=2.*(0.5*VALAMO[it][1]*ub_ij*vb_ij); 
+				Epa+=2.*(0.5*VALAMO[it][3]*thetati*LIST_WY[numc1]+0.5*VALAMO[it][3]*thetabi*LIST_WZ[numc1]);
+				Epa+=2.*(0.5*VALAMO[it][3]*thetatj*LIST_WY[numc2]+0.5*VALAMO[it][3]*thetabj*LIST_WZ[numc2]);
+				Epa+=2.*(0.5*VALAMO[it][5]*thetani*LIST_WX[numc1]+0.5*VALAMO[it][5]*thetanj*LIST_WX[numc2]);	
+				Epa+=2.*VALAMO[it][4]*(thetatj*LIST_WY[numc1]+thetabj*LIST_WZ[numc1]) //2? 
+				Epa+=2.*VALAMO[it][4]*(thetati*LIST_WY[numc2]+thetabi*LIST_WZ[numc2]) //2? 	
+	
+		*/
+		
+              FOJI[it][0]=fnji;
+              FOJI[it][1]=ftji;
+              FOJI[it][2]=fbji;
+              
+              MTJI[it][0]=mnji;
+              MTJI[it][1]=mtji;
+              MTJI[it][2]=mbji;                                      
+	
+              MTIJ[it][0]=-mnji;
+              MTIJ[it][1]=mtij;
+              MTIJ[it][2]=mbij;  		
+		
+			  fxx=n1*fnji+s1*ftji+t1*fbji;
+			  fyy=n2*fnji+s2*ftji+t2*fbji;
+			  fzz=n3*fnji+s3*ftji+t3*fbji;
+	
+	          mxji=n1*mnji+s1*mtji+t1*mbji; 
+	          myji=n2*mnji+s2*mtji+t2*mbji; 
+	          mzji=n3*mnji+s3*mtji+t3*mbji; 
+
+	          mxij=-n1*mnji+s1*mtij+t1*mbij; 
+	          myij=-n2*mnji+s2*mtij+t2*mbij; 
+	          mzij=-n3*mnji+s3*mtij+t3*mbij; 
+		 	  
+
+	
+	      }
+          else{
+	
+			  fxx=0.;
+			  fyy=0.;
+			  fzz=0.;
+	
+	          mxji=0.;
+	          myji=0.;
+	          mzji=0.;
+
+	          mxij=0.;
+	          myij=0.; 
+	          mzij=0.;
+		 
+	      }   
+
+
+              FCJI[it][0]=fxx;
+              FCJI[it][1]=fyy;
+              FCJI[it][2]=fzz; 
+
+		//	  # pragma omp atomic
+			  FX[numc1]+=fxx;
+		//	  # pragma omp atomic
+			  FY[numc1]+=fyy;
+		//	  # pragma omp atomic
+			  FZ[numc1]+=fzz;
+		//	  # pragma omp atomic
+			  FX[numc2]+=(-fxx);
+		//	  # pragma omp atomic
+			  FY[numc2]+=(-fyy);
+		//	  # pragma omp atomic
+			  FZ[numc2]+=(-fzz);
+		//	  # pragma omp atomic
+			  MTX[numc1]+=mxji;
+		//	  # pragma omp atomic
+			  MTX[numc2]+=mxij;
+		//	  # pragma omp atomic
+			  MTY[numc1]+=myji;
+		//	  # pragma omp atomic
+			  MTY[numc2]+=myij;	
+		//	  # pragma omp atomic
+			  MTZ[numc1]+=mzji;
+		//	  # pragma omp atomic
+			  MTZ[numc2]+=mzij;
+			           
+        }	
+       
+
+}
+
+
+
+
+
+
+

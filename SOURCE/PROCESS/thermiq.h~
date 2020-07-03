@@ -1,0 +1,23 @@
+#ifndef _THERMIQ_
+#define _THERMIQ_
+
+typedef double R;
+
+void ther_load(int ite, int nitd,bool * TYPCO, int NBCO, int ** CONT, R * DCONT, R * DCONTX,R * DCONTY,R * DCONTZ, R * DCONTO, R * DCONTXO,R * DCONTYO,R * DCONTZO, bool * LIST_P,R alpha1, R alpha2);
+
+void temp(R coef2,int NB_SPH, int NBCO, R dt, R Flimp, R Lambda_c, R Cp, R coef1, int ** CONT, R *LIST_M, R * LIST_R, R * LIST_TEMP,bool * EDGE, bool * EDGE1, bool * EDGE2, bool * EDGE3, bool * EDGE4,  bool * EDGE5, bool * EDGE6, R & mint, R & maxt, R * DCONT, R * LIST_IND, R N1, R N2, R N3, R N4, R N5, R N6, R * DeltaT,int dir, bool btype);
+
+void temp2(R coef2,int NB_SPH, int NBCO, R dt, R Flimp, R lambda1, R lambda2, R cp1, R cp2, R coef1, int ** CONT, R *LIST_M, R * LIST_R, R * LIST_TEMP,bool * EDGE, bool * EDGE1, bool * EDGE2, bool * EDGE3, bool * EDGE4,  bool * EDGE5, bool * EDGE6, R & mint, R & maxt, R * DCONT, R * LIST_IND, bool * LIST_P, R N1, R N2, R N3, R N4, R N5, R N6,R * DeltaT, int dir, bool btype);
+
+void flux(R coef2,int NB_SPH, int NBCO, R dt, R Lambda_c, R Cp, R coef1, int ** CONT, R ** NCONT, R *LIST_M, R * LIST_R, R * LIST_TEMP,bool * EDGE, R & minfx, R & maxfx, R & minfy, R & maxfy, R & minfz, R & maxfz, R * DCONT, R H_TOT, R V_TOT, R Z_TOT, R * LIST_FLX,R * LIST_FLY,R * LIST_FLZ,int * NBHALO, unsigned int **NOHALO, int * NBCONTCO, int ** NOCONT, R * VOLHALO, R * LIST_V);
+
+void flux2(R coef2,int NB_SPH, int NBCO, R dt, R lambda1, R lambda2, R cp1, R cp2, R coef1, int ** CONT, R ** NCONT, R *LIST_M, R * LIST_R, R * LIST_TEMP,bool * EDGE, R & minfx, R & maxfx, R & minfy, R & maxfy, R & minfz, R & maxfz, R * DCONT,  bool * LIST_P, R H_TOT, R V_TOT, R Z_TOT, R * LIST_FLX,R * LIST_FLY,R * LIST_FLZ,int * NBHALO, unsigned int **NOHALO, int * NBCONTCO, int ** NOCONT, R * VOLHALO, R * LIST_V);
+
+R crit_time(R coord, R NBCO, R lambda, R cp, R dens, R * DCONT, R Cs); 
+R crit_time2(R coord, R NBCO, R lambda1, R lambda2, R cp1, R cp2, R dens1, R dens2, R * DCONT, R Cs); 
+    
+
+#endif
+
+
+

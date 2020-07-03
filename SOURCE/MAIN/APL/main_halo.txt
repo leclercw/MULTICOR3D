@@ -1,0 +1,157 @@
+#include <cstdlib>
+#include <cstdio>
+#include <iomanip>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <cmath>
+#include <time.h> 
+#include <sys/time.h> 
+#include <sys/resource.h> 
+#include <string.h>
+#include <map>
+#include <cassert>
+#include <vector>
+#include <limits>
+# include "omp.h"
+
+#include "../POSTPRO/cmdgks.h"
+#include "../PROCESS/contacts.h"
+#include "../PROCESS/contraintes.h"
+//#include "../PROCESS/contraintes_gpu.h"
+#include "../PROCESS/correct.h"
+#include "../PROCESS/inicoh.h"
+#include "../PREPRO/init.h"
+#include "../PREPRO/initc.h"
+#include "../PREPRO/lectfic.h"
+#include "../PROCESS/selco.h"
+#include "../PROCESS/ftstring.h"
+#include "../PROCESS/ctime.h"
+#include "../PROCESS/rupture.h"
+#include "../PROCESS/halo.h"
+
+#include "conf.h"
+
+using namespace std;
+typedef double R;
+
+// Paramètres d'étude
+
+const R Pi=3.14159265; //Nombre Pi
+const R g=9.81;  //Constante de gravité
+
+const R coord=6.2;  //Nombre de coordination
+const R lmacro=100.; //Dimension réelle du domaine d'étude
+const R coef1=1/0.64;
+const R coef2=0.958;
+
+const R dens=7.8e9;// Densité des particules
+
+const R Emu=220.2e+9; //Module de Young micro échantillon
+const R nuu=0.2; //Paramètre micro
+const R rmu=0.722; //Paramètre micro
+
+const R vimp=0.00001; //Vitesse imposée
+const R fimp=0.; //Force imposée
+const R Cs=0.5;  //Coefficient de sécurité (pas de temps)
+const R amort=0.3; //Coefficient d'amortissement
+
+const int SZHALO=1; //Taille halo
+
+const int nit=100000000; //Nombre d'itérations limite
+const int nitf=1000000; // Rampe de force
+
+const int nmax=30000000;	
+const int NBENREG=100;
+const int NB_THREADS=1;
+
+//////////////////////////////////////////////////////////////////////
+///////// Début du programme principal
+//////////////////////////////////////////////////////////////////////
+
+int main(int argc, char *argv[])
+{
+R t1=CPUtime();
+R t1p=omp_get_wtime () ;
+
+// Parallélisation
+omp_set_num_threads(NB_THREADS);
+
+// Allocation
+allocat_memory();
+
+// Initialisation
+read_sph(H_TOT,V_TOT,Z_TOT,H_POS,V_POS,Z_POS,NB_SPH, R_SPH, LIST_R, LIST_X, LIST_Y, LIST_Z, RMAX);
+
+// Allocation grille
+allocat_grid(H_TOT,V_TOT,Z_TOT,RMAX,vecsizex,vecsizey, vecsizez, vecsize);
+
+cout<<"Rayon par. moy/max :"<<R_SPH<<" - "<<RMAX<<endl;
+init_sizeh(vecsizeh, vecsizexh,vecsizeyh,vecsizezh, coulh, numch, H_TOT, V_TOT, Z_TOT, RHALO,SZHALO,R_SPH);
+
+// Init sph + Sélection des contacts 
+initc_sph_halo(coord,TYPCO,NBCO,CONT,NMAXCONT,Pi,dens,epsi,vecsize,vecsizex,vecsizey,vecsizez,coul,nocoul,numc,nonumc,vecsizeh,vecsizexh,vecsizeyh,vecsizezh,coulh,PR_SPH,H_TOT,V_TOT,Z_TOT,H_POS,V_POS,Z_POS,NB_SPH,R_SPH,LIST_B,LIST_R,LIST_X,LIST_Y,LIST_Z,LIST_XO,LIST_YO,LIST_ZO,LIST_XA,LIST_YA,LIST_ZA,LIST_TX,LIST_TY,LIST_TZ,LIST_TXA,LIST_TYA,LIST_TZA,LIST_VX,LIST_VY,LIST_VZ,LIST_WX,LIST_WY,LIST_WZ,LIST_AX,LIST_AY,LIST_AZ,LIST_AWX,LIST_AWY,LIST_AWZ,LIST_C,LIST_H,LIST_M,LIST_I,FX,FY,FZ,MTX,MTY,MTZ,EDGE,EDGE1,EDGE2,EDGE3,EDGE4,EDGE5,EDGE6,NOCONT,NBCONTCO,LIST_V,LIST_IND,N1,N2,N3,N4,N5,N6,NMAXZ);
+
+cout<<"epsi : "<<epsi<<endl;
+cout<<"NBCO : "<<NBCO<<endl;
+
+// Process
+R t2=CPUtime();
+cout<<"Début du process"<<endl;
+
+bool bout=0;
+R ti=0.;
+R viti=vimp;
+int ite=1;
+R Emoy=0.;
+R Emoy_old=0.;
+R num;
+
+scale_sph(Pi,H_TOT,V_TOT,Z_TOT,H_POS,V_POS,Z_POS,NB_SPH,R_SPH,RMAX,LIST_R,LIST_X,LIST_Y,LIST_Z,LIST_XO,LIST_YO,LIST_ZO,LIST_XA,LIST_YA,LIST_ZA,LIST_M,LIST_I,epsi,lmacro,dens,LIST_V);
+treat_halo(NOHALO,NBHALO,RHALO,SZHALO,R_SPH,LIST_H,vecsizeh,vecsizexh,vecsizeyh,vecsizezh,coulh,numch,LIST_R,LIST_X,LIST_Y,LIST_Z,NB_SPH,LIST_V,VOLHALO,coef1,NMAXHALO);
+
+inicoh(TYPCO,dt,epsi,NBCO,CONT,LIST_R,LIST_X,LIST_Y,LIST_Z,LIST_M,LIST_I,DCONT,DCONTO,NCONT,VALCOH,VALAMO,NOCONT,NBCONTCO,DCONTX,DCONTY,DCONTZ,DCONTXO,DCONTYO,DCONTZO,Pi,Cs,Emu,rmu,nuu,amort);
+//ExpVISU(ite,dt,NB_PAR,LIST_PX,LIST_PY,LIST_PZ,NB_SPH,H_TOT,V_TOT,Z_TOT,LIST_X,LIST_Y,LIST_Z,LIST_R,VONMIS,TRACE,SIG11,SIG12,SIG13,SIG22,SIG23,SIG33,SIG1,SIG2,SIG3,DEP1,DEP2,DEP3,maxvm,minvm,maxtrac,mintrac,maxsig11,minsig11,maxsig12,minsig12,maxsig13,minsig13,maxsig22,minsig22,maxsig23,minsig23,maxsig33,minsig33,maxsig1,minsig1,maxsig2,minsig2,maxsig3,minsig3,maxdep1,mindep1,maxdep2,mindep2,maxdep3,mindep3,1,EDGE,LIST_P);
+//ExpVISU_def(ite,dt,NB_SPH,H_TOT,V_TOT,Z_TOT,LIST_X,LIST_Y,LIST_Z,LIST_R,EPSI11,EPSI22,EPSI33,EPSE11,EPSE22,EPSE33,mindef11,maxdef11,mindef22,maxdef22,mindef33,maxdef33,mindefe11,maxdefe11,mindefe22,maxdefe22,mindefe33,maxdefe33,1,EDGE);
+
+// (!bout)&&
+while((ite<nmax)){
+
+  forcecoh_qs(ite,Epe,Epa,NBCO,NB_SPH,CONT,LIST_R,LIST_X,LIST_Y,LIST_Z,LIST_TX,LIST_TY,LIST_TZ,LIST_VX,LIST_VY,LIST_VZ,LIST_WX,LIST_WY,LIST_WZ,DCONTX,DCONTY,DCONTZ,NCONT,FX,FY,FZ,MTX,MTY,MTZ,VALCOH,VALAMO,FCJI,FOJI,MTJI,MTIJ,amort);
+
+  if(ite%NBENREG==0){
+  R t2=CPUtime()-t1;	 
+  R t2p=omp_get_wtime () - t1p; 
+  cout<<endl<<"Iteration : "<<ite<<", CPU time :"<<t2<<", Par. time :"<<t2p<<", real time :"<<ti<<endl;
+  cout<<"Epe:"<<Epe<<", Epa:"<<Epa<<", Epp:"<<Epp<<", Ec:"<<Ec<<endl;
+
+//defohalo(Pi,coef1,coef2,NBENREG,H_TOT,V_TOT,Z_TOT,ite,NB_SPH,LIST_R,LIST_X,LIST_Y,LIST_Z,DCONTXO,DCONTYO,DCONTZO,DCONTX,DCONTY,DCONTZ,CONT,NCONT,NOCONT,NBCONTCO,EPSI11,EPSI22,EPSI33,EPSE11,EPSE22,EPSE33,mindef11, maxdef11,mindef22,maxdef22,mindef33,maxdef33,mindefe11,maxdefe11,mindefe22,maxdefe22,mindefe33,maxdefe33,EDGE,NOHALO,NBHALO,LIST_V,VOLHALO,LIST_IND);
+
+ //contrainteshalo(Pi,coef1,ite,NBENREG,NB_SPH,H_TOT,V_TOT,Z_TOT,LIST_R,FCJI,NCONT,NOCONT,NBCONTCO,VONMIS,TRACE,SIG11,SIG12,SIG13,SIG22,SIG23,SIG33,SIG1,SIG2,SIG3,minvm,maxvm,mintrac,maxtrac,minsig11,maxsig11,minsig12,maxsig12,minsig13,maxsig13,minsig22,maxsig22,minsig23,maxsig23,minsig33,maxsig33,minsig1,maxsig1,minsig2,maxsig2,minsig3,maxsig3,EDGE,NOHALO,NBHALO,LIST_V,VOLHALO,LIST_IND);
+  
+//contrainteshalo_gpu(Pi,coef1,ite,NBENREG,NB_SPH,NBCO,NMAXZ,NMAXHALO,NMAXCONT,H_TOT,V_TOT,Z_TOT,LIST_R,FCJI,NCONT,NOCONT,NBCONTCO,VONMIS,TRACE,SIG11,SIG12,SIG13,SIG22,SIG23,SIG33,SIG1,SIG2,SIG3,minvm,maxvm,mintrac,maxtrac,minsig11,maxsig11,minsig12,maxsig12,minsig13,maxsig13,minsig22,maxsig22,minsig23,maxsig23,minsig33,maxsig33,minsig1,maxsig1,minsig2,maxsig2,minsig3,maxsig3,EDGE,NOHALO,NBHALO,LIST_V,VOLHALO,LIST_IND);
+  
+ //ExpVISU(ite,dt,NB_PAR,LIST_PX,LIST_PY,LIST_PZ,NB_SPH,H_TOT,V_TOT,Z_TOT,LIST_X,LIST_Y,LIST_Z,LIST_R,VONMIS,TRACE,SIG11,SIG12,SIG13,SIG22,SIG23,SIG33,SIG1,SIG2,SIG3,DEP1,DEP2,DEP3,maxvm,minvm,maxtrac,mintrac,maxsig11,minsig11,maxsig12,minsig12,maxsig13,minsig13,maxsig22,minsig22,maxsig23,minsig23,maxsig33,minsig33,maxsig1,minsig1,maxsig2,minsig2,maxsig3,minsig3,maxdep1,mindep1,maxdep2,mindep2,maxdep3,mindep3,0,EDGE,LIST_P);
+ //ExpVISU_def(ite,dt,NB_SPH,H_TOT,V_TOT,Z_TOT,LIST_X,LIST_Y,LIST_Z,LIST_R,EPSI11,EPSI22,EPSI33,EPSE11,EPSE22,EPSE33,mindef11,maxdef11,mindef22,maxdef22,mindef33,maxdef33,mindefe11,maxdefe11,mindefe22,maxdefe22,mindefe33,maxdefe33 ,0,EDGE);
+ 
+ }
+
+  verlet_symt_qs(Ec,Epp,bout,num,Emoy,Emoy_old,ite,viti,H_TOT,V_TOT,Z_TOT,NB_SPH,dt,LIST_M,LIST_I,LIST_R,LIST_X,LIST_Y,LIST_Z,LIST_XO,LIST_YO,LIST_ZO,LIST_TX,LIST_TY,LIST_TZ,LIST_VX,LIST_VY,LIST_VZ,LIST_WX,LIST_WY,LIST_WZ,LIST_AX,LIST_AY,LIST_AZ,LIST_AWX,LIST_AWY,LIST_AWZ,FX,FY,FZ,MTX,MTY,MTZ,EDGE1,EDGE2,EDGE3,EDGE4,EDGE5,EDGE6,NBENREG);  
+
+  
+ite++;
+ti+=dt;
+}
+
+t2=CPUtime()-t1;
+R t2p=omp_get_wtime () - t1p; 
+cout<<"Iterations total number :"<<ite<<endl;
+
+
+// Libération de la mémoire	
+//free_memory();
+cout<<"Process CPU time :"<<t2<<endl;
+cout<<"Total CPU time :"<<CPUtime()-t1<<endl;
+cout<<"Total Par. time :"<<omp_get_wtime () - t1p<<endl;
+}
+

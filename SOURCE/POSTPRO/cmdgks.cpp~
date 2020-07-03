@@ -1,0 +1,586 @@
+#include <cstdlib>
+#include <cstdio>
+#include <iomanip>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <cmath>
+#include <time.h> 
+#include <sys/time.h> 
+#include <sys/resource.h> 
+#include <string.h>
+#include <map>
+#include <cassert>
+#include <vector>
+#include <limits>
+
+using namespace std;
+
+#include "cmdgks.h"
+
+void ExpDEPL(R dplct, int ite,bool bstart){
+  
+fstream g;
+g.precision(4);
+if(bstart){
+g.open("DATA/datadepl.txt",fstream::out );	
+g<<setw(12)<<"ITE"<<setw(12)<<"U"<<endl;
+}else{
+g.open("DATA/datadepl.txt",fstream::out | fstream::app);	
+}
+g<<setw(12)<<ite<<setw(12)<<dplct<<endl;
+g.close();
+}
+
+void ExpREAC(R reac, int ite,bool bstart){
+  
+fstream g;
+g.precision(4);
+if(bstart){
+g.open("DATA/datareac.txt",fstream::out );	
+g<<setw(12)<<"ITE"<<setw(12)<<"F"<<endl;
+}else{
+g.open("DATA/datareac.txt",fstream::out | fstream::app);	
+}
+g<<setw(12)<<ite<<setw(12)<<reac<<endl;
+g.close();
+}
+
+void ExpENERGY(R Ec, R Ep,R Epa, int ite,bool bstart){
+  
+fstream g;
+g.precision(4);
+if(bstart){
+g.open("DATA/dataenergy.txt",fstream::out );	
+g<<setw(12)<<"ITE"<<setw(12)<<"EC"<<setw(12)<<"EP"<<setw(12)<<"EPA"<<setw(12)<<"EM"<<endl;
+}else{
+g.open("DATA/dataenergy.txt",fstream::out | fstream::app);	
+}
+g<<setw(12)<<ite<<setw(12)<<Ec<<setw(12)<<Ep<<setw(12)<<Epa<<setw(12)<<(Ep+Epa+Ec)<<endl;
+g.close();
+}
+
+
+void ExpPARAMETER(R Emoy, R nuu, int NB_DIS, int NBCO, R cpu, int ite, R dt, R coord1){
+  
+fstream g;
+g.precision(4);
+g.open("DATA/datacoh.txt",fstream::out | fstream::app);
+g<<setw(12)<<Emoy<<setw(12)<<nuu<<setw(12)<<NB_DIS<<setw(12)<<NBCO<<setw(12)<<cpu<<setw(12)<<ite<<setw(12)<<dt<<ite<<setw(12)<<coord1<<endl;
+g.close();
+}
+
+void ExpPARAMETER_VER(R minvm, R maxvm, R moyvm, R sd, int ite){
+  
+fstream g;
+g.precision(4);
+g.open("DATA/dataver.txt",fstream::out | fstream::app);
+g<<setw(12)<<ite<<setw(12)<<minvm<<setw(12)<<maxvm<<setw(12)<<moyvm<<setw(12)<<sd<<endl;
+g.close();
+}
+
+void ExpVISU(int ite, R dt, int NB_SPH, R H_TOT, R V_TOT, R Z_TOT, R* LIST_X, R* LIST_Y, R* LIST_Z, R* LIST_R,R * VONMIS,R * TRACE,R * SIG11,R * SIG12,R * SIG13,R * SIG22,R * SIG23,R * SIG33,R * SIG1,R * SIG2,R * SIG3,R * DEP1,R * DEP2,R * DEP3,R maxvm, R minvm, R maxtrac, R mintrac,R maxsig11, R minsig11,R maxsig12, R minsig12,R maxsig13, R minsig13,R maxsig22, R minsig22,R maxsig23, R minsig23,R maxsig33, R minsig33,R maxsig1, R minsig1,R maxsig2, R minsig2,R maxsig3, R minsig3,R maxdep1, R mindep1,R maxdep2, R mindep2,R maxdep3, R mindep3, bool bout, int * LIST_B, bool * EDGE){
+  
+  // fichier visu
+fstream f1;
+f1.precision(4);
+if(!bout){
+f1.open("VISU/vdepl",fstream::out | fstream::app);
+}
+else{
+f1.open("VISU/vdepl",fstream::out); 
+f1<<setw(12)<<scientific<<H_TOT<<setw(12)<<0.<<setw(12)<<scientific<<V_TOT<<setw(12)<<0.<<setw(12)<<scientific<<Z_TOT<<setw(12)<<0.<<endl;
+}
+
+f1<<setw(12)<<NB_SPH<<setw(12)<<0<<setw(12)<<scientific<<(dt*ite)<<endl;
+for(int it=0;it<NB_SPH;it++){
+f1<<setw(12)<<scientific<<EDGE[it]<<setw(12)<<scientific<<LIST_X[it]<<setw(12)<<scientific<<LIST_Y[it]<<setw(12)<<scientific<<LIST_Z[it]<<setw(12)<<scientific<<LIST_R[it]<<setw(12)<<scientific<<DEP1[it]<<setw(12)<<scientific<<DEP2[it]<<setw(12)<<scientific<<DEP3[it]<<endl; 
+}
+f1<<setw(12)<<scientific<<maxdep1<<setw(12)<<scientific<<mindep1<<endl;
+f1<<setw(12)<<scientific<<maxdep2<<setw(12)<<scientific<<mindep2<<endl;
+f1<<setw(12)<<scientific<<maxdep3<<setw(12)<<scientific<<mindep3<<endl;
+f1.close();
+
+fstream f2;
+f2.precision(4);
+if(!bout){
+f2.open("VISU/vcontr",fstream::out | fstream::app);
+}
+else{
+f2.open("VISU/vcontr",fstream::out); 
+f2<<setw(12)<<scientific<<H_TOT<<setw(12)<<0.<<setw(12)<<scientific<<V_TOT<<setw(12)<<0.<<setw(12)<<scientific<<Z_TOT<<setw(12)<<0.<<endl;
+}
+
+f2<<setw(12)<<NB_SPH<<setw(12)<<0<<setw(12)<<scientific<<(dt*ite)<<endl;
+for(int it=0;it<NB_SPH;it++){
+f2<<setw(12)<<scientific<<EDGE[it]<<setw(12)<<scientific<<LIST_X[it]<<setw(12)<<scientific<<LIST_Y[it]<<setw(12)<<scientific<<LIST_Z[it]<<setw(12)<<scientific<<LIST_R[it]<<setw(12)<<scientific<<VONMIS[it]<<setw(12)<<scientific<<TRACE[it]<<setw(12)<<scientific<<SIG11[it]<<setw(12)<<scientific<<SIG12[it]<<setw(12)<<scientific<<SIG13[it]<<setw(12)<<scientific<<SIG22[it]<<setw(12)<<scientific<<SIG23[it]<<setw(12)<<scientific<<SIG33[it]<<setw(12)<<scientific<<SIG1[it]<<setw(12)<<scientific<<SIG2[it]<<setw(12)<<scientific<<SIG3[it]<<endl; 
+}
+f2<<setw(12)<<scientific<<maxvm<<setw(12)<<scientific<<minvm<<endl;
+f2<<setw(12)<<scientific<<maxtrac<<setw(12)<<scientific<<mintrac<<endl;
+f2<<setw(12)<<scientific<<maxsig11<<setw(12)<<scientific<<minsig11<<endl;
+f2<<setw(12)<<scientific<<maxsig12<<setw(12)<<scientific<<minsig12<<endl;
+f2<<setw(12)<<scientific<<maxsig13<<setw(12)<<scientific<<minsig13<<endl;
+f2<<setw(12)<<scientific<<maxsig22<<setw(12)<<scientific<<minsig22<<endl;
+f2<<setw(12)<<scientific<<maxsig23<<setw(12)<<scientific<<minsig23<<endl;
+f2<<setw(12)<<scientific<<maxsig33<<setw(12)<<scientific<<minsig33<<endl;
+f2<<setw(12)<<scientific<<maxsig1<<setw(12)<<scientific<<minsig1<<endl;
+f2<<setw(12)<<scientific<<maxsig2<<setw(12)<<scientific<<minsig2<<endl;
+f2<<setw(12)<<scientific<<maxsig3<<setw(12)<<scientific<<minsig3<<endl;
+f2.close();
+
+fstream f3;
+f3.precision(4);
+if(!bout){
+f3.open("VISU/vdepl2",fstream::out | fstream::app);
+}
+else{
+f3.open("VISU/vdepl2",fstream::out); 
+f3<<setw(12)<<scientific<<H_TOT<<setw(12)<<0.<<setw(12)<<scientific<<V_TOT<<setw(12)<<0.<<setw(12)<<scientific<<Z_TOT<<setw(12)<<0.<<endl;
+}
+
+f3<<setw(12)<<NB_SPH<<setw(12)<<0<<setw(12)<<scientific<<(dt*ite)<<endl;
+for(int it=0;it<NB_SPH;it++){
+f3<<setw(12)<<scientific<<EDGE[it]<<setw(12)<<scientific<<LIST_X[it]<<setw(12)<<scientific<<LIST_Y[it]<<setw(12)<<scientific<<LIST_Z[it]<<setw(12)<<scientific<<LIST_R[it]<<setw(12)<<LIST_B[it]<<endl; 
+}
+f3.close();
+
+
+}
+
+
+void ExpVISU_VER(int ite, R dt, int NB_SPH, R H_TOT, R V_TOT, R Z_TOT, R* LIST_X, R* LIST_Y, R* LIST_Z, R* LIST_R, int NB_VER, int NX, int NY, int NZ, R * VONMISV,R maxvmv, R minvmv, bool bout){
+  /*
+// fichier visu
+fstream f1;
+f1.precision(4);
+if(!bout){
+f1.open("VISU/vdepl",fstream::out | fstream::app);
+}
+else{
+f1.open("VISU/vdepl",fstream::out); 
+f1<<setw(12)<<scientific<<H_TOT<<setw(12)<<0.<<setw(12)<<scientific<<V_TOT<<setw(12)<<0.<<setw(12)<<scientific<<Z_TOT<<setw(12)<<0.<<endl;
+}
+
+f1<<setw(12)<<NB_SPH<<setw(12)<<0<<setw(12)<<scientific<<(dt*ite)<<endl;
+for(int it=0;it<NB_SPH;it++){
+f1<<setw(12)<<scientific<<LIST_X[it]<<setw(12)<<scientific<<LIST_Y[it]<<setw(12)<<scientific<<LIST_Z[it]<<setw(12)<<scientific<<LIST_R[it]<<endl; 
+}
+f1.close();
+
+fstream f2;
+f2.precision(4);
+if(!bout){
+f2.open("VISU/vcontr",fstream::out | fstream::app);
+}
+else{
+f2.open("VISU/vcontr",fstream::out); 
+f2<<setw(12)<<scientific<<H_TOT<<setw(12)<<0.<<setw(12)<<scientific<<V_TOT<<setw(12)<<0.<<setw(12)<<scientific<<Z_TOT<<setw(12)<<0.<<endl;
+}
+
+f2<<setw(12)<<NB_SPH<<setw(12)<<0<<setw(12)<<scientific<<(dt*ite)<<endl;
+for(int it=0;it<NB_SPH;it++){
+f2<<setw(12)<<scientific<<LIST_X[it]<<setw(12)<<scientific<<LIST_Y[it]<<setw(12)<<scientific<<LIST_Z[it]<<setw(12)<<scientific<<LIST_R[it]<<setw(12)<<scientific<<VONMIS[it]<<endl; 
+}
+f2<<setw(12)<<scientific<<maxvm<<setw(12)<<scientific<<minvm<<endl;
+
+f2.close();*/
+
+fstream f3;
+f3.precision(4);
+if(!bout){
+f3.open("VISU/vcontrv2",fstream::out | fstream::app);
+}
+else{
+f3.open("VISU/vcontrv2",fstream::out); 
+f3<<setw(12)<<scientific<<H_TOT<<setw(12)<<0.<<setw(12)<<scientific<<V_TOT<<setw(12)<<0.<<setw(12)<<scientific<<Z_TOT<<setw(12)<<0.<<endl;
+}
+
+f3<<setw(12)<<NX<<setw(12)<<NY<<setw(12)<<NZ<<setw(12)<<NB_VER<<setw(12)<<scientific<<(dt*ite)<<endl;
+for(int it=0;it<NB_VER;it++){
+f3<<setw(12)<<scientific<<VONMISV[it]<<endl; 
+}
+f3<<setw(12)<<scientific<<maxvmv<<setw(12)<<scientific<<minvmv<<endl;
+
+f3.close();
+
+}
+
+void ExpVISU_VER_TET4(int ite, R dt, int NB_SPH, R H_TOT, R V_TOT, R Z_TOT, R* LIST_X, R* LIST_Y, R* LIST_Z, R* LIST_R,int NB_VER,R * VONMISV,R maxvmv, R minvmv,R ** NOEUD, int ** TET4, int HT, int NT, R * sigN, bool bout){
+  
+  
+/*
+// fichier visu
+fstream f1;
+f1.precision(4);
+if(!bout){
+f1.open("VISU/vdepl",fstream::out | fstream::app);
+}
+else{
+f1.open("VISU/vdepl",fstream::out); 
+f1<<setw(12)<<scientific<<H_TOT<<setw(12)<<0.<<setw(12)<<scientific<<V_TOT<<setw(12)<<0.<<setw(12)<<scientific<<Z_TOT<<setw(12)<<0.<<endl;
+}
+
+f1<<setw(12)<<NB_SPH<<setw(12)<<0<<setw(12)<<scientific<<(dt*ite)<<endl;
+for(int it=0;it<NB_SPH;it++){
+f1<<setw(12)<<scientific<<LIST_X[it]<<setw(12)<<scientific<<LIST_Y[it]<<setw(12)<<scientific<<LIST_Z[it]<<setw(12)<<scientific<<LIST_R[it]<<endl; 
+}
+f1.close();
+
+fstream f2;
+f2.precision(4);
+if(!bout){
+f2.open("VISU/vcontr",fstream::out | fstream::app);
+}
+else{
+f2.open("VISU/vcontr",fstream::out); 
+f2<<setw(12)<<scientific<<H_TOT<<setw(12)<<0.<<setw(12)<<scientific<<V_TOT<<setw(12)<<0.<<setw(12)<<scientific<<Z_TOT<<setw(12)<<0.<<endl;
+}
+
+f2<<setw(12)<<NB_SPH<<setw(12)<<0<<setw(12)<<scientific<<(dt*ite)<<endl;
+for(int it=0;it<NB_SPH;it++){
+f2<<setw(12)<<scientific<<LIST_X[it]<<setw(12)<<scientific<<LIST_Y[it]<<setw(12)<<scientific<<LIST_Z[it]<<setw(12)<<scientific<<LIST_R[it]<<setw(12)<<scientific<<VONMIS[it]<<endl; 
+}
+f2<<setw(12)<<scientific<<maxvm<<setw(12)<<scientific<<minvm<<endl;
+
+f2.close();*/
+
+fstream f3;
+f3.precision(4);
+if(!bout){
+f3.open("VISU/vcontrv",fstream::out | fstream::app);
+}
+else{
+f3.open("VISU/vcontrv",fstream::out); 
+f3<<setw(12)<<scientific<<H_TOT<<setw(12)<<0.<<setw(12)<<scientific<<V_TOT<<setw(12)<<0.<<setw(12)<<scientific<<Z_TOT<<setw(12)<<0.<<endl;
+}
+
+f3<<setw(12)<<NB_VER<<setw(12)<<scientific<<(dt*ite)<<setw(12)<<1<<endl;
+for(int it=0;it<NB_VER;it++){
+f3<<setw(12)<<scientific<<NOEUD[TET4[it][0]][0]<<setw(12)<<scientific<<NOEUD[TET4[it][0]][1]<<setw(12)<<scientific<<NOEUD[TET4[it][0]][2]<<setw(12)<<scientific<<NOEUD[TET4[it][1]][0]<<setw(12)<<scientific<<NOEUD[TET4[it][1]][1]<<setw(12)<<scientific<<NOEUD[TET4[it][1]][2]<<setw(12)<<scientific<<NOEUD[TET4[it][2]][0]<<setw(12)<<scientific<<NOEUD[TET4[it][2]][1]<<setw(12)<<scientific<<NOEUD[TET4[it][2]][2]<<setw(12)<<scientific<<NOEUD[TET4[it][3]][0]<<setw(12)<<scientific<<NOEUD[TET4[it][3]][1]<<setw(12)<<scientific<<NOEUD[TET4[it][3]][2]<<setw(12)<<scientific<<VONMISV[it]<<endl; 
+}
+f3<<setw(12)<<scientific<<maxvmv<<setw(12)<<scientific<<minvmv<<endl;
+
+f3.close();
+
+fstream f4;
+f4.precision(4);
+if(!bout){
+f4.open("VISU/vcontrv2",fstream::out | fstream::app);
+}
+else{
+f4.open("VISU/vcontrv2",fstream::out); 
+f4<<setw(12)<<scientific<<H_TOT<<setw(12)<<0.<<setw(12)<<scientific<<V_TOT<<setw(12)<<0.<<setw(12)<<scientific<<Z_TOT<<setw(12)<<0.<<endl;
+}
+
+f4<<setw(12)<<HT<<setw(12)<<HT<<setw(12)<<HT<<setw(12)<<NT<<setw(12)<<scientific<<(dt*ite)<<endl;
+for(int it=0;it<NT;it++){
+f4<<setw(12)<<scientific<<sigN[it]<<endl; 
+}
+f4<<setw(12)<<scientific<<maxvmv<<setw(12)<<scientific<<minvmv<<endl;
+
+f4.close();
+
+}
+
+void ExpVISU_VER_PRI6(int ite, R dt, int NB_SPH, R H_TOT, R V_TOT, R Z_TOT, R* LIST_X, R* LIST_Y, R* LIST_Z, R* LIST_R,int NB_VER,R * VONMISV,R maxvmv, R minvmv,R ** NOEUD, int ** PRI6, int HT, int NT, R * sigN, bool bout){
+  
+  /*
+// fichier visu
+fstream f1;
+f1.precision(4);
+if(!bout){
+f1.open("VISU/vdepl",fstream::out | fstream::app);
+}
+else{
+f1.open("VISU/vdepl",fstream::out); 
+f1<<setw(12)<<scientific<<H_TOT<<setw(12)<<0.<<setw(12)<<scientific<<V_TOT<<setw(12)<<0.<<setw(12)<<scientific<<Z_TOT<<setw(12)<<0.<<endl;
+}
+
+f1<<setw(12)<<NB_SPH<<setw(12)<<0<<setw(12)<<scientific<<(dt*ite)<<endl;
+for(int it=0;it<NB_SPH;it++){
+f1<<setw(12)<<scientific<<LIST_X[it]<<setw(12)<<scientific<<LIST_Y[it]<<setw(12)<<scientific<<LIST_Z[it]<<setw(12)<<scientific<<LIST_R[it]<<endl; 
+}
+f1.close();
+
+fstream f2;
+f2.precision(4);
+if(!bout){
+f2.open("VISU/vcontr",fstream::out | fstream::app);
+}
+else{
+f2.open("VISU/vcontr",fstream::out); 
+f2<<setw(12)<<scientific<<H_TOT<<setw(12)<<0.<<setw(12)<<scientific<<V_TOT<<setw(12)<<0.<<setw(12)<<scientific<<Z_TOT<<setw(12)<<0.<<endl;
+}
+
+f2<<setw(12)<<NB_SPH<<setw(12)<<0<<setw(12)<<scientific<<(dt*ite)<<endl;
+for(int it=0;it<NB_SPH;it++){
+f2<<setw(12)<<scientific<<LIST_X[it]<<setw(12)<<scientific<<LIST_Y[it]<<setw(12)<<scientific<<LIST_Z[it]<<setw(12)<<scientific<<LIST_R[it]<<setw(12)<<scientific<<VONMIS[it]<<endl; 
+}
+f2<<setw(12)<<scientific<<maxvm<<setw(12)<<scientific<<minvm<<endl;
+
+f2.close();*/
+
+fstream f3;
+f3.precision(4);
+if(!bout){
+f3.open("VISU/vcontrv",fstream::out | fstream::app);
+}
+else{
+f3.open("VISU/vcontrv",fstream::out); 
+f3<<setw(12)<<scientific<<H_TOT<<setw(12)<<0.<<setw(12)<<scientific<<V_TOT<<setw(12)<<0.<<setw(12)<<scientific<<Z_TOT<<setw(12)<<0.<<endl;
+}
+
+f3<<setw(12)<<NB_VER<<setw(12)<<scientific<<(dt*ite)<<setw(12)<<2<<endl;
+for(int it=0;it<NB_VER;it++){
+f3<<setw(12)<<scientific<<NOEUD[PRI6[it][0]][0]<<setw(12)<<scientific<<NOEUD[PRI6[it][0]][1]<<setw(12)<<scientific<<NOEUD[PRI6[it][0]][2]<<setw(12)<<scientific<<NOEUD[PRI6[it][1]][0]<<setw(12)<<scientific<<NOEUD[PRI6[it][1]][1]<<setw(12)<<scientific<<NOEUD[PRI6[it][1]][2]<<setw(12)<<scientific<<NOEUD[PRI6[it][2]][0]<<setw(12)<<scientific<<NOEUD[PRI6[it][2]][1]<<setw(12)<<scientific<<NOEUD[PRI6[it][2]][2]<<setw(12)<<scientific<<NOEUD[PRI6[it][3]][0]<<setw(12)<<scientific<<NOEUD[PRI6[it][3]][1]<<setw(12)<<scientific<<NOEUD[PRI6[it][3]][2]<<setw(12)<<scientific<<VONMISV[it]<<endl; 
+}
+f3<<setw(12)<<scientific<<maxvmv<<setw(12)<<scientific<<minvmv<<endl;
+
+f3.close();
+
+fstream f4;
+f4.precision(4);
+if(!bout){
+f4.open("VISU/vcontrv2",fstream::out | fstream::app);
+}
+else{
+f4.open("VISU/vcontrv2",fstream::out); 
+f4<<setw(12)<<scientific<<H_TOT<<setw(12)<<0.<<setw(12)<<scientific<<V_TOT<<setw(12)<<0.<<setw(12)<<scientific<<Z_TOT<<setw(12)<<0.<<endl;
+}
+
+f4<<setw(12)<<HT<<setw(12)<<HT<<setw(12)<<HT<<setw(12)<<NT<<setw(12)<<scientific<<(dt*ite)<<endl;
+for(int it=0;it<NT;it++){
+f4<<setw(12)<<scientific<<sigN[it]<<endl; 
+}
+f4<<setw(12)<<scientific<<maxvmv<<setw(12)<<scientific<<minvmv<<endl;
+
+f4.close();
+
+}
+
+
+void ExpMeshHAMZA(R SIZEX, R SIZEY, R SIZEZ, int NB_SPH, R* LIST_X, R* LIST_Y, R* LIST_Z, R* LIST_R){
+  
+fstream g;
+g.open("pristimap",fstream::out);
+g.precision(4);
+
+g<<NB_SPH<<endl;
+for(int i=0;i<NB_SPH;i++)
+{
+ g<<setw(10)<<(i+1)<<setw(18)<<scientific<<LIST_X[i]<<setw(18)<<scientific<<LIST_Y[i]<<setw(18)<<scientific<<LIST_Z[i]<<setw(18)<<scientific<<LIST_R[i]<<endl;
+}
+
+g.close();
+}
+
+void ExpMeshMULTICOR(R SIZEX, R SIZEY, R SIZEZ, int NB_SPH, R* LIST_X, R* LIST_Y, R* LIST_Z, R* LIST_R){
+
+R H_MIN=0.;  
+  
+fstream g;
+g.open("carte",fstream::out);
+g.precision(4);
+
+g<<"CONDLIMI"<<endl;
+g<<setw(12)<<scientific<<left<<H_MIN<<setw(12)<<scientific<<left<<SIZEX<<setw(12)<<scientific<<left<<H_MIN<<setw(12)<<scientific<<left<<SIZEY<<setw(12)<<scientific<<left<<H_MIN<<setw(12)<<scientific<<left<<SIZEZ<<endl;
+g<<"SNUMERI"<<endl;
+g<<setw(12)<<scientific<<0.000001<<setw(12)<<scientific<<0.000001<<endl;
+g<<"SCONTAC"<<endl;
+g<<setw(12)<<scientific<<0.000005<<setw(14)<<left<<999999999<<endl;
+g<<"MATER"<<endl;
+g<<setw(12)<<scientific<<9.81<<setw(12)<<scientific<<0.<<setw(12)<<scientific<<0.<<setw(12)<<scientific<<210e9<<setw(12)<<scientific<<0.02<<setw(12)<<scientific<<7.8e9<<endl;
+
+g<<setw(10)<<"SPHERE"<<NB_SPH<<endl;
+for(int i=0;i<NB_SPH;i++)
+{
+ g<<setw(10)<<(i+1)<<setw(12)<<scientific<<LIST_R[i]<<endl;
+ g<<setw(14)<<scientific<<LIST_X[i]<<setw(14)<<scientific<<LIST_Y[i]<<setw(14)<<scientific<<LIST_Z[i]<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+ g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+ g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+ g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+}
+
+g<<setw(10)<<"HAFFINE"<<1<<endl;
+g<<setw(10)<<1<<setw(12)<<scientific<<0.<<setw(12)<<scientific<<0.<<setw(12)<<scientific<<0.<<endl;
+
+g<<setw(10)<<"HSINUS"<<1<<endl;
+g<<setw(10)<<1<<setw(12)<<scientific<<0.<<setw(12)<<scientific<<0.<<setw(12)<<scientific<<0.<<setw(12)<<scientific<<0.<<endl;
+
+g<<setw(10)<<"HOBLIQUE"<<1<<endl;
+g<<setw(10)<<1<<setw(12)<<scientific<<0.<<setw(12)<<scientific<<0.<<setw(12)<<scientific<<0.<<setw(12)<<scientific<<0.<<setw(12)<<scientific<<0.<<setw(12)<<scientific<<0.<<endl;
+g<<setw(12)<<scientific<<0.<<setw(12)<<scientific<<0.<<setw(12)<<scientific<<0.<<setw(12)<<scientific<<0.<<setw(12)<<scientific<<0.<<setw(12)<<scientific<<0.<<endl;
+
+g<<setw(10)<<"PAROI"<<6<<endl;
+g<<setw(10)<<1<<setw(10)<<"HAFFINE"<<1<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<SIZEX<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<SIZEX<<setw(14)<<scientific<<SIZEY<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<SIZEY<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(10)<<2<<setw(10)<<"HAFFINE"<<1<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<SIZEZ<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<SIZEX<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<SIZEZ<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<SIZEX<<setw(14)<<scientific<<SIZEY<<setw(14)<<scientific<<SIZEZ<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<SIZEY<<setw(14)<<scientific<<SIZEZ<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(10)<<3<<setw(10)<<"HAFFINE"<<1<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<SIZEY<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<SIZEY<<setw(14)<<scientific<<SIZEZ<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<SIZEZ<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(10)<<4<<setw(10)<<"HAFFINE"<<1<<endl;
+g<<setw(14)<<scientific<<SIZEX<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<SIZEX<<setw(14)<<scientific<<SIZEY<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<SIZEX<<setw(14)<<scientific<<SIZEY<<setw(14)<<scientific<<SIZEZ<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<SIZEX<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<SIZEZ<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(10)<<5<<setw(10)<<"HAFFINE"<<1<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<SIZEZ<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<SIZEX<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<SIZEZ<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<SIZEX<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(10)<<6<<setw(10)<<"HAFFINE"<<1<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<SIZEY<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<SIZEY<<setw(14)<<scientific<<SIZEZ<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<SIZEX<<setw(14)<<scientific<<SIZEY<<setw(14)<<scientific<<SIZEZ<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<SIZEX<<setw(14)<<scientific<<SIZEY<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<setw(14)<<scientific<<0.<<endl;
+g.close();
+} 
+
+void ExpVER(int NB_VER, R * VONMISV){
+  
+fstream g;
+g.open("sigVER",fstream::out);
+g.precision(4);
+
+g<<NB_VER<<endl;
+for(int i=0;i<NB_VER;i++)
+{
+ g<<setw(10)<<(i+1)<<setw(18)<<scientific<<VONMISV[i]<<endl;
+}
+
+g.close();
+}
+
+void ExpPRI6(int & NB_NOVER, int & NB_VER, R ** NOEUD, int ** PRI6){
+  
+fstream g;
+g.open("VER_PRI6",fstream::out);
+g.precision(4);
+
+g << NB_NOVER << endl;
+for (int it=0;it<NB_NOVER;it++){
+	g<<setw(18)<<scientific<<NOEUD[it][0]<<setw(18)<<scientific<<NOEUD[it][1]<<setw(18)<<scientific<<NOEUD[it][2]<<endl;
+}
+
+g << NB_VER << endl;
+for (int it=0;it<NB_VER;it++){
+	g<<setw(10)<<(it+1)<<setw(10)<<(PRI6[it][0]+1)<<setw(10)<<(PRI6[it][1]+1)<<setw(10)<<(PRI6[it][2]+1)<<setw(10)<<(PRI6[it][3]+1)<<setw(10)<<(PRI6[it][4]+1)<<setw(10)<<(PRI6[it][5]+1)<<endl;
+}
+g.close();
+}
+
+
+void ExpPARAMETER_sig_dep(R ff, int ite, R ti, int NB_SPH, R H_TOT, R V_TOT, R Z_TOT, R* LIST_X, R* LIST_Y, R* LIST_Z, R* LIST_R,R * VONMIS,R * TRACE,R * SIG11,R * SIG12,R * SIG13,R * SIG22,R * SIG23,R * SIG33,R * SIG1,R * SIG2,R * SIG3,R * DEP1,R * DEP2,R * DEP3,R maxvm, R minvm, R maxtrac, R mintrac,R maxsig11, R minsig11,R maxsig12, R minsig12,R maxsig13, R minsig13,R maxsig22, R minsig22,R maxsig23, R minsig23,R maxsig33, R minsig33,R maxsig1, R minsig1,R maxsig2, R minsig2,R maxsig3, R minsig3,R maxdep1, R mindep1,R maxdep2, R mindep2,R maxdep3, R mindep3, int * LIST_B, bool * EDGE){
+ 
+ostringstream oss;
+oss << ite;
+
+
+string filename0 = "DATA/datasigdep" + oss.str() + ".txt";
+const char * filename1 = filename0.c_str();
+
+  
+fstream g;
+g.precision(4);
+g.open(filename1,fstream::out);
+//g<<setw(12)<<ite<<setw(12)<<scientific<<ti<<setw(12)<<NB_SPH<<setw(12)<<scientific<<ff<<endl;
+//g<<setw(12)<<scientific<<H_TOT<<setw(12)<<0.<<setw(12)<<scientific<<V_TOT<<setw(12)<<0.<<setw(12)<<scientific<<Z_TOT<<setw(12)<<0.<<endl;
+
+
+for(int it=0;it<NB_SPH;it++){
+g<<setw(12)<<scientific<<ff<<setw(12)<<(it+1)<<setw(12)<<EDGE[it]<<setw(12)<<scientific<<LIST_X[it]<<setw(12)<<scientific<<LIST_Y[it]<<setw(12)<<scientific<<LIST_Z[it]<<setw(12)<<scientific<<LIST_R[it]<<setw(12)<<scientific<<VONMIS[it]<<setw(12)<<scientific<<TRACE[it]<<setw(12)<<scientific<<SIG11[it]<<setw(12)<<scientific<<SIG12[it]<<setw(12)<<scientific<<SIG13[it]<<setw(12)<<scientific<<SIG22[it]<<setw(12)<<scientific<<SIG23[it]<<setw(12)<<scientific<<SIG33[it]<<setw(12)<<scientific<<SIG1[it]<<setw(12)<<scientific<<SIG2[it]<<setw(12)<<scientific<<SIG3[it]<<setw(12)<<scientific<<DEP1[it]<<setw(12)<<scientific<<DEP2[it]<<setw(12)<<scientific<<DEP3[it]<<endl; 
+}
+/*
+g<<setw(12)<<scientific<<maxvm<<setw(12)<<scientific<<minvm<<endl;
+g<<setw(12)<<scientific<<maxtrac<<setw(12)<<scientific<<mintrac<<endl;
+g<<setw(12)<<scientific<<maxsig11<<setw(12)<<scientific<<minsig11<<endl;
+g<<setw(12)<<scientific<<maxsig12<<setw(12)<<scientific<<minsig12<<endl;
+g<<setw(12)<<scientific<<maxsig13<<setw(12)<<scientific<<minsig13<<endl;
+g<<setw(12)<<scientific<<maxsig22<<setw(12)<<scientific<<minsig22<<endl;
+g<<setw(12)<<scientific<<maxsig23<<setw(12)<<scientific<<minsig23<<endl;
+g<<setw(12)<<scientific<<maxsig33<<setw(12)<<scientific<<minsig33<<endl;
+g<<setw(12)<<scientific<<maxsig1<<setw(12)<<scientific<<minsig1<<endl;
+g<<setw(12)<<scientific<<maxsig2<<setw(12)<<scientific<<minsig2<<endl;
+g<<setw(12)<<scientific<<maxsig3<<setw(12)<<scientific<<minsig3<<endl;
+g<<setw(12)<<scientific<<maxdep1<<setw(12)<<scientific<<mindep1<<endl;
+g<<setw(12)<<scientific<<maxdep2<<setw(12)<<scientific<<mindep2<<endl;
+g<<setw(12)<<scientific<<maxdep3<<setw(12)<<scientific<<mindep3<<endl;*/
+
+g.close();
+}
+
+
+void ExpPARAMETER_rupt(int nrt, int nrc, int nrcis, int nrtot, int ite){
+fstream g;
+g.precision(4);
+g.open("DATA/datarupt.txt",fstream::out | fstream::app);
+g<<setw(12)<<ite<<setw(12)<<nrt<<setw(12)<<nrc<<setw(12)<<nrcis<<setw(12)<<nrtot<<endl;
+g.close();
+}
+
+void ExpPARAMETER_ind(int ite, R ti, R force, int nbci, R pos){
+  
+fstream g;
+g.precision(4);
+g.open("DATA/dataind.txt",fstream::out | fstream::app);
+g<<setw(12)<<ite<<setw(12)<<ti<<setw(12)<<force<<setw(12)<<nbci<<setw(12)<<pos<<endl;
+g.close();
+}
+

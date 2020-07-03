@@ -1,0 +1,1246 @@
+#include <cstdlib>
+#include <cstdio>
+#include <iomanip>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <cmath>
+#include <time.h> 
+#include <sys/time.h> 
+#include <sys/resource.h> 
+#include <string.h>
+#include <map>
+#include <cassert>
+#include <vector>
+#include <limits>
+
+using namespace std;
+
+#include "lectfic.h"
+
+void read_paroi(int & NB_PAR, R ** LIST_PX, R ** LIST_PY, R ** LIST_PZ)
+{
+ifstream f("APPLI/paroi/testp",ios::in);
+f >> NB_PAR;
+
+int tmp;
+
+for (int it=0;it<NB_PAR;it++){
+f >> tmp;	
+	for (int jt=0;jt<4;jt++){
+	f >> LIST_PX[it][jt];
+	f >> LIST_PY[it][jt];
+	f >> LIST_PZ[it][jt];
+	}
+}
+
+f.close();
+}
+
+
+void read_sph(R & H_TOT, R & V_TOT, R & Z_TOT, int & NB_SPH, R & R_SPH, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R & RMAX)
+{
+R_SPH=0.;
+RMAX=0.;  
+
+H_TOT=-2e9;
+V_TOT=-2e9;
+Z_TOT=-2e9;
+
+ifstream f("APPLI/carttest/test",ios::in);
+f >> NB_SPH;
+
+int tmp;
+
+for (int it=0;it<NB_SPH;it++){
+f >> tmp;	
+f >> LIST_X[it];
+f >> LIST_Y[it];
+f >> LIST_Z[it];
+f >> LIST_R[it];
+LIST_X[it]=LIST_X[it];
+LIST_Y[it]=LIST_Y[it];
+LIST_Z[it]=LIST_Z[it];
+LIST_R[it]=LIST_R[it];
+R_SPH+=LIST_R[it];
+
+RMAX=(LIST_R[it]>RMAX)?LIST_R[it]:RMAX;
+H_TOT=(LIST_X[it]>H_TOT)?LIST_X[it]:H_TOT;
+V_TOT=(LIST_Y[it]>V_TOT)?LIST_Y[it]:V_TOT;
+Z_TOT=(LIST_Z[it]>Z_TOT)?LIST_Z[it]:Z_TOT;
+}
+R_SPH/=NB_SPH;
+
+f.close();
+}
+
+void read_sph_ind(R & H_TOT, R & V_TOT, R & Z_TOT, int & NB_SPH, R & R_SPH, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R & RMAX, R rind)
+{
+R_SPH=0.;
+RMAX=0.;  
+
+H_TOT=-2e9;
+V_TOT=-2e9;
+Z_TOT=-2e9;
+
+ifstream f("APPLI/carttest/test",ios::in);
+f >> NB_SPH;
+
+int tmp;
+
+R vols=0.;
+
+for (int it=0;it<NB_SPH;it++){
+f >> tmp;	
+f >> LIST_X[it];
+f >> LIST_Y[it];
+f >> LIST_Z[it];
+f >> LIST_R[it];
+LIST_X[it]=LIST_X[it];
+LIST_Y[it]=LIST_Y[it];
+LIST_Z[it]=LIST_Z[it];
+LIST_R[it]=LIST_R[it];
+R_SPH+=LIST_R[it];
+
+vols=vols+4./3*3.14159*LIST_R[it]*LIST_R[it]*LIST_R[it];
+
+RMAX=(LIST_R[it]>RMAX)?LIST_R[it]:RMAX;
+H_TOT=((LIST_X[it])>H_TOT)?(LIST_X[it]):H_TOT;
+V_TOT=((LIST_Y[it])>V_TOT)?(LIST_Y[it]):V_TOT;
+Z_TOT=((LIST_Z[it])>Z_TOT)?(LIST_Z[it]):Z_TOT;
+}
+R_SPH/=NB_SPH;
+
+LIST_X[NB_SPH]=R(H_TOT)/2.;
+LIST_Y[NB_SPH]=R(V_TOT)/2.;
+LIST_Z[NB_SPH]=R(Z_TOT)+rind+R_SPH;
+LIST_R[NB_SPH]=rind;
+NB_SPH++;
+
+f.close();
+
+cout<<"Volume des particules :"<<vols<<endl;
+}
+
+void read_sphp_ind(R & H_TOT, R & V_TOT, R & Z_TOT, int & NB_SPH, R & R_SPH, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R & RMAX, R rind)
+{
+R_SPH=0.;
+RMAX=0.;  
+
+H_TOT=-2e9;
+V_TOT=-2e9;
+Z_TOT=-2e9;
+
+ifstream f("APPLI/carttest/test",ios::in);
+f >> NB_SPH;
+
+int tmp;
+
+R vols=0.;
+
+for (int it=0;it<NB_SPH;it++){
+f >> tmp;	
+f >> LIST_X[it];
+f >> LIST_Y[it];
+f >> LIST_Z[it];
+f >> LIST_R[it];
+LIST_X[it]=LIST_X[it];
+LIST_Y[it]=LIST_Y[it];
+LIST_Z[it]=LIST_Z[it];
+LIST_R[it]=LIST_R[it];
+R_SPH+=LIST_R[it];
+
+vols=vols+4./3*3.14159*LIST_R[it]*LIST_R[it]*LIST_R[it];
+
+RMAX=(LIST_R[it]>RMAX)?LIST_R[it]:RMAX;
+H_TOT=((LIST_X[it]+LIST_R[it])>H_TOT)?(LIST_X[it]+LIST_R[it]):H_TOT;
+V_TOT=((LIST_Y[it]+LIST_R[it])>V_TOT)?(LIST_Y[it]+LIST_R[it]):V_TOT;
+Z_TOT=((LIST_Z[it]+LIST_R[it])>Z_TOT)?(LIST_Z[it]+LIST_R[it]):Z_TOT;
+}
+R_SPH/=NB_SPH;
+
+LIST_X[NB_SPH]=R(H_TOT)/2.;
+LIST_Y[NB_SPH]=R(V_TOT)/2.;
+LIST_Z[NB_SPH]=R(Z_TOT)+rind;
+LIST_R[NB_SPH]=rind;
+NB_SPH++;
+
+f.close();
+
+cout<<"Volume des particules :"<<vols<<endl;
+}
+
+void read_sphp_car(R EE, R & H_TOT, R & V_TOT, R & Z_TOT, int & NB_SPH, R & R_SPH, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R & RMAX)
+{
+R_SPH=0.;
+RMAX=0.;  
+
+H_TOT=-2e9;
+V_TOT=-2e9;
+Z_TOT=-2e9;
+
+ifstream f("APPLI/carttest/test",ios::in);
+f >> NB_SPH;
+
+int tmp;
+
+R vols=0.;
+
+for (int it=0;it<NB_SPH;it++){
+f >> tmp;	
+f >> LIST_X[it];
+f >> LIST_Y[it];
+f >> LIST_Z[it];
+f >> LIST_R[it];
+LIST_X[it]=LIST_X[it];
+LIST_Y[it]=LIST_Y[it];
+LIST_Z[it]=LIST_Z[it];
+LIST_R[it]=LIST_R[it];
+R_SPH+=LIST_R[it];
+
+vols=vols+4./3*3.14159*LIST_R[it]*LIST_R[it]*LIST_R[it];
+
+RMAX=(LIST_R[it]>RMAX)?LIST_R[it]:RMAX;
+H_TOT=((LIST_X[it]+LIST_R[it]+EE)>H_TOT)?(LIST_X[it]+LIST_R[it]+EE):H_TOT;
+V_TOT=((LIST_Y[it]+LIST_R[it])>V_TOT)?(LIST_Y[it]+LIST_R[it]):V_TOT;
+Z_TOT=((LIST_Z[it]+LIST_R[it])>Z_TOT)?(LIST_Z[it]+LIST_R[it]):Z_TOT;
+}
+R_SPH/=NB_SPH;
+
+f.close();
+
+cout<<"Volume des particules :"<<vols<<endl;
+}
+
+void read_sphp(R & H_TOT, R & V_TOT, R & Z_TOT, int & NB_SPH, R & R_SPH, R * LIST_R, R * LIST_X, R * LIST_Y, R * LIST_Z, R & RMAX)
+{
+R_SPH=0.;
+RMAX=0.;  
+
+H_TOT=-2e9;
+V_TOT=-2e9;
+Z_TOT=-2e9;
+
+ifstream f("APPLI/carttest/test",ios::in);
+f >> NB_SPH;
+
+int tmp;
+
+R vols=0.;
+R EE=1.;
+
+for (int it=0;it<NB_SPH;it++){
+f >> tmp;	
+f >> LIST_X[it];
+f >> LIST_Y[it];
+f >> LIST_Z[it];
+f >> LIST_R[it];
+LIST_X[it]=LIST_X[it];
+LIST_Y[it]=LIST_Y[it];
+LIST_Z[it]=LIST_Z[it];
+LIST_R[it]=LIST_R[it];
+R_SPH+=LIST_R[it];
+
+vols=vols+4./3*3.14159*LIST_R[it]*LIST_R[it]*LIST_R[it];
+
+RMAX=(LIST_R[it]>RMAX)?LIST_R[it]:RMAX;
+H_TOT=((LIST_X[it]+LIST_R[it]+EE)>H_TOT)?(LIST_X[it]+LIST_R[it]+EE):H_TOT;
+V_TOT=((LIST_Y[it]+LIST_R[it])>V_TOT)?(LIST_Y[it]+LIST_R[it]):V_TOT;
+Z_TOT=((LIST_Z[it]+LIST_R[it])>Z_TOT)?(LIST_Z[it]+LIST_R[it]):Z_TOT;
+}
+R_SPH/=NB_SPH;
+
+f.close();
+
+cout<<"Volume des particules :"<<vols<<endl;
+}
+
+void read_phase(int H_TOT, int V_TOT, int Z_TOT, int NB_SPH, R * LIST_X, R * LIST_Y, R * LIST_Z, bool * LIST_P)
+{
+
+R rayc=R(V_TOT)/4.;
+R numi=0.;
+R ntot=0.;
+
+	for(int it=0;it<NB_SPH;it++){
+    LIST_P[it]=0;
+	
+	R coef=1.;
+	
+	    if(abs(LIST_X[it]-0.)<1e-5){
+		coef/=2.;	
+		}
+        if(abs(LIST_X[it]-H_TOT)<1e-5){
+		coef/=2.;	
+		}		
+        if(abs(LIST_Y[it]-0.)<1e-5){
+		coef/=2.;	
+		}		
+        if(abs(LIST_Y[it]-V_TOT)<1e-5){
+		coef/=2.;	
+		}				
+        if(abs(LIST_Z[it]-0.)<1e-5){
+		coef/=2.;	
+		}		
+        if(abs(LIST_Y[it]-Z_TOT)<1e-5){
+		coef/=2.;	
+		}	 
+	
+	R dist=sqrt((LIST_Z[it]-R(Z_TOT)/2.)*(LIST_Z[it]-R(Z_TOT)/2.)+(LIST_X[it]-R(H_TOT)/2.)*(LIST_X[it]-R(H_TOT)/2.));	
+	if(dist<rayc){numi=numi+coef;LIST_P[it]=1;}
+	ntot=ntot+coef;
+	}
+
+R frac=numi/ntot;
+cout<<"PR PART :"<<frac<<endl;
+
+	
+}
+
+void read_phase_rupt(int H_TOT, int V_TOT, int Z_TOT, int NB_SPH, R * LIST_X, R * LIST_Y, R * LIST_Z, bool * LIST_P, int * LIST_B)
+{
+
+R rayc=R(V_TOT)/4.;
+R numi=0.;
+R ntot=0.;
+
+	for(int it=0;it<NB_SPH;it++){
+    LIST_P[it]=0;
+    LIST_B[it]=0;
+	
+	R coef=1.;
+	
+	    if(abs(LIST_X[it]-0.)<1e-5){
+		coef/=2.;	
+		}
+        if(abs(LIST_X[it]-H_TOT)<1e-5){
+		coef/=2.;	
+		}		
+        if(abs(LIST_Y[it]-0.)<1e-5){
+		coef/=2.;	
+		}		
+        if(abs(LIST_Y[it]-V_TOT)<1e-5){
+		coef/=2.;	
+		}				
+        if(abs(LIST_Z[it]-0.)<1e-5){
+		coef/=2.;	
+		}		
+        if(abs(LIST_Y[it]-Z_TOT)<1e-5){
+		coef/=2.;	
+		}	 
+	
+	R dist=sqrt((LIST_Z[it]-R(Z_TOT)/2.)*(LIST_Z[it]-R(Z_TOT)/2.)+(LIST_X[it]-R(H_TOT)/2.)*(LIST_X[it]-R(H_TOT)/2.));	
+	if(dist<rayc){numi=numi+coef;LIST_P[it]=1;LIST_B[it]=1;}
+	ntot=ntot+coef;
+	}
+
+R frac=numi/ntot;
+cout<<"PR PART :"<<frac<<endl;
+
+	
+}
+
+void read_phase_compo(int H_TOT, int V_TOT, int Z_TOT, int NB_SPH, R * LIST_X, R * LIST_Y, R * LIST_Z, bool * LIST_P)
+{
+
+int NB_INC;
+R R_INC;
+
+
+ifstream f("APPLI/compo/carte",ios::in);
+f >> NB_INC;
+f >> R_INC;
+//R_INC/=2.;
+R_INC*=H_TOT;
+R_INC*=1.0247;
+
+cout<<"Nb inc:"<<NB_INC<<endl;
+
+R * INC_X = new R[NB_INC];
+R * INC_Y = new R[NB_INC];
+R * INC_Z = new R[NB_INC];
+
+R PR_INC=0.;
+
+for(int it=0;it<NB_INC;it++){
+f >> INC_X[it];
+f >> INC_Y[it];
+f >> INC_Z[it];
+
+INC_X[it]*=R(H_TOT);
+INC_Y[it]*=R(V_TOT);
+INC_Z[it]*=R(Z_TOT);
+
+PR_INC+=4./3*3.14159*R_INC*R_INC*R_INC;
+
+}
+
+f.close();
+
+PR_INC/=(H_TOT*V_TOT*Z_TOT);
+
+cout<<"Fraction volumique d'inc : "<<(PR_INC)<<endl;	
+	
+R dx,dy,dz,dxm,dym,dzm,dxp,dyp,dzp;
+
+R r2=R_INC*R_INC;
+
+int numi=0;	
+	
+for(int it=0;it<NB_SPH;it++){		
+	LIST_P[it]=0;
+  if(it%100000==0) cout<<"Particule :"<<it+1<<"/"<<NB_SPH<<endl;
+
+	
+  for(int jt=0;jt<NB_INC;jt++){	
+
+  dx=LIST_X[it]-INC_X[jt];
+  dxp=dx+H_TOT;
+  dxm=dx-H_TOT;
+  dx=dx*dx;
+  dxm=dxm*dxm;
+  dxp=dxp*dxp;
+  dy=LIST_Y[it]-INC_Y[jt];    
+  dyp=dy+V_TOT;
+  dym=dy-V_TOT;    
+  dy=dy*dy;
+  dym=dym*dym;
+  dyp=dyp*dyp;
+  dz=LIST_Z[it]-INC_Z[jt];
+  dzp=dz+Z_TOT;
+  dzm=dz-Z_TOT;     
+  dz=dz*dz;
+  dzm=dzm*dzm;
+  dzp=dzp*dzp;
+    
+  if(dx+dy+dz<=r2) {LIST_P[it]=1;numi++;}
+  else if(dxm+dy+dz<=r2) {LIST_P[it]=1;numi++;}  
+  else if(dxp+dy+dz<=r2) {LIST_P[it]=1;numi++;}  
+  else if(dx+dym+dz<=r2) {LIST_P[it]=1;numi++;}
+  else if(dxm+dym+dz<=r2) {LIST_P[it]=1;numi++;}  
+  else if(dxp+dym+dz<=r2) {LIST_P[it]=1;numi++;}  
+  else if(dx+dyp+dz<=r2) {LIST_P[it]=1;numi++;}
+  else if(dxm+dyp+dz<=r2) {LIST_P[it]=1;numi++;}  
+  else if(dxp+dyp+dz<=r2) {LIST_P[it]=1;numi++;}  
+  else if(dx+dy+dzm<=r2) {LIST_P[it]=1;numi++;}
+  else if(dxm+dy+dzm<=r2) {LIST_P[it]=1;numi++;}  
+  else if(dxp+dy+dzm<=r2) {LIST_P[it]=1;numi++;}  
+  else if(dx+dym+dzm<=r2) {LIST_P[it]=1;numi++;}
+  else if(dxm+dym+dzm<=r2) {LIST_P[it]=1;numi++;}  
+  else if(dxp+dym+dzm<=r2) {LIST_P[it]=1;numi++;}  
+  else if(dx+dyp+dzm<=r2) {LIST_P[it]=1;numi++;}
+  else if(dxm+dyp+dzm<=r2) {LIST_P[it]=1;numi++;}  
+  else if(dxp+dyp+dzm<=r2) {LIST_P[it]=1;numi++;}    
+  else if(dx+dy+dzp<=r2) {LIST_P[it]=1;numi++;}
+  else if(dxm+dy+dzp<=r2) {LIST_P[it]=1;numi++;}  
+  else if(dxp+dy+dzp<=r2) {LIST_P[it]=1;numi++;}  
+  else if(dx+dym+dzp<=r2) {LIST_P[it]=1;numi++;}
+  else if(dxm+dym+dzp<=r2) {LIST_P[it]=1;numi++;}  
+  else if(dxp+dym+dzp<=r2) {LIST_P[it]=1;numi++;}  
+  else if(dx+dyp+dzp<=r2) {LIST_P[it]=1;numi++;}
+  else if(dxm+dyp+dzp<=r2) {LIST_P[it]=1;numi++;}  
+  else if(dxp+dyp+dzp<=r2) {LIST_P[it]=1;numi++;}    	
+  	
+  	
+  }
+}  	
+
+cout<<"PR PART :"<<(R(numi)/NB_SPH)<<endl;
+
+	
+}
+
+
+void read_ver_tet4(int & NB_NOVER, int & NB_VER, R ** NOEUD, int ** TET4)
+{
+ 	
+ifstream f("APPLI/VER/VER",ios::in);
+
+int tmp;
+f >> NB_NOVER; 
+for (int it=0;it<NB_NOVER;it++){
+f >> NOEUD[it][0];
+f >> NOEUD[it][1];
+f >> NOEUD[it][2];
+}
+f >> NB_VER;
+for (int it=0;it<NB_VER;it++){
+f >> tmp;
+f >> TET4[it][0];
+f >> TET4[it][1];
+f >> TET4[it][2];
+f >> TET4[it][3];
+
+TET4[it][0]--;
+TET4[it][1]--;
+TET4[it][2]--;
+TET4[it][3]--;
+}
+ 
+f.close();
+
+cout<<"NB_NOVER:"<<NB_NOVER<<endl;
+cout<<"NB_VER:"<<NB_VER<<endl;
+
+}
+
+void read_ver_pri6(int & NB_NOVER, int & NB_VER, R ** NOEUD, int ** PRI6)
+{
+ 	
+ifstream f("APPLI/VER/VER",ios::in);
+
+int tmp;
+f >> NB_NOVER; 
+for (int it=0;it<NB_NOVER;it++){
+f >> NOEUD[it][0];
+f >> NOEUD[it][1];
+f >> NOEUD[it][2];
+}
+f >> NB_VER;
+for (int it=0;it<NB_VER;it++){
+f >> tmp;
+f >> PRI6[it][0];
+f >> PRI6[it][1];
+f >> PRI6[it][2];
+f >> PRI6[it][3];
+f >> PRI6[it][4];
+f >> PRI6[it][5];
+
+PRI6[it][0]--;
+PRI6[it][1]--;
+PRI6[it][2]--;
+PRI6[it][3]--;
+PRI6[it][4]--;
+PRI6[it][5]--;
+}
+ 
+f.close();
+
+cout<<"NB_NOVER:"<<NB_NOVER<<endl;
+cout<<"NB_VER:"<<NB_VER<<endl;
+
+}
+
+void read_ver_pri6_from_tri3(int & NB_NOVER, int & NB_VER, R ** NOEUD, int ** PRI6)
+{
+  
+int NB_NOVER0;
+int NB_VER0;
+int NZ;
+cout<<"read_ver"<<endl;
+  
+ifstream f("APPLI/VER/VER",ios::in);
+
+int tmp;
+string stmp;
+
+R maxval=0.;
+f >> stmp;
+f >> NB_NOVER0; 
+for (int it=0;it<NB_NOVER0;it++){
+f >> tmp;
+f >> NOEUD[it][0];
+f >> NOEUD[it][2];
+maxval=(maxval>NOEUD[it][0])?maxval:NOEUD[it][0];
+maxval=(maxval>NOEUD[it][2])?maxval:NOEUD[it][2];
+}
+for (int it=0;it<NB_NOVER0;it++){
+NOEUD[it][0]=NOEUD[it][0]*100./maxval;
+NOEUD[it][2]=NOEUD[it][2]*100./maxval;
+NOEUD[it][1]=0.;
+}
+
+f >> stmp;
+f >> NB_VER0;
+for (int it=0;it<NB_VER0;it++){
+f >> tmp;
+f >> PRI6[it][0];
+f >> PRI6[it][1];
+f >> PRI6[it][2];
+
+PRI6[it][0]--;
+PRI6[it][1]--;
+PRI6[it][2]--;
+}
+
+NZ=(int) (pow(R(NB_VER0)/2.,1./2));
+cout<<"NZ:"<<NZ<<endl;
+cout<<"NB_NOVER0:"<<NB_NOVER0<<endl;
+cout<<"NB_VER0:"<<NB_VER0<<endl;
+
+NB_VER   = NZ*NB_VER0;
+NB_NOVER = NB_NOVER0*(NZ+1);
+
+R PY =100./R(NZ);
+
+for (int it=NB_NOVER0;it<NB_NOVER;it++){
+NOEUD[it][0]=NOEUD[it%NB_NOVER0][0];
+NOEUD[it][1]=NOEUD[it%NB_NOVER0][1]+PY*(it/NB_NOVER0);
+NOEUD[it][2]=NOEUD[it%NB_NOVER0][2];
+//cout<<"it"<<it<<" -- "<<NOEUD[it][0]<<", "<<NOEUD[it][1]<<", "<<NOEUD[it][2]<<endl;
+}
+
+for (int it=0;it<NB_VER0;it++){
+PRI6[it][3]=PRI6[it][0]+NB_NOVER0;
+PRI6[it][4]=PRI6[it][1]+NB_NOVER0;
+PRI6[it][5]=PRI6[it][2]+NB_NOVER0;
+}
+for (int it=NB_VER0;it<NB_VER;it++){
+PRI6[it][0]=PRI6[it%NB_VER0][0]+(it/NB_VER0)*NB_NOVER0;
+PRI6[it][1]=PRI6[it%NB_VER0][1]+(it/NB_VER0)*NB_NOVER0;
+PRI6[it][2]=PRI6[it%NB_VER0][2]+(it/NB_VER0)*NB_NOVER0;
+PRI6[it][3]=PRI6[it%NB_VER0][3]+(it/NB_VER0)*NB_NOVER0;
+PRI6[it][4]=PRI6[it%NB_VER0][4]+(it/NB_VER0)*NB_NOVER0;
+PRI6[it][5]=PRI6[it%NB_VER0][5]+(it/NB_VER0)*NB_NOVER0;
+//cout<<"it"<<it<<" -- "<<NOEUD[PRI6[it][0]][0]<<", "<<NOEUD[PRI6[it][0]][1]<<", "<<NOEUD[PRI6[it][0]][2]<<endl;
+//cout<<"---- -- "<<NOEUD[PRI6[it][3]][0]<<", "<<NOEUD[PRI6[it][3]][1]<<", "<<NOEUD[PRI6[it][3]][2]<<endl;
+}
+
+
+ 
+f.close();
+
+}
+
+
+void genesis_tet4(int NB_VER, R ** NOEUD, int ** TET4,R * VOLT, int NT,int VT,int HT,int * LIST_N)
+{  
+
+for(int it=0;it<NT;it++){
+LIST_N[it] = 0;	
+}
+
+R xc,yc,zc;
+R som_vol;
+R vol1,vol2,vol3,vol4;
+
+for(int it=0;it<NB_VER;it++){
+//if(it%1000==0){cout<<"it:"<<it<<"/"<<(NB_VER+1)<<endl;}
+  
+R volt=VOLT[it];  
+  
+R x1 = NOEUD[TET4[it][0]][0]*R(HT)/100.;
+R y1 = NOEUD[TET4[it][0]][1]*R(HT)/100.;
+R z1 = NOEUD[TET4[it][0]][2]*R(HT)/100.;
+  
+R x2 = NOEUD[TET4[it][1]][0]*R(HT)/100.;
+R y2 = NOEUD[TET4[it][1]][1]*R(HT)/100.;
+R z2 = NOEUD[TET4[it][1]][2]*R(HT)/100.; 
+   
+R x3 = NOEUD[TET4[it][2]][0]*R(HT)/100.;
+R y3 = NOEUD[TET4[it][2]][1]*R(HT)/100.;
+R z3 = NOEUD[TET4[it][2]][2]*R(HT)/100.;  
+   
+R x4 = NOEUD[TET4[it][3]][0]*R(HT)/100.;
+R y4 = NOEUD[TET4[it][3]][1]*R(HT)/100.;
+R z4 = NOEUD[TET4[it][3]][2]*R(HT)/100.;   
+    
+R X_GRA = (x1+x2+x3+x4)/4.;
+R Y_GRA = (y1+y2+y3+y4)/4.;
+R Z_GRA = (z1+z2+z3+z4)/4.;
+
+int IX    = (int) floor(X_GRA);
+int IY    = (int) floor(Y_GRA);
+int IZ    = (int) floor(Z_GRA);
+
+int NUMA     = IZ*VT+IY*HT+IX;
+LIST_N[NUMA] = it+1;
+
+R dist12=sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1)+(z2-z1)*(z2-z1));
+R dist13=sqrt((x3-x1)*(x3-x1)+(y3-y1)*(y3-y1)+(z3-z1)*(z3-z1));
+R dist14=sqrt((x4-x1)*(x4-x1)+(y4-y1)*(y4-y1)+(z4-z1)*(z4-z1));
+R dist23=sqrt((x3-x2)*(x3-x2)+(y3-y2)*(y3-y2)+(z3-z2)*(z3-z2));
+R dist24=sqrt((x4-x2)*(x4-x2)+(y4-y2)*(y4-y2)+(z4-z2)*(z4-z2));
+R dist34=sqrt((x4-x3)*(x4-x3)+(y4-y3)*(y4-y3)+(z4-z3)*(z4-z3));
+
+R distmax=dist12;
+distmax=(dist13>distmax)?dist13:distmax;
+distmax=(dist14>distmax)?dist14:distmax;
+distmax=(dist23>distmax)?dist23:distmax;
+distmax=(dist24>distmax)?dist24:distmax;
+distmax=(dist34>distmax)?dist34:distmax;
+
+int BVOIS=0;
+
+    do
+    {  
+    BVOIS++;        
+    
+    int IXPLUS = IX+(BVOIS);
+    int IXMOIN = IX-(BVOIS);
+    int IYPLUS = IY+(BVOIS);
+    int IYMOIN = IY-(BVOIS);
+    int IZPLUS = IZ+(BVOIS);
+    int IZMOIN = IZ-(BVOIS);
+    
+    int IXPLUSP = (IXPLUS+HT)%HT;
+    int IXMOINP = (IXMOIN+HT)%HT;
+    int IYPLUSP = (IYPLUS+HT)%HT;
+    int IYMOINP = (IYMOIN+HT)%HT;    
+    int IZPLUSP = (IZPLUS+HT)%HT;
+    int IZMOINP = (IZMOIN+HT)%HT;   
+        
+    for(int j=0;j<(2*BVOIS+1);j++){
+    int IYI = IY-BVOIS+j;  
+    int IYIP = (IYI+HT)%HT;  
+    
+        for(int k=0;k<(2*BVOIS+1);k++){
+        int IZI = IZ-BVOIS+k;  
+	    int IZIP = (IZI+HT)%HT;  
+      
+		int NELXP = IZIP*VT+IYIP*HT+IXPLUSP;
+
+		//TEST  
+		xc=(IXPLUS+0.5);
+		yc=(IYI+0.5);
+		zc=(IZI+0.5);		
+		
+		vol1=(x4-xc)*((y2-yc)*(z3-zc)-(z2-zc)*(y3-yc));
+		vol1+=(y4-yc)*((z2-zc)*(x3-xc)-(x2-xc)*(z3-zc));
+		vol1+=(z4-zc)*((x2-xc)*(y3-yc)-(y2-yc)*(x3-xc));
+		vol1=abs(vol1)/6.;
+
+		vol2=(x4-x1)*((yc-y1)*(z3-z1)-(zc-z1)*(y3-y1));
+		vol2+=(y4-y1)*((zc-z1)*(x3-x1)-(xc-x1)*(z3-z1));
+		vol2+=(z4-z1)*((xc-x1)*(y3-y1)-(yc-y1)*(x3-x1));    
+		vol2=abs(vol2)/6.;
+
+		vol3=(x4-x1)*((y2-y1)*(zc-z1)-(z2-z1)*(yc-y1));
+		vol3+=(y4-y1)*((z2-z1)*(xc-x1)-(x2-x1)*(zc-z1));
+		vol3+=(z4-z1)*((x2-x1)*(yc-y1)-(y2-y1)*(xc-x1));    
+		vol3=abs(vol3)/6.;
+
+		vol4=(xc-x1)*((y2-y1)*(z3-z1)-(z2-z1)*(y3-y1));
+		vol4+=(yc-y1)*((z2-z1)*(x3-x1)-(x2-x1)*(z3-z1));
+		vol4+=(zc-z1)*((x2-x1)*(y3-y1)-(y2-y1)*(x3-x1));    
+		vol4=abs(vol4)/6.;						
+
+		som_vol=vol1+vol2+vol3+vol4;
+
+        bool bool1=0; 
+		if(abs(som_vol-volt)<1e-4){	
+		bool1=1;  
+		}
+		
+        if((bool1==1)&&(LIST_N[NELXP]==0)){
+	    LIST_N[NELXP]=it+1;        
+	    }
+	
+        int NELXM = IZIP*VT+IYIP*HT+IXMOINP;
+	
+ 		//TEST     
+		xc=(IXMOIN+0.5);
+		yc=(IYI+0.5);
+		zc=(IZI+0.5);	
+        
+		vol1=(x4-xc)*((y2-yc)*(z3-zc)-(z2-zc)*(y3-yc));
+		vol1+=(y4-yc)*((z2-zc)*(x3-xc)-(x2-xc)*(z3-zc));
+		vol1+=(z4-zc)*((x2-xc)*(y3-yc)-(y2-yc)*(x3-xc));
+		vol1=abs(vol1)/6.;
+
+		vol2=(x4-x1)*((yc-y1)*(z3-z1)-(zc-z1)*(y3-y1));
+		vol2+=(y4-y1)*((zc-z1)*(x3-x1)-(xc-x1)*(z3-z1));
+		vol2+=(z4-z1)*((xc-x1)*(y3-y1)-(yc-y1)*(x3-x1));    
+		vol2=abs(vol2)/6.;
+
+		vol3=(x4-x1)*((y2-y1)*(zc-z1)-(z2-z1)*(yc-y1));
+		vol3+=(y4-y1)*((z2-z1)*(xc-x1)-(x2-x1)*(zc-z1));
+		vol3+=(z4-z1)*((x2-x1)*(yc-y1)-(y2-y1)*(xc-x1));    
+		vol3=abs(vol3)/6.;
+
+		vol4=(xc-x1)*((y2-y1)*(z3-z1)-(z2-z1)*(y3-y1));
+		vol4+=(yc-y1)*((z2-z1)*(x3-x1)-(x2-x1)*(z3-z1));
+		vol4+=(zc-z1)*((x2-x1)*(y3-y1)-(y2-y1)*(x3-x1));    
+		vol4=abs(vol4)/6.;						
+
+		som_vol=vol1+vol2+vol3+vol4;
+
+        bool bool2=0; 
+		if(abs(som_vol-volt)<1e-4){	
+		bool2=1;  
+		}
+        
+        if((bool2==1)&&(LIST_N[NELXM]==0)){
+	    LIST_N[NELXM]=it+1;        
+	    }      
+        
+        }
+
+        for(int l=0;l<(2*BVOIS-1);l++){
+        int IXI = IX-BVOIS+l+1;     
+	    int IXIP = (IXI+HT)%HT;  
+
+        int NELXP = IZPLUSP*VT+IYIP*HT+IXIP;
+	
+		//TEST  
+		xc=(IXI+0.5);
+		yc=(IYI+0.5);
+		zc=(IZPLUS+0.5);		
+        
+        
+		vol1=(x4-xc)*((y2-yc)*(z3-zc)-(z2-zc)*(y3-yc));
+		vol1+=(y4-yc)*((z2-zc)*(x3-xc)-(x2-xc)*(z3-zc));
+		vol1+=(z4-zc)*((x2-xc)*(y3-yc)-(y2-yc)*(x3-xc));
+		vol1=abs(vol1)/6.;
+
+		vol2=(x4-x1)*((yc-y1)*(z3-z1)-(zc-z1)*(y3-y1));
+		vol2+=(y4-y1)*((zc-z1)*(x3-x1)-(xc-x1)*(z3-z1));
+		vol2+=(z4-z1)*((xc-x1)*(y3-y1)-(yc-y1)*(x3-x1));    
+		vol2=abs(vol2)/6.;
+
+		vol3=(x4-x1)*((y2-y1)*(zc-z1)-(z2-z1)*(yc-y1));
+		vol3+=(y4-y1)*((z2-z1)*(xc-x1)-(x2-x1)*(zc-z1));
+		vol3+=(z4-z1)*((x2-x1)*(yc-y1)-(y2-y1)*(xc-x1));    
+		vol3=abs(vol3)/6.;
+
+		vol4=(xc-x1)*((y2-y1)*(z3-z1)-(z2-z1)*(y3-y1));
+		vol4+=(yc-y1)*((z2-z1)*(x3-x1)-(x2-x1)*(z3-z1));
+		vol4+=(zc-z1)*((x2-x1)*(y3-y1)-(y2-y1)*(x3-x1));    
+		vol4=abs(vol4)/6.;						
+
+		som_vol=vol1+vol2+vol3+vol4;
+
+        bool bool3=0; 
+		if(abs(som_vol-volt)<1e-4){	
+		bool3=1;  
+		}
+        
+        if((bool3==1)&&(LIST_N[NELXP]==0)){
+	    LIST_N[NELXP]=it+1;        
+	    }           
+                
+        int NELXM = IZMOINP*VT+IYIP*HT+IXIP;
+
+		//TEST     
+		xc=(IXI+0.5);
+		yc=(IYI+0.5);
+		zc=(IZMOIN+0.5);	
+        
+		vol1=(x4-xc)*((y2-yc)*(z3-zc)-(z2-zc)*(y3-yc));
+		vol1+=(y4-yc)*((z2-zc)*(x3-xc)-(x2-xc)*(z3-zc));
+		vol1+=(z4-zc)*((x2-xc)*(y3-yc)-(y2-yc)*(x3-xc));
+		vol1=abs(vol1)/6.;
+
+		vol2=(x4-x1)*((yc-y1)*(z3-z1)-(zc-z1)*(y3-y1));
+		vol2+=(y4-y1)*((zc-z1)*(x3-x1)-(xc-x1)*(z3-z1));
+		vol2+=(z4-z1)*((xc-x1)*(y3-y1)-(yc-y1)*(x3-x1));    
+		vol2=abs(vol2)/6.;
+
+		vol3=(x4-x1)*((y2-y1)*(zc-z1)-(z2-z1)*(yc-y1));
+		vol3+=(y4-y1)*((z2-z1)*(xc-x1)-(x2-x1)*(zc-z1));
+		vol3+=(z4-z1)*((x2-x1)*(yc-y1)-(y2-y1)*(xc-x1));    
+		vol3=abs(vol3)/6.;
+
+		vol4=(xc-x1)*((y2-y1)*(z3-z1)-(z2-z1)*(y3-y1));
+		vol4+=(yc-y1)*((z2-z1)*(x3-x1)-(x2-x1)*(z3-z1));
+		vol4+=(zc-z1)*((x2-x1)*(y3-y1)-(y2-y1)*(x3-x1));    
+		vol4=abs(vol4)/6.;						
+
+		som_vol=vol1+vol2+vol3+vol4;
+
+        bool bool4=0; 
+		if(abs(som_vol-volt)<1e-4){	
+		bool4=1;  
+		}
+        
+        if((bool4==1)&&(LIST_N[NELXM]==0)){
+	    LIST_N[NELXM]=it+1;        
+	    }           
+                
+        }    
+    }
+    
+    for(int j=0;j<(2*BVOIS-1);j++){
+    int IXI = IX-BVOIS+j+1;        
+    int IXIP = (IXI+HT)%HT;  
+    
+        for(int k=0;k<(2*BVOIS-1);k++){
+        int IZI = IZ-BVOIS+k+1;     
+	    int IZIP = (IZI+HT)%HT;  
+    
+	    int NELXP = IZIP*VT+IYPLUSP*HT+IXIP;
+	
+		//TEST  
+		xc=(IXI+0.5);
+		yc=(IYPLUS+0.5);
+		zc=(IZI+0.5);		
+        
+		vol1=(x4-xc)*((y2-yc)*(z3-zc)-(z2-zc)*(y3-yc));
+		vol1+=(y4-yc)*((z2-zc)*(x3-xc)-(x2-xc)*(z3-zc));
+		vol1+=(z4-zc)*((x2-xc)*(y3-yc)-(y2-yc)*(x3-xc));
+		vol1=abs(vol1)/6.;
+
+		vol2=(x4-x1)*((yc-y1)*(z3-z1)-(zc-z1)*(y3-y1));
+		vol2+=(y4-y1)*((zc-z1)*(x3-x1)-(xc-x1)*(z3-z1));
+		vol2+=(z4-z1)*((xc-x1)*(y3-y1)-(yc-y1)*(x3-x1));    
+		vol2=abs(vol2)/6.;
+
+		vol3=(x4-x1)*((y2-y1)*(zc-z1)-(z2-z1)*(yc-y1));
+		vol3+=(y4-y1)*((z2-z1)*(xc-x1)-(x2-x1)*(zc-z1));
+		vol3+=(z4-z1)*((x2-x1)*(yc-y1)-(y2-y1)*(xc-x1));    
+		vol3=abs(vol3)/6.;
+
+		vol4=(xc-x1)*((y2-y1)*(z3-z1)-(z2-z1)*(y3-y1));
+		vol4+=(yc-y1)*((z2-z1)*(x3-x1)-(x2-x1)*(z3-z1));
+		vol4+=(zc-z1)*((x2-x1)*(y3-y1)-(y2-y1)*(x3-x1));    
+		vol4=abs(vol4)/6.;						
+
+		som_vol=vol1+vol2+vol3+vol4;
+
+        bool bool5=0; 
+		if(abs(som_vol-volt)<1e-4){	
+		bool5=1;  
+		}
+        
+        if((bool5==1)&&(LIST_N[NELXP]==0)){
+	    LIST_N[NELXP]=it+1;        
+	    }     
+        
+        int NELXM = IZIP*VT+IYMOINP*HT+IXIP;
+	
+		//TEST  
+		xc=(IXI+0.5);
+		yc=(IYMOIN+0.5);
+		zc=(IZI+0.5);		
+                
+		vol1=(x4-xc)*((y2-yc)*(z3-zc)-(z2-zc)*(y3-yc));
+		vol1+=(y4-yc)*((z2-zc)*(x3-xc)-(x2-xc)*(z3-zc));
+		vol1+=(z4-zc)*((x2-xc)*(y3-yc)-(y2-yc)*(x3-xc));
+		vol1=abs(vol1)/6.;
+
+		vol2=(x4-x1)*((yc-y1)*(z3-z1)-(zc-z1)*(y3-y1));
+		vol2+=(y4-y1)*((zc-z1)*(x3-x1)-(xc-x1)*(z3-z1));
+		vol2+=(z4-z1)*((xc-x1)*(y3-y1)-(yc-y1)*(x3-x1));    
+		vol2=abs(vol2)/6.;
+
+		vol3=(x4-x1)*((y2-y1)*(zc-z1)-(z2-z1)*(yc-y1));
+		vol3+=(y4-y1)*((z2-z1)*(xc-x1)-(x2-x1)*(zc-z1));
+		vol3+=(z4-z1)*((x2-x1)*(yc-y1)-(y2-y1)*(xc-x1));    
+		vol3=abs(vol3)/6.;
+
+		vol4=(xc-x1)*((y2-y1)*(z3-z1)-(z2-z1)*(y3-y1));
+		vol4+=(yc-y1)*((z2-z1)*(x3-x1)-(x2-x1)*(z3-z1));
+		vol4+=(zc-z1)*((x2-x1)*(y3-y1)-(y2-y1)*(x3-x1));    
+		vol4=abs(vol4)/6.;						
+
+		som_vol=vol1+vol2+vol3+vol4;
+
+        bool bool6=0; 
+		if(abs(som_vol-volt)<1e-4){	
+		bool6=1;  
+		}
+        	
+	    if((bool6==1)&&(LIST_N[NELXM]==0)){
+	    LIST_N[NELXM]=it+1;        
+	    }   	
+		
+           
+        }
+
+    }
+                                    
+        
+    }while(BVOIS<0.8*distmax);
+
+}
+
+for(int it=0;it<NT;it++){
+if(LIST_N[it] == 0){cout<<"number 0!"<<endl;}	
+}
+
+}
+
+
+void genesis_pri6(int NB_VER, R ** NOEUD, int ** PRI6,R * VOLT, int NT,int VT,int HT,int * LIST_N)
+{  
+
+for(int it=0;it<NT;it++){
+LIST_N[it] = 0;	
+}
+
+R xc,yc,zc,som_air,airt;
+
+for(int it=0;it<NB_VER;it++){
+if(it%1000==0){cout<<"it:"<<it<<"/"<<(NB_VER+1)<<endl;}
+  
+R volt=VOLT[it];  
+  
+R x1 = NOEUD[PRI6[it][0]][0]*R(HT)/100.;
+R y1 = NOEUD[PRI6[it][0]][1]*R(HT)/100.;
+R z1 = NOEUD[PRI6[it][0]][2]*R(HT)/100.;
+  
+R x2 = NOEUD[PRI6[it][1]][0]*R(HT)/100.;
+R y2 = NOEUD[PRI6[it][1]][1]*R(HT)/100.;
+R z2 = NOEUD[PRI6[it][1]][2]*R(HT)/100.; 
+   
+R x3 = NOEUD[PRI6[it][2]][0]*R(HT)/100.;
+R y3 = NOEUD[PRI6[it][2]][1]*R(HT)/100.;
+R z3 = NOEUD[PRI6[it][2]][2]*R(HT)/100.;  
+   
+R x4 = NOEUD[PRI6[it][3]][0]*R(HT)/100.;
+R y4 = NOEUD[PRI6[it][3]][1]*R(HT)/100.;
+R z4 = NOEUD[PRI6[it][3]][2]*R(HT)/100.;   
+
+R x5 = NOEUD[PRI6[it][4]][0]*R(HT)/100.;
+R y5 = NOEUD[PRI6[it][4]][1]*R(HT)/100.;
+R z5 = NOEUD[PRI6[it][4]][2]*R(HT)/100.;   
+  
+R x6 = NOEUD[PRI6[it][5]][0]*R(HT)/100.;
+R y6 = NOEUD[PRI6[it][5]][1]*R(HT)/100.;
+R z6 = NOEUD[PRI6[it][5]][2]*R(HT)/100.;   
+  
+R X_GRA = (x1+x2+x3+x4+x5+x6)/6.;
+R Y_GRA = (y1+y2+y3+y4+y5+y6)/6.;
+R Z_GRA = (z1+z2+z3+z4+z5+z6)/6.;
+
+int IX    = (int) floor(X_GRA);
+int IY    = (int) floor(Y_GRA);
+int IZ    = (int) floor(Z_GRA);
+
+int NUMA     = IZ*VT+IY*HT+IX;
+LIST_N[NUMA] = it+1;
+
+R dist12=sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1)+(z2-z1)*(z2-z1));
+R dist13=sqrt((x3-x1)*(x3-x1)+(y3-y1)*(y3-y1)+(z3-z1)*(z3-z1));
+R dist14=sqrt((x4-x1)*(x4-x1)+(y4-y1)*(y4-y1)+(z4-z1)*(z4-z1));
+R dist15=sqrt((x5-x1)*(x5-x1)+(y5-y1)*(y5-y1)+(z5-z1)*(z5-z1));
+R dist16=sqrt((x6-x1)*(x6-x1)+(y6-y1)*(y6-y1)+(z6-z1)*(z6-z1));
+R dist23=sqrt((x3-x2)*(x3-x2)+(y3-y2)*(y3-y2)+(z3-z2)*(z3-z2));
+R dist24=sqrt((x4-x2)*(x4-x2)+(y4-y2)*(y4-y2)+(z4-z2)*(z4-z2));
+R dist25=sqrt((x5-x2)*(x5-x2)+(y5-y2)*(y5-y2)+(z5-z2)*(z5-z2));
+R dist26=sqrt((x6-x2)*(x6-x2)+(y6-y2)*(y6-y2)+(z6-z2)*(z6-z2));
+R dist34=sqrt((x4-x3)*(x4-x3)+(y4-y3)*(y4-y3)+(z4-z3)*(z4-z3));
+R dist35=sqrt((x5-x3)*(x5-x3)+(y5-y3)*(y5-y3)+(z5-z3)*(z5-z3));
+R dist36=sqrt((x6-x3)*(x6-x3)+(y6-y3)*(y6-y3)+(z6-z3)*(z6-z3));
+R dist45=sqrt((x5-x4)*(x5-x4)+(y5-y4)*(y5-y4)+(z5-z4)*(z5-z4));
+R dist46=sqrt((x6-x4)*(x6-x4)+(y6-y4)*(y6-y4)+(z6-z4)*(z6-z4));
+R dist56=sqrt((x6-x5)*(x6-x5)+(y6-y5)*(y6-y5)+(z6-z5)*(z6-z5));
+
+R distmax=dist12;
+distmax=(dist13>distmax)?dist13:distmax;
+distmax=(dist14>distmax)?dist14:distmax;
+distmax=(dist15>distmax)?dist15:distmax;
+distmax=(dist16>distmax)?dist16:distmax;
+distmax=(dist23>distmax)?dist23:distmax;
+distmax=(dist24>distmax)?dist24:distmax;
+distmax=(dist25>distmax)?dist25:distmax;
+distmax=(dist26>distmax)?dist26:distmax;
+distmax=(dist34>distmax)?dist34:distmax;
+distmax=(dist35>distmax)?dist35:distmax;
+distmax=(dist36>distmax)?dist36:distmax;
+distmax=(dist45>distmax)?dist45:distmax;
+distmax=(dist46>distmax)?dist46:distmax;
+distmax=(dist56>distmax)?dist56:distmax;
+
+int BVOIS=0;
+
+    do
+    {  
+    BVOIS++;        
+    
+    int IXPLUS = IX+(BVOIS);
+    int IXMOIN = IX-(BVOIS);
+    int IYPLUS = IY+(BVOIS);
+    int IYMOIN = IY-(BVOIS);
+    int IZPLUS = IZ+(BVOIS);
+    int IZMOIN = IZ-(BVOIS);
+    
+    int IXPLUSP = (IXPLUS+HT)%HT;
+    int IXMOINP = (IXMOIN+HT)%HT;
+    int IYPLUSP = (IYPLUS+HT)%HT;
+    int IYMOINP = (IYMOIN+HT)%HT;    
+    int IZPLUSP = (IZPLUS+HT)%HT;
+    int IZMOINP = (IZMOIN+HT)%HT;   
+        
+    for(int j=0;j<(2*BVOIS+1);j++){
+    int IYI = IY-BVOIS+j;  
+    int IYIP = (IYI+HT)%HT;  
+    
+        for(int k=0;k<(2*BVOIS+1);k++){
+        int IZI = IZ-BVOIS+k;  
+	    int IZIP = (IZI+HT)%HT;  
+      
+		int NELXP = IZIP*VT+IYIP*HT+IXPLUSP;
+
+		//TEST  
+		xc=(IXPLUS+0.5);
+		yc=(IYI+0.5);
+		zc=(IZI+0.5);
+		
+		bool bool1=0;
+
+		som_air=0.;
+		som_air+=abs((x2-x1)*(zc-z1)-(z2-z1)*(xc-x1))/2.;
+		som_air+=abs((x3-x1)*(zc-z1)-(z3-z1)*(xc-x1))/2.;
+		som_air+=abs((x3-x2)*(zc-z2)-(z3-z2)*(xc-x2))/2.;
+			  
+
+		airt=abs((x3-x2)*(z1-z2)-(z3-z2)*(x1-x2))/2.;
+
+		if((abs(som_air-airt)<1e-4)&&(yc>=y1)&&(yc<=y4)){	
+		bool1=1;  
+		}
+
+        if((bool1==1)&&(LIST_N[NELXP]==0)){
+	    LIST_N[NELXP]=it+1;        
+	    }
+	
+        int NELXM = IZIP*VT+IYIP*HT+IXMOINP;
+	
+ 		//TEST     
+		xc=(IXMOIN+0.5);
+		yc=(IYI+0.5);
+		zc=(IZI+0.5);	
+
+		bool bool2=0;
+
+		som_air=0.;
+		som_air+=abs((x2-x1)*(zc-z1)-(z2-z1)*(xc-x1))/2.;
+		som_air+=abs((x3-x1)*(zc-z1)-(z3-z1)*(xc-x1))/2.;
+		som_air+=abs((x3-x2)*(zc-z2)-(z3-z2)*(xc-x2))/2.;
+			  
+
+		airt=abs((x3-x2)*(z1-z2)-(z3-z2)*(x1-x2))/2.;
+
+		if((abs(som_air-airt)<1e-4)&&(yc>=y1)&&(yc<=y4)){	
+		bool2=1;  
+		}
+
+        if((bool2==1)&&(LIST_N[NELXM]==0)){
+	    LIST_N[NELXM]=it+1;        
+	    }      
+        
+        }
+
+        for(int l=0;l<(2*BVOIS-1);l++){
+        int IXI = IX-BVOIS+l+1;     
+	    int IXIP = (IXI+HT)%HT;  
+
+        int NELXP = IZPLUSP*VT+IYIP*HT+IXIP;
+	
+		//TEST  
+		xc=(IXI+0.5);
+		yc=(IYI+0.5);
+		zc=(IZPLUS+0.5);
+
+		bool bool3=0;
+
+		som_air=0.;
+		som_air+=abs((x2-x1)*(zc-z1)-(z2-z1)*(xc-x1))/2.;
+		som_air+=abs((x3-x1)*(zc-z1)-(z3-z1)*(xc-x1))/2.;
+		som_air+=abs((x3-x2)*(zc-z2)-(z3-z2)*(xc-x2))/2.;
+			  
+
+		airt=abs((x3-x2)*(z1-z2)-(z3-z2)*(x1-x2))/2.;
+
+		if((abs(som_air-airt)<1e-4)&&(yc>=y1)&&(yc<=y4)){	
+		bool3=1;  
+		}
+
+        if((bool3==1)&&(LIST_N[NELXP]==0)){
+	    LIST_N[NELXP]=it+1;        
+	    }           
+                
+        int NELXM = IZMOINP*VT+IYIP*HT+IXIP;
+
+		//TEST     
+		xc=(IXI+0.5);
+		yc=(IYI+0.5);
+		zc=(IZMOIN+0.5);
+		
+		bool bool4=0;
+
+		som_air=0.;
+		som_air+=abs((x2-x1)*(zc-z1)-(z2-z1)*(xc-x1))/2.;
+		som_air+=abs((x3-x1)*(zc-z1)-(z3-z1)*(xc-x1))/2.;
+		som_air+=abs((x3-x2)*(zc-z2)-(z3-z2)*(xc-x2))/2.;
+			  
+
+		airt=abs((x3-x2)*(z1-z2)-(z3-z2)*(x1-x2))/2.;
+
+		if((abs(som_air-airt)<1e-4)&&(yc>=y1)&&(yc<=y4)){	
+		bool4=1;  
+		}
+
+        if((bool4==1)&&(LIST_N[NELXM]==0)){
+	    LIST_N[NELXM]=it+1;        
+	    }           
+                
+        }    
+    }
+    
+    for(int j=0;j<(2*BVOIS-1);j++){
+    int IXI = IX-BVOIS+j+1;        
+    int IXIP = (IXI+HT)%HT;  
+    
+        for(int k=0;k<(2*BVOIS-1);k++){
+        int IZI = IZ-BVOIS+k+1;     
+	    int IZIP = (IZI+HT)%HT;  
+    
+	    int NELXP = IZIP*VT+IYPLUSP*HT+IXIP;
+	
+		//TEST  
+		xc=(IXI+0.5);
+		yc=(IYPLUS+0.5);
+		zc=(IZI+0.5);
+		
+		bool bool5=0;
+
+		som_air=0.;
+		som_air+=abs((x2-x1)*(zc-z1)-(z2-z1)*(xc-x1))/2.;
+		som_air+=abs((x3-x1)*(zc-z1)-(z3-z1)*(xc-x1))/2.;
+		som_air+=abs((x3-x2)*(zc-z2)-(z3-z2)*(xc-x2))/2.;
+			  
+
+		airt=abs((x3-x2)*(z1-z2)-(z3-z2)*(x1-x2))/2.;
+
+		if((abs(som_air-airt)<1e-4)&&(yc>=y1)&&(yc<=y4)){	
+		bool5=1;  
+		}
+
+        if((bool5==1)&&(LIST_N[NELXP]==0)){
+	    LIST_N[NELXP]=it+1;        
+	    }     
+        
+        int NELXM = IZIP*VT+IYMOINP*HT+IXIP;
+	
+		//TEST  
+		xc=(IXI+0.5);
+		yc=(IYMOIN+0.5);
+		zc=(IZI+0.5);
+		
+		bool bool6=0;
+
+		som_air=0.;
+		som_air+=abs((x2-x1)*(zc-z1)-(z2-z1)*(xc-x1))/2.;
+		som_air+=abs((x3-x1)*(zc-z1)-(z3-z1)*(xc-x1))/2.;
+		som_air+=abs((x3-x2)*(zc-z2)-(z3-z2)*(xc-x2))/2.;			  
+
+		airt=abs((x3-x2)*(z1-z2)-(z3-z2)*(x1-x2))/2.;
+
+		if((abs(som_air-airt)<1e-4)&&(yc>=y1)&&(yc<=y4)){	
+		bool6=1;  
+		}	
+
+	    if((bool6==1)&&(LIST_N[NELXM]==0)){
+	    LIST_N[NELXM]=it+1;        
+	    }   	
+		
+           
+        }
+
+    }
+                                    
+        
+    }while(BVOIS<distmax);
+
+}
+
+long tot=0;
+for(int it=0;it<NT;it++){
+if(LIST_N[it] == 0){cout<<it<<" -- number 0!"<<endl;}	
+tot+=LIST_N[it];
+}
+cout<<"tot:"<<tot<<endl;
+
+}
