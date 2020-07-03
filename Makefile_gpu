@@ -1,0 +1,29 @@
+CXXFLAGS   = -Wall -g -O3 -fopenmp #-w -fast -Wefc++ 
+CXX        = g++ -w 
+NVCCFLAGS = -g -O3 -Xcompiler -fopenmp -D_FORCE_INLINES #-L /usr/local/cuda/lib -lcudart
+NVCC       = nvcc -w
+
+SRCS = $(wildcard SOURCE/*/*.cpp)
+SRCC = $(wildcard SOURCE/*/*.cu)
+BIN  = $(wildcard SOURCE/*/*.o)
+HEAD = $(wildcard SOURCE/*/*.h)
+OBJS= $(SRCS:.cpp=.o)
+OBJC= $(SRCC:.cu=.o)
+EXEC= multi3D
+
+all: $(EXEC)
+
+$(EXEC) : $(OBJS) $(OBJC) 
+	$(NVCC) $(NVCCFLAGS) -o $@ $^  -lrt	
+
+SOURCE/MAIN/main.o: $(SRCS) $(SRCC) $(HEAD) 
+
+%.o: %.cpp 
+	$(CXX) $(CXXFLAGS) -o $@ -c  $< 
+
+%.o: %.cu 
+	$(NVCC) $(NVCCFLAGS) -o $@ -c  $<
+	  
+clean:
+	-rm $(BIN)		
+	-rm $(EXEC)

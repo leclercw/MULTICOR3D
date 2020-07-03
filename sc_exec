@@ -1,0 +1,7 @@
+export OMP_STACKSIZE=10g
+
+rm -f DATA/*.txt
+rm -f DATA/*.png
+rm -f VISU/v*
+
+./multi3D	

@@ -1,0 +1,20 @@
+export OMP_STACKSIZE=10g
+
+rm -f DATA/*.txt
+rm -f DATA/*.png
+rm -f VISU/v*
+
+# files 
+vfil=(APPLI/carttest/*.epl)
+nfil=${#vfil[*]}
+
+for ((k=0 ; $nfil - $k ; k++))
+do 
+
+mv ${vfil[$k]} APPLI/carttest/test
+./multi3D
+rm APPLI/carttest/test
+
+done
+
+
